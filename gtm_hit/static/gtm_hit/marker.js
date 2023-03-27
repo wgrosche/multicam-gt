@@ -14,6 +14,7 @@ var zoomOn = false;
 var toggle_cuboid = true;
 var toggle_unselected = false;
 
+var undistort_frames_path ='';
 var zoomratio = [];
 var rotation = [50, 230, 150, 75, 265, 340, 80];
 var bounds = [[0, 396, 1193, 180, 1883, 228, 1750, 1080], [0, 344, 1467, 77, 1920, 82, -1, -1],
@@ -77,8 +78,10 @@ window.onload = function () {
 
     loadcount = 0;
     $("#loader").show();
+
+    if (useUndistorted=="True") undistort_frames_path="undistorted_"
     // imgArray[i].src = '../../static/gtm_hit/dset/'+dset_name+'/frames/'+ camName[i]+ '/'+frame_str+'.png'; // change 00..0 by a frame variable
-    imgArray[i].src = '../../static/gtm_hit/dset/' + dset_name + '/frames/' + camName[i] + '/' + frame_str + '.jpg'; // change 00..0 by a frame variable
+    imgArray[i].src = '../../static/gtm_hit/dset/' + dset_name + '/'+undistort_frames_path+'frames/' + camName[i] + '/' + frame_str + '.jpg'; // change 00..0 by a frame variable
     //imgArray[i].src = '../../static/gtm_hit/frames/'+ camName[i]+frame_str+'.png'; // change 00..0 by a frame variable
   }
 
@@ -760,7 +763,7 @@ function changeFrame(order, increment) {
       fstr = parseInt(frame_str);
       $("#frameID").html("Frame ID: " + fstr.toString() + "&nbsp;&nbsp;");
       for (var i = 0; i < nb_cams; i++)
-        imgArray[i].src = '../../static/gtm_hit/dset/' + dset_name + '/frames/' + camName[i] + '/' + frame_str + '.jpg'; // change 00..0 by a frame variable
+        imgArray[i].src = '../../static/gtm_hit/dset/' + dset_name + '/'+undistort_frames_path+'frames/' + camName[i] + '/' + frame_str + '.jpg'; // change 00..0 by a frame variable
       //imgArray[i].src = '../../static/gtm_hit/frames/'+ camName[i]+frame_str+'.png'; // change 00..0 by a frame variable
 
     },
@@ -798,32 +801,55 @@ function validate() {
   return false;
 }
 
-function changeID() {
+// function changeID() {
+//   var newID = parseInt($("#pID").val());
+//   if (rectsID.length > 0 && newID >= 0) {
+//     var rid = rectsID[chosen_rect];
+//     var pid = identities[rid];
+//     var match = false;
+//     for (key in identities) {
+//       if (identities[key] == newID)
+//         match = true;
+//     }
+//     if (!match) {
+//       validation[newID] = validation[pid];
+//       delete validation[pid];
+//       identities[rid] = newID;
+//       for (key in boxes) {
+//         if (pid in boxes[key]) {
+//           var args = boxes[key][pid];
+//           boxes[key][newID] = args;
+//           delete boxes[key][pid];
+//         }
+//       }
+//       $("#pID").val(newID);
+//     } else {
+//       $("#pID").val(pid);
+//     }
+//   }
+// }
+
+function changeID(opt) {
   var newID = parseInt($("#pID").val());
-  if (rectsID.length > 0 && newID >= 0) {
-    var rid = rectsID[chosen_rect];
-    var pid = identities[rid];
-    var match = false;
-    for (key in identities) {
-      if (identities[key] == newID)
-        match = true;
-    }
-    if (!match) {
-      validation[newID] = validation[pid];
-      delete validation[pid];
-      identities[rid] = newID;
-      for (key in boxes) {
-        if (pid in boxes[key]) {
-          var args = boxes[key][pid];
-          boxes[key][newID] = args;
-          delete boxes[key][pid];
-        }
-      }
+  if (opt==undefined)opt="";
+  const old_chosen_rect = chosen_rect;
+  $.ajax({
+    method: "POST",
+    url: "changeid",
+    data: {
+      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+      newID: newID,
+      frameID: parseInt(frame_str),
+      ID: identities[rectsID[chosen_rect]],
+      options: opt
+    },
+    dataType: "json",
+    success: function (msg) {
+      loader_db('load');
       $("#pID").val(newID);
-    } else {
-      $("#pID").val(pid);
+      chosen_rect = old_chosen_rect;
     }
-  }
+  });
 }
 
 function sendAJAX(uri, data, id, suc, load) {
@@ -1057,15 +1083,19 @@ function drawRect() {
     }
   }
   if (chosen_rect >= 0) {
-    let box = boxes[key][identities[rectsID[chosen_rect]]];
+    let pid = identities[rectsID[chosen_rect]];
+    let box = boxes[key][pid];
     $("#pHeight").text(box.object_size[0]);
     $("#pWidth").text(box.object_size[1]);
     $("#pLength").text(box.object_size[2]);
+    $("#pID").text(pid);
+
 
   } else {
     $("#pHeight").text(-1);
     $("#pWidth").text(-1);
     $("#pLength").text(-1);
+    $("#pID").text(-1);
   }
 
 }
@@ -1266,7 +1296,7 @@ function load_frame(frame_string) {
   for (var i = 0; i < cameras; i++)
     //imgArray[i].src = '../../static/marker/day_2/annotation_final/'+ camName[i]+ '/begin/'+frame_string+'.png'; // change 00..0 by a frame variable
     // imgArray[i].src = '../../static/gtm_hit/dset/rayon4/frames/'+ camName[i]+"/"+frame_str+'.png'; // change 00..0 by a frame variable
-    imgArray[i].src = '../../static/gtm_hit/dset/invision/frames/' + camName[i] + "/" + frame_str + '.jpg'; // change 00..0 by a frame variable
+    imgArray[i].src = '../../static/gtm_hit/dset/invision/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg'; // change 00..0 by a frame variable
 
   clean();
   update();

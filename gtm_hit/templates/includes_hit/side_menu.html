@@ -4,7 +4,18 @@
 <div class="well col-sm-12 big">
   <h4 class="col-sm-12">Infos</h4>
   <div class="col-sm-12">
-    <label for="pHeight" class="col-sm-5">Person height:</label>
+    <label for="pID" class="col-sm-5">Person ID:</label>
+    <div class="btn-group" role="group">
+    <button class="btn btn-primary" onclick="changeID('past')">Propagate Backwards</button>
+
+    <button class="btn btn-primary" onclick="changeID()">Change Current</button>
+    <button class="btn btn-primary" onclick="changeID('future')">Propagate Forwards</button>
+  </div>
+    <input class="panel col-sm-2" id="pID"></input>
+    </div>
+  </div>
+  <div class="col-sm-12">
+    <label for="pHeight" class="col-smnc-5">Person height:</label>
     <button class="btn btn-primary" onclick="decreaseHeight()">-</button>
     <button class="btn btn-primary" onclick="increaseHeight()">+</button>
 

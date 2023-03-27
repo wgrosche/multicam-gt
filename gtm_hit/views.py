@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from curses.textpad import rectangle
-from django.shortcuts import get_object_or_404,render, redirect
+from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
@@ -10,9 +10,11 @@ from django.urls import reverse
 from django.views import generic
 from django.utils import timezone
 from django.conf import settings
-from .models import Worker, ValidationCode,MultiViewFrame, View, Annotation, Annotation2DView, Person
+from .models import Worker, ValidationCode, MultiViewFrame, View, Annotation, Annotation2DView, Person
 from django.template import RequestContext
 from django.http import JsonResponse
+from django.db import models
+from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
 import re
 import json
@@ -27,6 +29,7 @@ from gtm_hit.misc.utils import convert_rect_to_dict, request_to_dict, process_ac
 from pprint import pprint
 import uuid
 
+
 def requestID(request):
     context = RequestContext(request).flatten()
     if request.method == "POST":
@@ -35,12 +38,13 @@ def requestID(request):
             pattern = re.compile("^[A-Z0-9]+$")
             if pattern.match(workerID):
                 return redirect("/gtm_hit/"+workerID+"/processInit")
-    return render(request, 'gtm_hit/requestID.html',context)
+    return render(request, 'gtm_hit/requestID.html', context)
+
 
 def processInit(request, workerID):
     context = RequestContext(request).flatten()
     try:
-        w = Worker.objects.get(pk = workerID)
+        w = Worker.objects.get(pk=workerID)
         if w.state == -1:
             w.state = 0
             w.save()
@@ -48,21 +52,23 @@ def processInit(request, workerID):
     except Worker.DoesNotExist:
         return redirect("/gtm_hit/"+workerID)
 
-def index(request,workerID):
+
+def index(request, workerID):
     context = RequestContext(request).flatten()
     try:
-        w = Worker.objects.get(pk = workerID)
+        w = Worker.objects.get(pk=workerID)
         if w.state != 0:
             return redirect("/gtm_hit/"+workerID)
-        return render(request, 'gtm_hit/index.html',{'workerID' : workerID, **context})
+        return render(request, 'gtm_hit/index.html', {'workerID': workerID, **context})
 
     except Worker.DoesNotExist:
         return redirect("/gtm_hit/"+workerID)
 
+
 def processIndex(request, workerID):
     context = RequestContext(request)
     try:
-        w = Worker.objects.get(pk = workerID)
+        w = Worker.objects.get(pk=workerID)
         if w.state == 0:
             w.state = 3
             w.save()
@@ -70,18 +76,19 @@ def processIndex(request, workerID):
         return redirect("/gtm_hit/"+workerID)
     return redirect("/gtm_hit/"+workerID)
 
-def dispatch(request,workerID):
+
+def dispatch(request, workerID):
     context = RequestContext(request)
     try:
-        w = Worker.objects.get(pk = workerID)
+        w = Worker.objects.get(pk=workerID)
         try:
-            code = ValidationCode.objects.get(worker_id = w)
+            code = ValidationCode.objects.get(worker_id=w)
             stop = False
             i = 2
             while not stop:
                 try:
-                    w2 = Worker.objects.get(pk = workerID+str(i))
-                    c2 = ValidationCode.objects.get(worker_id = w2)
+                    w2 = Worker.objects.get(pk=workerID+str(i))
+                    c2 = ValidationCode.objects.get(worker_id=w2)
                     i = i + 1
                 except Worker.DoesNotExist:
                     stop = True
@@ -96,7 +103,7 @@ def dispatch(request,workerID):
     state = w.state
     if state == 0:
         return redirect(workerID+'/index')
-        #return render(request, 'gtm_hit/frame.html',{'frame_number': frame_number, 'workerID' : workerID},context)
+        # return render(request, 'gtm_hit/frame.html',{'frame_number': frame_number, 'workerID' : workerID},context)
     elif state == 1:
         return redirect(workerID+'/frame')
 #        return render(request, 'gtm_hit/finish.html',{'workerID' : workerID, 'validation_code' : validation_code},context)
@@ -107,15 +114,16 @@ def dispatch(request,workerID):
         return redirect(workerID+'/tuto')
     elif state == -1:
         return redirect(workerID+'/processInit')
-        #return render(request, 'gtm_hit/index.html',{'workerID' : workerID},context)
+        # return render(request, 'gtm_hit/index.html',{'workerID' : workerID},context)
     else:
         return redirect(workerID+'/index')
-        #return render(request, 'gtm_hit/index.html',{'workerID' : workerID},context)
+        # return render(request, 'gtm_hit/index.html',{'workerID' : workerID},context)
 
-def frame(request,workerID):
+
+def frame(request, workerID):
     context = RequestContext(request).flatten()
     try:
-        w = Worker.objects.get(pk = workerID)
+        w = Worker.objects.get(pk=workerID)
         if w.state != 1:
             return redirect("/gtm_hit/"+workerID)
         if w.frameNB < 0:
@@ -123,14 +131,15 @@ def frame(request,workerID):
             w.save()
         frame_number = w.frameNB
         nblabeled = w.frame_labeled
-        return render(request, 'gtm_hit/frame.html',{'dset_name':settings.DSETNAME, 'frame_number': frame_number, 'frame_inc':settings.INCREMENT, 'workerID': workerID,'cams': settings.CAMS, 'frame_size':settings.FRAME_SIZES, 'nb_cams':settings.NB_CAMS, 'nblabeled' : nblabeled, **context})
+        return render(request, 'gtm_hit/frame.html', {'dset_name': settings.DSETNAME, 'frame_number': frame_number, 'frame_inc': settings.INCREMENT, 'workerID': workerID, 'cams': settings.CAMS, 'frame_size': settings.FRAME_SIZES, 'nb_cams': settings.NB_CAMS, 'nblabeled': nblabeled, **context, "undistort": settings.UNDISTORTED_FRAMES})
     except Worker.DoesNotExist:
         return redirect("/gtm_hit/"+workerID)
 
-def processFrame(request,workerID):
+
+def processFrame(request, workerID):
     context = RequestContext(request)
     try:
-        w = Worker.objects.get(pk = workerID)
+        w = Worker.objects.get(pk=workerID)
         if w.state == 1 and w.frame_labeled >= 500:
             w.state = 2
             timelist = w.getTimeList()
@@ -141,10 +150,11 @@ def processFrame(request,workerID):
     except Worker.DoesNotExist:
         return redirect("/gtm_hit/"+workerID)
 
-def finish(request,workerID):
+
+def finish(request, workerID):
     context = RequestContext(request).flatten()
     try:
-        w = Worker.objects.get(pk = workerID)
+        w = Worker.objects.get(pk=workerID)
         if w.state == 2:
             validation_code = generate_code(w)
             startframe = w.frameNB - (w.frame_labeled*5)
@@ -152,32 +162,38 @@ def finish(request,workerID):
                 settings.UNLABELED.remove(startframe)
             except ValueError:
                 pass
-            return render(request, 'gtm_hit/finish.html',{'workerID': workerID, 'validation_code': validation_code, **context})
+            return render(request, 'gtm_hit/finish.html', {'workerID': workerID, 'validation_code': validation_code, **context})
     except Worker.DoesNotExist:
         return redirect("/gtm_hit/"+workerID)
     return redirect("/gtm_hit/"+workerID)
 
+
 def is_ajax(request):
     return request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
 
-def get_cuboids_2d(world_point,obj):
+
+def get_cuboids_2d(world_point, obj):
     rectangles = list()
-    rect_id = str(int(world_point[0])) + "_" + str(int(world_point[1])) + "_" +uuid.uuid1().__str__().split("-")[0]
-    ###set_trace()
+    rect_id = str(int(world_point[0])) + "_" + str(int(world_point[1])
+                                                   ) + "_" + uuid.uuid1().__str__().split("-")[0]
+    # set_trace()
 
     if "object_size" in obj:
         object_size = obj["object_size"]
-    else: 
+    else:
         object_size = [settings.HEIGHT, settings.RADIUS, settings.RADIUS]
 
     for cam_id in range(settings.NB_CAMS):
-        ###set_trace()
-        cuboid = geometry.get_cuboid_from_ground_world(world_point, settings.CALIBS[cam_id], *object_size, obj.get("rotation_theta",0))
-        p1,p2 = geometry.get_bounding_box(cuboid)
-        rectangle_as_dict = convert_rect_to_dict((*p1,*p2),cuboid, cam_id, rect_id, world_point,object_size,obj.get("rotation_theta",0))
-        rectangles.append(rectangle_as_dict)    
+        # set_trace()
+        cuboid = geometry.get_cuboid_from_ground_world(
+            world_point, settings.CALIBS[cam_id], *object_size, obj.get("rotation_theta", 0))
+        p1, p2 = geometry.get_bounding_box(cuboid)
+        rectangle_as_dict = convert_rect_to_dict(
+            (*p1, *p2), cuboid, cam_id, rect_id, world_point, object_size, obj.get("rotation_theta", 0))
+        rectangles.append(rectangle_as_dict)
 
     return rectangles
+
 
 def click(request):
     if is_ajax(request):
@@ -186,19 +202,21 @@ def click(request):
         y = int(float(request.POST['y']))
         obj = request_to_dict(request)
         cam = request.POST['canv']
-        cam = int(re.findall('\d+',cam)[0]) - 1
+        cam = int(re.findall('\d+', cam)[0]) - 1
         if 0 <= cam < settings.NB_CAMS:
             feet2d_h = np.array([[x], [y], [1]])
-            ###set_trace()
-            world_point = geometry.reproject_to_world_ground(feet2d_h, settings.CALIBS[cam].K, settings.CALIBS[cam].R, settings.CALIBS[cam].T)
+            # set_trace()
+            world_point = geometry.reproject_to_world_ground(
+                feet2d_h, settings.CALIBS[cam].K, settings.CALIBS[cam].R, settings.CALIBS[cam].T)
 
-            rectangles = get_cuboids_2d(world_point,obj)
+            rectangles = get_cuboids_2d(world_point, obj)
 
             rect_json = json.dumps(rectangles)
-            return HttpResponse(rect_json,content_type="application/json")
+            return HttpResponse(rect_json, content_type="application/json")
 
         return HttpResponse("OK")
-    
+
+
 def move(request):
     if is_ajax(request):
         try:
@@ -207,65 +225,71 @@ def move(request):
             Xw = obj["Xw"]
             Yw = obj["Yw"]
             Zw = obj["Zw"]
-            
-            world_point = np.array([[Xw], [Yw], [Zw]])  
+
+            world_point = np.array([[Xw], [Yw], [Zw]])
             if request.POST['data[dir]'] == "down":
-                world_point = world_point + np.array([[0], [-settings.STEPL], [0]])
-                
+                world_point = world_point + \
+                    np.array([[0], [-settings.STEPL], [0]])
+
             elif request.POST['data[dir]'] == "up":
-                world_point = world_point + np.array([[0], [settings.STEPL], [0]])
-                
+                world_point = world_point + \
+                    np.array([[0], [settings.STEPL], [0]])
+
             elif request.POST['data[dir]'] == "right":
-                world_point = world_point + np.array([[settings.STEPL], [0], [0]])
+                world_point = world_point + \
+                    np.array([[settings.STEPL], [0], [0]])
 
             elif request.POST['data[dir]'] == "left":
-                world_point = world_point + np.array([[-settings.STEPL], [0], [0]])
+                world_point = world_point + \
+                    np.array([[-settings.STEPL], [0], [0]])
 
             else:
                 return HttpResponse("Error")
-            
-            ###set_trace()
-            next_rect = get_cuboids_2d(world_point,obj)
+
+            # set_trace()
+            next_rect = get_cuboids_2d(world_point, obj)
 
             next_rect_json = json.dumps(next_rect)
-            ###set_trace()
-            return HttpResponse(next_rect_json,content_type="application/json")
+            # set_trace()
+            return HttpResponse(next_rect_json, content_type="application/json")
 
         except KeyError:
             return HttpResponse("Error")
     return HttpResponse("Error")
 
+
 def action(request):
-    ###set_trace()
-    ###set_trace()
+    # set_trace()
+    # set_trace()
     if is_ajax(request):
         try:
-            
+
             obj = json.loads(request.POST["data"])
-           
-            obj["object_size"] =obj["object_size"]#[::-1]
-            
+
+            obj["object_size"] = obj["object_size"]  # [::-1]
+
             obj = process_action(obj)
             Xw = obj["Xw"]
             Yw = obj["Yw"]
             Zw = obj["Zw"]
-            
+
             world_point = np.array([[Xw], [Yw], [Zw]])
-            next_rect = get_cuboids_2d(world_point,obj)
+            next_rect = get_cuboids_2d(world_point, obj)
 
             next_rect_json = json.dumps(next_rect)
-            ###set_trace()
-            return HttpResponse(next_rect_json,content_type="application/json")
+            # set_trace()
+            return HttpResponse(next_rect_json, content_type="application/json")
         except KeyError:
             return HttpResponse("Error")
     return HttpResponse("Error")
 
+
 def save(request):
     return save_db(request)
-    ###set_trace()
+    # set_trace()
     if is_ajax(request):
         try:
-            ###set_trace()
+            # set_trace()
             data = json.loads(request.POST['data'])
             frameID = request.POST['ID']
             wid = request.POST['workerID']
@@ -278,22 +302,27 @@ def save(request):
             #     row = data[r]
             #     row.insert(0,r)
             #     annotations.append(row)
-            ###set_trace()
-            if not os.path.exists("./gtm_hit/labels/"+settings.DSETNAME+"/"+ wid +"/"):
-                    os.makedirs("./gtm_hit/labels/"+settings.DSETNAME+"/"+ wid +"/")
-            with open("./gtm_hit/labels/"+settings.DSETNAME+"/"+ wid +"/"+ wid + "_" + frameID + '.json', 'w') as outFile:
-                #create dir if not exist
-                json.dump(data, outFile, sort_keys=True, indent=4, separators=(',', ': '))
+            # set_trace()
+            if not os.path.exists("./gtm_hit/labels/"+settings.DSETNAME+"/" + wid + "/"):
+                os.makedirs("./gtm_hit/labels/" +
+                            settings.DSETNAME+"/" + wid + "/")
+            with open("./gtm_hit/labels/"+settings.DSETNAME+"/" + wid + "/" + wid + "_" + frameID + '.json', 'w') as outFile:
+                # create dir if not exist
+                json.dump(data, outFile, sort_keys=True,
+                          indent=4, separators=(',', ': '))
 
-            if not os.path.exists("./gtm_hit/static/gtm_hit/dset/"+settings.DSETNAME+"/labels/"+ wid +"/"):
-                    os.makedirs("./gtm_hit/static/gtm_hit/dset/"+settings.DSETNAME+"/labels/"+ wid +"/")
-            with open("./gtm_hit/static/gtm_hit/dset/"+settings.DSETNAME+"/labels/"+ wid +"/"+ wid+ "_" + frameID + '.json', 'w') as outFile:
-                json.dump(data, outFile, sort_keys=True, indent=4, separators=(',', ': '))
+            if not os.path.exists("./gtm_hit/static/gtm_hit/dset/"+settings.DSETNAME+"/labels/" + wid + "/"):
+                os.makedirs("./gtm_hit/static/gtm_hit/dset/" +
+                            settings.DSETNAME+"/labels/" + wid + "/")
+            with open("./gtm_hit/static/gtm_hit/dset/"+settings.DSETNAME+"/labels/" + wid + "/" + wid + "_" + frameID + '.json', 'w') as outFile:
+                json.dump(data, outFile, sort_keys=True,
+                          indent=4, separators=(',', ': '))
             return HttpResponse("Saved")
         except KeyError:
             return HttpResponse("Error")
     else:
         return("Error")
+
 
 def load(request):
     return load_db(request)
@@ -301,11 +330,12 @@ def load(request):
         try:
             frameID = request.POST['ID']
             wid = request.POST['workerID']
-            rect_json = read_save(frameID,wid)
-            return HttpResponse(rect_json,content_type="application/json")
+            rect_json = read_save(frameID, wid)
+            return HttpResponse(rect_json, content_type="application/json")
         except (FileNotFoundError, KeyError):
             return HttpResponse("Error")
     return HttpResponse("Error")
+
 
 def load_previous(request):
     if is_ajax(request):
@@ -317,7 +347,7 @@ def load_previous(request):
             closest = float('inf')
             diff = float('inf')
 
-            for f in os.listdir("./gtm_hit/static/gtm_hit/dset/"+settings.DSETNAME+"/labels/"+ wid +"/"):
+            for f in os.listdir("./gtm_hit/static/gtm_hit/dset/"+settings.DSETNAME+"/labels/" + wid + "/"):
                 if f.endswith(".json"):
                     nb_frame = int((f.split('.')[0]).split('_')[1])
                     if nb_frame < current_frame:
@@ -326,22 +356,25 @@ def load_previous(request):
                             closest = nb_frame
             if closest != float('inf'):
                 frame = "0" * (8 - len(str(closest))) + str(closest)
-                rect_json = read_save(frame,wid)
-                return HttpResponse(rect_json,content_type="application/json")
+                rect_json = read_save(frame, wid)
+                return HttpResponse(rect_json, content_type="application/json")
         except (FileNotFoundError, KeyError):
             return HttpResponse("Error")
     return HttpResponse("Error")
 
-def read_save(frameID,workerID):
-    ###set_trace()
-    filename = "./gtm_hit/static/gtm_hit/dset/"+settings.DSETNAME+"/labels/"+ workerID +"/"+ workerID + "_" + frameID + '.json'
-    with open(filename,'r') as loadFile:
+
+def read_save(frameID, workerID):
+    # set_trace()
+    filename = "./gtm_hit/static/gtm_hit/dset/"+settings.DSETNAME + \
+        "/labels/" + workerID + "/" + workerID + "_" + frameID + '.json'
+    with open(filename, 'r') as loadFile:
         annotations = json.load(loadFile)
     return json.dumps(annotations)
 
+
 def changeframe(request):
     context = RequestContext(request)
-    ##set_trace()
+    #set_trace()
     if is_ajax(request):
         frame = 0
         try:
@@ -350,16 +383,16 @@ def changeframe(request):
             frame_number = request.POST['frameID']
             increment = request.POST['incr']
 
-            worker = Worker.objects.get(pk = wID)
+            worker = Worker.objects.get(pk=wID)
 
-            ###set_trace()
+            # set_trace()
             worker.increaseFrame(1)
             worker.save()
             timelist = worker.getTimeList()
             timelist.append(timezone.now().isoformat())
             worker.setTimeList(timelist)
             #validation_code = generate_code()
-            #return render(request, 'gtm_hit/finish.html',{'workerID' : wID, 'validation_code': validation_code},context)
+            # return render(request, 'gtm_hit/finish.html',{'workerID' : wID, 'validation_code': validation_code},context)
             if order == "next":
                 frame = int(frame_number) + int(increment)
             elif order == "prev" and (int(frame_number) - int(increment)) >= 0:
@@ -378,15 +411,16 @@ def changeframe(request):
     else:
         return HttpResponse("Error")
 
+
 def get_rect(closest):
     rects = []
     for i in range(settings.NB_CAMS):
         rdic = {}
         rdic['rectangleID'] = closest
         if closest in settings.RECT[i]:
-            a,b,c,d,ratio = settings.RECT[i][closest]
+            a, b, c, d, ratio = settings.RECT[i][closest]
         else:
-            a,b,c,d,ratio = 0,0,0,0,0
+            a, b, c, d, ratio = 0, 0, 0, 0, 0
         rdic['x1'] = a
         rdic['y1'] = b
         rdic['x2'] = c
@@ -397,20 +431,23 @@ def get_rect(closest):
         rects.append(rdic)
     return rects
 
+
 def registerWorker(workerID):
     w = Worker()
     w.workerID = workerID
     w.frameNB = settings.STARTFRAME % settings.NBFRAMES
-    settings.STARTFRAME = settings.STARTFRAME + 100*settings.INCREMENT 
+    settings.STARTFRAME = settings.STARTFRAME + 100*settings.INCREMENT
     w.save()
     return w
 
+
 def updateWorker(workerID, state):
-    w = Worker.objects.get(pk = workerID)
+    w = Worker.objects.get(pk=workerID)
+
 
 def generate_code(worker):
     try:
-        code = ValidationCode.objects.get(worker_id = worker)
+        code = ValidationCode.objects.get(worker_id=worker)
     except ValidationCode.DoesNotExist:
         random_code = int(16777215 * rand.random())
         random_code = "{0:0>8}".format(random_code)
@@ -424,21 +461,23 @@ def generate_code(worker):
         code.save()
     return code.validationCode
 
-def tuto(request,workerID):
+
+def tuto(request, workerID):
     context = RequestContext(request).flatten()
     try:
-        w = Worker.objects.get(pk = workerID)
+        w = Worker.objects.get(pk=workerID)
         if w.state != 3:
             return redirect("/gtm_hit/"+workerID)
-        return render(request, 'gtm_hit/tuto.html',{'workerID' : workerID, **context})
+        return render(request, 'gtm_hit/tuto.html', {'workerID': workerID, **context})
 
     except Worker.DoesNotExist:
         return redirect("/gtm_hit/"+workerID)
 
+
 def processTuto(request, workerID):
     context = RequestContext(request)
     try:
-        w = Worker.objects.get(pk = workerID)
+        w = Worker.objects.get(pk=workerID)
         if w.state == 3:
             w.state = 1
             timelist = [timezone.now().isoformat()]
@@ -448,15 +487,16 @@ def processTuto(request, workerID):
         return redirect("/gtm_hit/"+workerID)
     return redirect("/gtm_hit/"+workerID)
 
+
 def processFinish(request):
     context = RequestContext(request)
     if request.is_ajax():
         try:
             wID = request.POST['workerID']
 
-            w = Worker.objects.get(pk = wID)
+            w = Worker.objects.get(pk=wID)
             startframe = w.frameNB - w.frame_labeled
-            #delete_and_load(startframe)
+            # delete_and_load(startframe)
             return HttpResponse("ok")
         except KeyError:
             return HttpResponse("Error")
@@ -464,53 +504,59 @@ def processFinish(request):
         return HttpResponse("Error")
 
 
-
 def delete_and_load(startframe):
     toload = settings.LASTLOADED + 10
-     #1. remove frames
+    # 1. remove frames
     sframe = startframe
-     #2. copy next frames
+    # 2. copy next frames
     for i in range(10):
         rm_frame = "0" * (8 - len(str(sframe))) + str(sframe)
         cp_frame = "0" * (8 - len(str(toload))) + str(toload)
         sframe = sframe + 1
         toload = toload + 1
         for j in range(settings.NB_CAMS):
-            command = os.system("rm gtm_hit/static/gtm_hit/frames/"+ settings.CAMS[j] + "/" + rm_frame + ".png")
-            command = os.system("cp gtm_hit/static/gtm_hit/day_2/annotation_final/"+ settings.CAMS[j] + "/begin/" + cp_frame + ".png gtm_hit/static/gtm_hit/frames/"+ settings.CAMS[j] + "/")
+            command = os.system(
+                "rm gtm_hit/static/gtm_hit/frames/" + settings.CAMS[j] + "/" + rm_frame + ".png")
+            command = os.system("cp gtm_hit/static/gtm_hit/day_2/annotation_final/" +
+                                settings.CAMS[j] + "/begin/" + cp_frame + ".png gtm_hit/static/gtm_hit/frames/" + settings.CAMS[j] + "/")
 
     settings.LASTLOADED = settings.LASTLOADED + 10
 
+
 def save_db(request):
-    ##set_trace()
+    # set_trace()
     if is_ajax(request) and request.method == 'POST':
         try:
             data = json.loads(request.POST['data'])
             frame_id = request.POST['ID']
             worker_id = request.POST['workerID']
             # Check if the frame exists or create a new frame object
-            worker,_ = Worker.objects.get_or_create(workerID=worker_id)
-            frame, created = MultiViewFrame.objects.get_or_create(frame_id=frame_id, worker=worker)
-            ##set_trace()
+            worker, _ = Worker.objects.get_or_create(workerID=worker_id)
+            
+            frame, created = MultiViewFrame.objects.get_or_create(
+                frame_id=frame_id, worker=worker,undistorted=settings.UNDISTORTED_FRAMES)
+            # set_trace()
             # Iterate through each annotation in the data and create an annotation object for it
             for annotation_data in data:
-                person, _ = Person.objects.get_or_create(person_id=annotation_data['personID'])
+                person, _ = Person.objects.get_or_create(
+                    person_id=annotation_data['personID'])
                 # Create a new annotation object for the given person and frame
-                if person.person_id==42:
+                if person.person_id == 42:
                     pass
-                    #set_trace()
-                try: 
-                    annotation = Annotation.objects.get(person=person, frame=frame)
-                    annotation.person=person
-                    annotation.frame=frame
-                    annotation.rectangle_id=annotation_data['rectangleID']
-                    annotation.rotation_theta=annotation_data['rotation_theta']
-                    annotation.Xw=annotation_data['Xw']
-                    annotation.Yw=annotation_data['Yw']
-                    annotation.Zw=annotation_data['Zw']
-                    annotation.object_size_x=annotation_data['object_size'][0]
-                    annotation.object_size_y=annotation_data['object_size'][1]
-                    annotation.object_size_z=annotation_data['object_size'][2]
+                    # set_trace()
+                try:
+                    annotation = Annotation.objects.get(
+                        person=person, frame=frame)
+                    annotation.person = person
+                    annotation.frame = frame
+                    annotation.rectangle_id = annotation_data['rectangleID']
+                    annotation.rotation_theta = annotation_data['rotation_theta']
+                    annotation.Xw = annotation_data['Xw']
+                    annotation.Yw = annotation_data['Yw']
+                    annotation.Zw = annotation_data['Zw']
+                    annotation.object_size_x = annotation_data['object_size'][0]
+                    annotation.object_size_y = annotation_data['object_size'][1]
+                    annotation.object_size_z = annotation_data['object_size'][2]
                 except Annotation.DoesNotExist:
                     annotation = Annotation(
                         person=person,
@@ -528,7 +574,7 @@ def save_db(request):
                 # Save the annotation object to the database
                 annotation.save()
                 save_2d_views(annotation)
-                
+
             # # Create the directory for the labels if it doesn't exist
             # labels_directory = os.path.join('./gtm_hit/static/gtm_hit/dset/', settings.DSETNAME, 'labels', worker_id)
             # os.makedirs(labels_directory, exist_ok=True)
@@ -549,7 +595,7 @@ def save_db(request):
 
 
 def load_db(request):
-    #set_trace()
+    # set_trace()
     if is_ajax(request):
         try:
             frame_id = request.POST['ID']
@@ -557,26 +603,30 @@ def load_db(request):
 
             # Check if the person and frame objects exist
             worker = Worker.objects.get(workerID=worker_id)
-            frame = MultiViewFrame.objects.get(frame_id=frame_id,worker=worker)
-            ##set_trace()
+            frame = MultiViewFrame.objects.get(
+                frame_id=frame_id, worker=worker,undistorted=settings.UNDISTORTED_FRAMES)
+            # set_trace()
             retjson = []
-            camviews=View.objects.all()
+            camviews = View.objects.all()
             for camview in camviews:
-                #set_trace()
-                a2l = serialize_annotation2dviews_with_person_id(Annotation2DView.objects.filter(annotation__frame=frame, view=camview))
+                # set_trace()
+                a2l = serialize_annotation2dviews_with_person_id(
+                    Annotation2DView.objects.filter(annotation__frame=frame, view=camview))
                 retjson.append(a2l)
             #a2l = list(Annotation2DView.objects.filter(annotation__frame=frame, view=View.objects.get(view_id=0)).values())
             return HttpResponse(json.dumps(retjson), content_type="application/json")
 
             # Read the serialized views from the JSON file and deserialize them
-            labels_directory = os.path.join('./gtm_hit/static/gtm_hit/dset/', settings.DSETNAME, 'labels', worker_id)
+            labels_directory = os.path.join(
+                './gtm_hit/static/gtm_hit/dset/', settings.DSETNAME, 'labels', worker_id)
             with open(os.path.join(labels_directory, f'{worker_id}_{frame_id}.json'), 'r') as rect_json:
                 # Deserialize the views from the serialized data
                 views = serializers.deserialize('json', rect_json)
 
             # Iterate through each view and prefetch the related annotation and annotation2dview objects
             for view in views:
-                view.object = view.object.prefetch_related('annotation_set__twod_views').select_related('frame')
+                view.object = view.object.prefetch_related(
+                    'annotation_set__twod_views').select_related('frame')
 
             # Serialize the views and send them as a response
             serialized_views = serializers.serialize('json', views)
@@ -587,6 +637,31 @@ def load_db(request):
 
     return HttpResponse("Error")
 
+
+def change_id(request):
+    #set_trace()
+    if is_ajax(request):
+        try:
+            pid = request.POST['ID']
+            #worker_id = request.POST['workerID']
+            new_pid = int(float(request.POST['newID']))
+            frame_id = int(float(request.POST['frameID']))
+            options = request.POST['options']
+            if options == 'future':
+                success = change_annotation_id_propagate(pid, new_pid, frame_id,"future")
+            elif options == 'past':
+                success = change_annotation_id_propagate(pid, new_pid, frame_id,"past")
+            else:
+                success = change_annotation_id(pid, new_pid, frame_id)
+            if success:
+                return HttpResponse(JsonResponse({"message": "ID changed."}))
+            else:
+                return HttpResponse("Error")
+        except KeyError:
+            return HttpResponse("Error",)
+    return HttpResponse("Error")
+
+
 def tracklet(request):
     if is_ajax(request):
         try:
@@ -594,23 +669,27 @@ def tracklet(request):
             person_id = int(float(request.POST['personID']))
             frame_id = int(float(request.POST['frameID']))
 
-            multiview_tracklet=get_annotation2dviews_for_frame_and_person(frame_id,person_id)
-            #set_trace()
+            multiview_tracklet = get_annotation2dviews_for_frame_and_person(
+                frame_id, person_id)
+            # set_trace()
             return HttpResponse(json.dumps(multiview_tracklet), content_type="application/json")
         except KeyError:
             return HttpResponse("Error")
+
+
 def save_2d_views(annotation):
-    ###set_trace()
+    # set_trace()
     for i in range(settings.NB_CAMS):
-        view,_ = View.objects.get_or_create(view_id=i)
-        cuboid = geometry.get_cuboid2d_from_annotation(annotation, settings.CALIBS[i])
-        p1,p2 = geometry.get_bounding_box(cuboid)
+        view, _ = View.objects.get_or_create(view_id=i)
+        cuboid = geometry.get_cuboid2d_from_annotation(
+            annotation, settings.CALIBS[i], settings.UNDISTORTED_FRAMES)
+        p1, p2 = geometry.get_bounding_box(cuboid)
         # Set the cuboid points for the annotation2dview object
-        ##set_trace()
+        # set_trace()
         try:
-         annotation2dview = Annotation2DView.objects.get(
-            view=view,
-            annotation=annotation)
+            annotation2dview = Annotation2DView.objects.get(
+                view=view,
+                annotation=annotation)
         except Annotation2DView.DoesNotExist:
             annotation2dview = Annotation2DView(
                 view=view,
@@ -622,6 +701,7 @@ def save_2d_views(annotation):
         annotation2dview.y2 = p2[1]
         annotation2dview.set_cuboid_points_2d(cuboid)
         annotation2dview.save()
+
 
 def serialize_annotation2dviews_with_person_id(queryset):
     serialized_data = []
@@ -655,13 +735,14 @@ def serialize_annotation2dviews_with_person_id(queryset):
         serialized_data.append(serialized_view)
     return serialized_data
 
+
 def get_annotation2dviews_for_frame_and_person(frame_id, person_id):
     # Get the MultiViewFrame object for the given frame_id
     #frame = MultiViewFrame.objects.get(frame_id=frame_id)
 
     # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
-    frame_id_start = max(1, frame_id - 10)
-    frame_id_end = frame_id + 10
+    frame_id_start = max(1, frame_id - 100)
+    frame_id_end = frame_id + 100
 
     # Get the Person object for the given person_id
     person = Person.objects.get(person_id=person_id)
@@ -672,14 +753,96 @@ def get_annotation2dviews_for_frame_and_person(frame_id, person_id):
         annotation__frame__frame_id__lte=frame_id_end,
         annotation__person=person,
     )
-    #set_trace()
+    # set_trace()
     camtrackviews = {}
     for annotation2dview in annotation2dviews:
         vid = annotation2dview.view.view_id
         if vid not in camtrackviews:
             camtrackviews[vid] = []
-        camtrackviews[vid].append((annotation2dview.annotation.frame.frame_id,annotation2dview.cuboid_points_2d[8]))
+        camtrackviews[vid].append(
+            (annotation2dview.annotation.frame.frame_id, annotation2dview.cuboid_points_2d[8]))
     for view_id in camtrackviews:
         camtrackviews[view_id].sort()
     return camtrackviews
 
+
+def get_next_available_id():
+    max_id = Person.objects.aggregate(models.Max('pk'))['pk__max']
+    return max_id + 1 if max_id is not None else 1
+
+def change_annotation_id(old_id, new_id, frame_id):
+    with transaction.atomic():  # Start a transaction to ensure data consistency
+        # Check if an Annotation object with the new_id exists
+        # set_trace()
+        try:
+            annotation_to_replace = Annotation.objects.get(
+                person__person_id=new_id, frame__frame_id=frame_id,frame__undistorted=settings.UNDISTORTED_FRAMES)
+        except Annotation.DoesNotExist:
+            annotation_to_replace = None
+        try:
+            if annotation_to_replace:
+                # Find the next available unique ID for the Person model
+                next_id = get_next_available_id()
+
+                # Update the conflicting annotation's person with the new unique ID
+                person_to_replace = annotation_to_replace.person
+                person_to_replace.person_id = next_id
+                person_to_replace.save()
+
+                # Update the related Annotation object
+                annotation_to_replace.person = person_to_replace
+                annotation_to_replace.save()
+
+            # Change the ID of the target Annotation object's person to new_id
+            target_annotation = Annotation.objects.get(
+                person__person_id=old_id, frame__frame_id=frame_id,frame__undistorted=settings.UNDISTORTED_FRAMES)
+            target_person = target_annotation.person
+            target_person.person_id = new_id
+            target_person.save()
+
+            # Update the related Annotation object
+            target_annotation.person = target_person
+            target_annotation.save()
+            return True
+        except Exception as e:
+            print(e)
+            return False
+        
+
+def change_annotation_id_propagate(old_id, new_id, frame_id, temporaldirection):
+    with transaction.atomic():  # Start a transaction to ensure data consistency
+        try:
+            next_id = get_next_available_id()
+            filterargs={'person__person_id': new_id, 'frame__frame_id__gte': frame_id,'frame__undistorted':settings.UNDISTORTED_FRAMES}
+            if temporaldirection == 'past':
+                filterargs['frame__frame_id__lte'] = frame_id
+                del filterargs['frame__frame_id__gte']
+            # Find all conflicting future annotations
+            annotation_conflicts = Annotation.objects.filter(**filterargs).order_by('frame__frame_id')
+            set_trace()
+            for conflict in annotation_conflicts:
+                # Update the conflicting annotation's person with the new unique ID
+                person_to_replace = conflict.person
+                person_to_replace.person_id = next_id
+                person_to_replace.save()
+
+                # Update the related Annotation object
+                conflict.person = person_to_replace
+                conflict.save()
+
+            # Find all target future annotations
+            filterargs["person__person_id"]=old_id
+            target_future_annotations = Annotation.objects.filter(**filterargs).order_by('frame__frame_id')
+            for annotation in target_future_annotations:
+                target_future_person = annotation.person
+                target_future_person.person_id = new_id
+                target_future_person.save()
+
+                # Update the related Annotation object
+                annotation.person = target_future_person
+                annotation.save()
+
+            return True
+        except Exception as e:
+            print(e)
+            return False

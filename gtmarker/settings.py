@@ -261,6 +261,6 @@ FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 NB_CAMS = len(CAMS)
 CALIBS= load_invision_calib("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations")
 ROTATION_THETA = np.pi/24
-
+UNDISTORTED_FRAMES=True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

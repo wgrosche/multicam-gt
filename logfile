@@ -53,3 +53,81 @@
 2023-03-23 18:31:07.032 CET [2758] ERROR:  null value in column "cuboid_points" violates not-null constraint
 2023-03-23 18:31:07.032 CET [2758] DETAIL:  Failing row contains (2, null, null, null, null, null, 1, 0).
 2023-03-23 18:31:07.032 CET [2758] STATEMENT:  INSERT INTO "gtm_hit_annotation2dview" ("view_id", "annotation_id", "x1", "y1", "x2", "y2", "cuboid_points") VALUES (0, 1, NULL, NULL, NULL, NULL, NULL::double precision[20]) RETURNING "gtm_hit_annotation2dview"."id"
+2023-03-26 14:17:57.061 CEST [14340] LOG:  could not send data to client: No buffer space available
+2023-03-26 14:17:57.062 CEST [14340] FATAL:  connection to client lost
+2023-03-26 14:17:57.074 CEST [14342] LOG:  could not send data to client: No buffer space available
+2023-03-26 14:17:57.074 CEST [14342] FATAL:  connection to client lost
+2023-03-26 14:38:16.428 CEST [14517] LOG:  could not send data to client: No buffer space available
+2023-03-26 14:38:16.429 CEST [14517] FATAL:  connection to client lost
+2023-03-26 14:38:44.159 CEST [14543] LOG:  could not send data to client: No buffer space available
+2023-03-26 14:38:44.159 CEST [14543] FATAL:  connection to client lost
+2023-03-26 14:38:44.182 CEST [14544] LOG:  could not send data to client: No buffer space available
+2023-03-26 14:38:44.182 CEST [14544] FATAL:  connection to client lost
+2023-03-26 14:38:51.529 CEST [14554] LOG:  could not send data to client: No buffer space available
+2023-03-26 14:38:51.529 CEST [14554] FATAL:  connection to client lost
+2023-03-26 14:46:54.810 CEST [15255] LOG:  could not send data to client: No buffer space available
+2023-03-26 14:46:54.811 CEST [15255] FATAL:  connection to client lost
+2023-03-26 14:46:54.884 CEST [15256] LOG:  could not send data to client: No buffer space available
+2023-03-26 14:46:54.884 CEST [15256] FATAL:  connection to client lost
+2023-03-26 14:46:54.970 CEST [15257] LOG:  could not send data to client: No buffer space available
+2023-03-26 14:46:54.970 CEST [15257] FATAL:  connection to client lost
+2023-03-26 17:26:54.709 CEST [15921] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:26:54.709 CEST [15921] FATAL:  connection to client lost
+2023-03-26 17:27:29.803 CEST [15954] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:27:29.803 CEST [15954] FATAL:  connection to client lost
+2023-03-26 17:39:40.755 CEST [16338] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:39:40.755 CEST [16338] FATAL:  connection to client lost
+2023-03-26 17:42:56.849 CEST [16421] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:42:56.849 CEST [16421] FATAL:  connection to client lost
+2023-03-26 17:45:41.942 CEST [16531] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:45:41.942 CEST [16531] FATAL:  connection to client lost
+2023-03-26 17:48:17.808 CEST [16608] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:48:17.808 CEST [16608] FATAL:  connection to client lost
+2023-03-26 17:49:36.556 CEST [16660] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:49:36.557 CEST [16660] FATAL:  connection to client lost
+2023-03-26 17:49:38.112 CEST [16665] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:49:38.113 CEST [16665] FATAL:  connection to client lost
+2023-03-26 17:52:05.754 CEST [16754] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:52:05.754 CEST [16754] FATAL:  connection to client lost
+2023-03-26 17:52:05.795 CEST [16756] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:52:05.795 CEST [16756] FATAL:  connection to client lost
+2023-03-26 17:52:05.822 CEST [16757] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:52:05.822 CEST [16757] FATAL:  connection to client lost
+2023-03-26 17:57:27.008 CEST [16870] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:57:27.008 CEST [16870] FATAL:  connection to client lost
+2023-03-26 17:57:27.029 CEST [16871] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:57:27.029 CEST [16871] FATAL:  connection to client lost
+2023-03-26 17:58:01.148 CEST [16892] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:58:01.148 CEST [16892] FATAL:  connection to client lost
+2023-03-26 17:58:01.195 CEST [16893] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:58:01.195 CEST [16893] FATAL:  connection to client lost
+2023-03-26 17:58:01.208 CEST [16894] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:58:01.208 CEST [16894] FATAL:  connection to client lost
+2023-03-26 17:58:01.237 CEST [16895] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:58:01.238 CEST [16895] FATAL:  connection to client lost
+2023-03-26 17:58:01.265 CEST [16896] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:58:01.265 CEST [16896] FATAL:  connection to client lost
+2023-03-26 17:58:01.289 CEST [16897] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:58:01.289 CEST [16897] FATAL:  connection to client lost
+2023-03-26 17:58:11.096 CEST [16906] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:58:11.096 CEST [16906] FATAL:  connection to client lost
+2023-03-26 17:59:57.733 CEST [16963] LOG:  could not send data to client: No buffer space available
+2023-03-26 17:59:57.733 CEST [16963] FATAL:  connection to client lost
+2023-03-26 18:00:23.176 CEST [16981] FATAL:  data directory "/Users/ivanvrkic/Desktop/multicam-gt-master/invision" has invalid permissions
+2023-03-26 18:00:23.176 CEST [16981] DETAIL:  Permissions should be u=rwx (0700) or u=rwx,g=rx (0750).
+2023-03-26 18:00:37.491 CEST [17009] FATAL:  lock file "postmaster.pid" already exists
+2023-03-26 18:00:37.491 CEST [17009] HINT:  Is another postmaster (PID 94022) running in data directory "/Users/ivanvrkic/Desktop/multicam-gt-master/invision"?
+2023-03-26 18:02:21.298 CEST [17104] FATAL:  lock file "postmaster.pid" already exists
+2023-03-26 18:02:21.298 CEST [17104] HINT:  Is another postmaster (PID 94022) running in data directory "/Users/ivanvrkic/Desktop/multicam-gt-master/invision"?
+2023-03-26 18:21:32.595 CEST [94022] LOG:  received smart shutdown request
+2023-03-26 18:21:32.598 CEST [94022] LOG:  background worker "logical replication launcher" (PID 94029) exited with exit code 1
+2023-03-26 18:21:32.599 CEST [94024] LOG:  shutting down
+2023-03-26 18:21:32.627 CEST [94022] LOG:  database system is shut down
+2023-03-26 18:35:18.557 CEST [2011] FATAL:  data directory "/Users/ivanvrkic/Desktop/multicam-gt-master/invision" has invalid permissions
+2023-03-26 18:35:18.557 CEST [2011] DETAIL:  Permissions should be u=rwx (0700) or u=rwx,g=rx (0750).
+2023-03-26 18:35:38.783 CEST [2047] LOG:  starting PostgreSQL 12.9 on arm64-apple-darwin20.0.0, compiled by clang version 12.0.0, 64-bit
+2023-03-26 18:35:38.786 CEST [2047] LOG:  listening on IPv6 address "::1", port 5432
+2023-03-26 18:35:38.786 CEST [2047] LOG:  listening on IPv4 address "127.0.0.1", port 5432
+2023-03-26 18:35:38.787 CEST [2047] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
+2023-03-26 18:35:38.797 CEST [2048] LOG:  database system was shut down at 2023-03-26 18:21:32 CEST
+2023-03-26 18:35:38.800 CEST [2047] LOG:  database system is ready to accept connections

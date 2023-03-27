@@ -2,7 +2,7 @@ import numpy as np
 import cv2 as cv
 from collections import namedtuple
 from enum import IntEnum
-
+from django.conf import settings
 from ipdb import set_trace
 Calibration = namedtuple('Calibration', ['K', 'R', 'T', 'view_id'])
 Bbox = namedtuple('Bbox', ['xc', 'yc', 'w', 'h'])  # , 'id', 'frame'])
@@ -128,6 +128,7 @@ class CuboidVertexEnum(IntEnum):
 CUBOID_VERTEX_COUNT = 10
 
 def get_projected_points(points3d, calib, undistort=False):
+    undistort = settings.UNDISTORTED_FRAMES
     points3d = np.array(points3d).reshape(-1, 3)
     Rvec = calib.extrinsics.get_R_vec()  # cv.Rodrigues
     Tvec = calib.extrinsics.T

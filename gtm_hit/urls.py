@@ -22,6 +22,8 @@ urlpatterns = [
     url(r'^.*loadprev$',views.load_previous,name='loadprev'),
     url(r'^.*processFinish$',views.processFinish,name='processFinish'),
     url(r'^.*tracklet$',views.tracklet,name='tracklet'),
+    url(r'^.*changeid$',views.change_id,name='changeid'),
+
 
 
     url(r'^(?P<workerID>[A-Z0-9]+)/finish$',views.finish,name='finish'),
