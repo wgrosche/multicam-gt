@@ -3,17 +3,11 @@
 # EPFL Multi-camera detection annotation tool
 Our web-application to annotate multi-camera detection datasets. Feel free to download and use it to annotate other datasets.
 
+#
 
 ## Usage
-```bash
-conda env create -n ENVNAME --file ENV.yml
-pip install -r requirements.txt
-initdb -D invision   
-chmod -R 700 invision
-pg_ctl -D invision -l logfile start
-createuser invision
-createdb --owner=invision invision
-
+Define the DATABASES variable in the settings.py file to point to your database. The application is configured to use a PostgreSQL database. You can use the following configuration:
+```python
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -24,6 +18,15 @@ DATABASES = {
         'PORT': '',
     }
 }
+```
+```bash
+conda env create -n ENVNAME --file ENV.yml
+pip install -r requirements.txt
+initdb -D invision   
+chmod -R 700 invision
+pg_ctl -D invision -l logfile start
+createuser invision
+createdb --owner=invision invision
 
 python manage.py migrate
 python manage.py runserver 0.0.0.0:4444
