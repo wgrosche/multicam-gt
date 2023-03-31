@@ -37,6 +37,9 @@ def request_to_dict(request):
             nested_dict[last_match[p]]= [float(v) for v in val]
     return retdict
 
+def str2bool(v):
+  return v.lower() in ("yes", "true", "t", "1")
+
 def process_action(obj):
     if "action" in obj:
         action_dict = obj["action"]
@@ -92,7 +95,7 @@ def convert_rect_to_dict(rect_tuple,cuboid, cam_id, rect_id, world_point,object_
         y1 = rect_tuple[1]
         x2 = rect_tuple[2]
         y2 = rect_tuple[3]
-        ratio = float(((y2-y1)/(x2 - x1)+1e-6)*0.1)
+        ratio = float(((y2-y1)/(x2 - x1 +1e-6))*0.1)
         if ratio==np.inf:
             ratio=0
     return {'rectangleID': rect_id,

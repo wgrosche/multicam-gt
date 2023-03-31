@@ -40,23 +40,6 @@ def project_world_to_camera(world_point, K1, R1, T1):
 def get_cuboid_from_ground_world(world_point, calib, height, width, length,theta):
     
     cuboid_points3d = np.zeros((CUBOID_VERTEX_COUNT, 3))
-    # cuboid_points3d[CuboidVertexEnum.FrontTopRight] = (calib.R.T@((calib.R@(world_point +
-    #                       np.array([[0], [0], [height]]))) + np.array([[width/2], [length / 2], [0]]))).T
-    # cuboid_points3d[CuboidVertexEnum.FrontTopLeft] = (calib.R.T@((calib.R@(world_point +
-    #                       np.array([[0], [0], [height]]))) + np.array([[-width/2], [length / 2], [0]]))).T
-    # cuboid_points3d[CuboidVertexEnum.RearTopRight] = (calib.R.T@((calib.R@(world_point +
-    #                       np.array([[0], [0], [height]]))) + np.array([[width/2], [-length / 2], [0]]))).T
-    # cuboid_points3d[CuboidVertexEnum.RearTopLeft] = (calib.R.T@((calib.R@(world_point +
-    #                       np.array([[0], [0], [height]]))) + np.array([[-width/2], [-length / 2], [0]]))).T
-    
-    # cuboid_points3d[CuboidVertexEnum.FrontBottomRight] = (calib.R.T@((calib.R@world_point) +
-    #                           np.array([[width/2], [length / 2], [0]]))).T
-    # cuboid_points3d[CuboidVertexEnum.FrontBottomLeft] = (calib.R.T@((calib.R@world_point) +
-    #                           np.array([[-width/2], [length / 2], [0]]))).T
-    # cuboid_points3d[CuboidVertexEnum.RearBottomRight] = (calib.R.T@((calib.R@world_point) +
-    #                           np.array([[width/2], [-length / 2], [0]]))).T
-    # cuboid_points3d[CuboidVertexEnum.RearBottomLeft] = (calib.R.T@((calib.R@world_point) +
-    #                           np.array([[-width/2], [-length / 2], [0]]))).T
     cuboid_points3d[CuboidVertexEnum.FrontTopRight] = [width / 2, length / 2, height]
     cuboid_points3d[CuboidVertexEnum.FrontTopLeft] = [-width / 2, length / 2, height]
     cuboid_points3d[CuboidVertexEnum.RearTopRight] = [width / 2, -length / 2, height]
@@ -134,8 +117,12 @@ def get_projected_points(points3d, calib, undistort=False):
     Tvec = calib.extrinsics.T
     points2d, _ = cv.projectPoints(
         points3d, Rvec, Tvec, calib.intrinsics.cameraMatrix, calib.intrinsics.distCoeffs)
-    if undistort: 
+    if undistort:
+        #set_trace()
         points3d_cam = calib.extrinsics.R @ points3d.T + calib.extrinsics.T.reshape(-1,1)
+        in_front_of_camera = (points3d_cam[2, :] > 0).all()
+        if not in_front_of_camera:
+            raise ValueError("Points are not in camera view.")
         points3d_cam_rectified = calib.intrinsics.Rmat @ points3d_cam #correct the slant of the camera
         points2d = calib.intrinsics.newCameraMatrix @ points3d_cam_rectified
 

@@ -12,6 +12,12 @@ class CameraParams:
 
     intrinsics = None
     extrinsics = None
+    name=""
+    def __init__(self, name=None, intrinsics=None, extrinsics=None):
+        self.name = name
+        self.intrinsics = intrinsics
+        self.extrinsics = extrinsics
+    
     class Intrinsics:
         cameraMatrix = None
         distCoeffs = None
@@ -35,7 +41,7 @@ class CameraParams:
     
 
     def __repr__(self):
-        s = 'INTRINSICS:\ncameraMatrix:\n' + str(self.intrinsics.cameraMatrix) +\
+        s = self.name +'\nINTRINSICS:\ncameraMatrix:\n' + str(self.intrinsics.cameraMatrix) +\
             '\ndistCoeffs:\n' + str(self.intrinsics.distCoeffs) +\
             '\nRint:\n' + str(self.intrinsics.Rmat) +\
             '\nnewCameraMatrix:\n' + str(self.intrinsics.newCameraMatrix) +\
@@ -111,7 +117,7 @@ def load_invision_calib(params_dir):
         cam_id = tuple(cam_id)
         cam_id_key = f"cam_{cam_id[0]}_{cam_id[1]}"
 
-        campam = CameraParams()
+        campam = CameraParams(cam_id_key)
         campam.read_from_xml(osp.join(params_dir,f'undistort_params_cam_{cam_id[0]}_{cam_id[1]}.xml'))
         campam.read_from_json(osp.join(params_dir,f'cam_{cam_id[0]}_{cam_id[1]}_calib.json'))
         campam.set_id(cam_id)
