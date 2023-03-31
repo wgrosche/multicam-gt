@@ -19,6 +19,11 @@ DATABASES = {
     }
 }
 ```
+You can load the INVISION data into the database by running the following command:
+```bash
+python manage.py shell < invision_data_process.py
+```
+You can then run the following commands to run the application:
 ```bash
 conda env create -n ENVNAME --file ENV.yml
 pip install -r requirements.txt
