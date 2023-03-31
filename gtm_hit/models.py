@@ -31,6 +31,7 @@ class ValidationCode(models.Model):
         return 'Code: ' + self.worker.workerID
 class Person(models.Model):
     person_id = models.IntegerField(primary_key=True)
+    annotation_complete = models.BooleanField(default=False)
     def __str__(self):
         return f"PersonID{self.person_id}"
     def __repr__(self):
@@ -52,6 +53,8 @@ class View(models.Model):
 class Annotation(models.Model):
     frame = models.ForeignKey(MultiViewFrame, on_delete=models.CASCADE)
     person = models.ForeignKey(Person, on_delete=models.CASCADE)
+    creation_method = models.TextField(default="existing_annotation")
+    validated = models.BooleanField(default=True)
     class Meta:
         unique_together = ('frame', 'person')
     rectangle_id = models.CharField(max_length=100)
@@ -64,7 +67,7 @@ class Annotation(models.Model):
     object_size_x = models.FloatField()
     object_size_y = models.FloatField()
     object_size_z = models.FloatField()
-
+    
     @property
     def object_size(self):
         return [self.object_size_x, self.object_size_y, self.object_size_z]
@@ -106,3 +109,11 @@ class Annotation2DView(models.Model):
 
     def __str__(self):
         return f"{'UN' if self.annotation.frame.undistorted else ''}DISTORTED FRAME{self.annotation.frame.frame_id} CAM{self.view.view_id+1} PersonID{self.annotation.person.person_id} rectangleID{self.annotation.rectangle_id}"
+    
+
+class SingleViewFrame(models.Model):
+    frame_id = models.IntegerField(verbose_name="SingleView ID")
+    timestamp = models.DateTimeField(default=timezone.now)
+    view = models.ForeignKey(View, on_delete=models.CASCADE)
+    def __str__(self):
+        return f"CAM{self.view_id+1} SVFRAME{self.frame_id} {self.timestamp}" 
