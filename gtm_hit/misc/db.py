@@ -5,22 +5,17 @@ from gtm_hit.misc import geometry
 from gtm_hit.models import Annotation, Annotation2DView, MultiViewFrame, Person, View
 from django.core.exceptions import ObjectDoesNotExist
 from ipdb import set_trace
-def find_closest_annotations_to(person_id,frame_id):
-    # Check if frame_id is an integer
-    if not isinstance(frame_id, int):
-        raise ValueError("Frame ID must be an integer.")
-    if not isinstance(person_id, int):
-        raise ValueError("Person ID must be an integer.")
+
+def find_closest_annotations_to(person,frame):
     try:
-        #set_trace()
-        next_annotation = Annotation.objects.filter(person__person_id=person_id, frame__frame_id__gt=frame_id,frame__undistorted=settings.UNDISTORTED_FRAMES).order_by('frame__frame_id').first()
-        last_annotation = Annotation.objects.filter(person__person_id=person_id, frame__frame_id__lte=frame_id,frame__undistorted=settings.UNDISTORTED_FRAMES).order_by('frame__frame_id').last()
+        next_annotation = Annotation.objects.filter(person=person, frame__worker_id=frame.worker_id,frame__frame_id__gt=frame.frame_id,frame__undistorted=settings.UNDISTORTED_FRAMES).order_by('frame__frame_id').first()
+        last_annotation = Annotation.objects.filter(person=person, frame__worker_id=frame.worker_id,frame__frame_id__lte=frame.frame_id,frame__undistorted=settings.UNDISTORTED_FRAMES).order_by('frame__frame_id').last()
         
         if last_annotation is None or next_annotation is None:
             raise ObjectDoesNotExist
 
     except ObjectDoesNotExist:
-        raise ValueError(f"No next annotation found for person {person_id} after frame {frame_id}.")
+        raise ValueError(f"No next annotation found for person {person.person_id} after frame {frame.frame_id}.")
 
     return last_annotation, next_annotation
 
@@ -58,12 +53,14 @@ def save_2d_views(annotation):
             print(e)
             return False
 
-def interpolate_between_annotations(person_id,frame_id1,frame_id2):
+def interpolate_between_annotations(annotation1, annotation2):
+    save_2d_views(annotation1) # Save 2D views for the two annotations
+    save_2d_views(annotation2)
 
-    annotation1 = Annotation.objects.get(person__person_id=person_id, frame__frame_id=frame_id1,frame__undistorted=settings.UNDISTORTED_FRAMES)
-    annotation2 = Annotation.objects.get(person__person_id=person_id, frame__frame_id=frame_id2,frame__undistorted=settings.UNDISTORTED_FRAMES)
-    save_2d_views([annotation1, annotation2]) # Save 2D views for the two annotations
     # Check if frame_id1 and frame_id2 are integers
+    frame_id1 = annotation1.frame.frame_id
+    frame_id2 = annotation2.frame.frame_id
+
     if not isinstance(frame_id1, int) or not isinstance(frame_id2, int):
         raise ValueError("Frame IDs must be integers.")
     num_interpolations = frame_id2 - frame_id1 -1
@@ -74,7 +71,7 @@ def interpolate_between_annotations(person_id,frame_id1,frame_id2):
 
         # Try to get the existing annotation for the given person and frame
         try:
-            interpolated_annotation = Annotation.objects.get(person__person_id=person_id, frame=interpolated_frame)
+            interpolated_annotation = Annotation.objects.get(person=annotation1.person, frame=interpolated_frame)
         except Annotation.DoesNotExist:
             # If the annotation does not exist, create a new one
             interpolated_annotation = Annotation()
@@ -95,18 +92,13 @@ def interpolate_between_annotations(person_id,frame_id1,frame_id2):
         try:
             interpolated_annotation.save()
         except Exception as e:
-            raise (f"Could not save interpolated annotation for person {person_id} for frame {interpolated_frame_id}.")
+            raise (f"Could not save interpolated annotation for person {annotation1.person_id} for frame {interpolated_frame_id}.")
         save_2d_views(interpolated_annotation)
-    return f"Interpolated annotations for person {person_id} between frames {frame_id1} and {frame_id2} have been created."
+    return f"Interpolated annotations for person {annotation1.person_id} between frames {frame_id1} and {frame_id2} have been created."
 
-def interpolate_until_next_annotation(person_id,frame_id):
-
-    #set_trace()
-    annotation1, annotation2 = find_closest_annotations_to(person_id,frame_id)
-    frame_id1 = annotation1.frame.frame_id
-    frame_id2 = annotation2.frame.frame_id
-    return interpolate_between_annotations(person_id,frame_id1,frame_id2)
-
+def interpolate_until_next_annotation(person,frame):
+    annotation1, annotation2 = find_closest_annotations_to(person,frame)
+    return interpolate_between_annotations(annotation1,annotation2)
 
 def propagation_filter(arguments,options,frame_id):
     if options["propagate"] == 'future':
@@ -117,32 +109,31 @@ def propagation_filter(arguments,options,frame_id):
         arguments['frame__frame_id'] = frame_id
     return arguments
 
-
-def get_next_available_id():
-    max_id = Person.objects.aggregate(models.Max('pk'))['pk__max']
+def get_next_available_id(worker_id):
+    max_id = Person.objects.filter(worker_id=worker_id).aggregate(models.Max('person_id'))['person_id__max']
     return max_id + 1 if max_id is not None else 1
 
-
-def change_annotation_id_propagate(old_id, new_id, frame_id, options):
+def change_annotation_id_propagate(old_id, new_id, frame, options):
     with transaction.atomic():  # Start a transaction to ensure data consistency
+        #set_trace()
         try:
-            next_id = get_next_available_id()
-            filterargs={'person__person_id': new_id, 'frame__undistorted':settings.UNDISTORTED_FRAMES}
-            filterargs = propagation_filter(filterargs,options,frame_id)
+            next_id = get_next_available_id(worker_id=frame.worker_id)
+            filterargs={'person__person_id': new_id, 'frame__undistorted':settings.UNDISTORTED_FRAMES, 'frame__worker_id':frame.worker_id}
+            filterargs = propagation_filter(filterargs,options,frame.frame_id)
             # Find all conflicting future annotations
             annotation_conflicts = Annotation.objects.filter(**filterargs).order_by('frame__frame_id')
             #set_trace()
             if options["conflicts"] == "assign_new":
+                set_trace()
                 for conflict in annotation_conflicts:
                     # Update the conflicting annotation's person with the new unique ID
-                    person_to_replace = conflict.person
-                    person_to_replace.person_id = next_id
-                    person_to_replace.save()
+                    person_to_replace = Person.objects.get_or_create(worker_id=frame.worker_id, person_id=next_id)[0]
 
                     # Update the related Annotation object
                     conflict.person = person_to_replace
                     conflict.save()
             elif options["conflicts"] == "delete":
+                
                 for conflict in annotation_conflicts:
                     conflict.delete()
 
@@ -151,10 +142,7 @@ def change_annotation_id_propagate(old_id, new_id, frame_id, options):
             target_future_annotations = Annotation.objects.filter(**filterargs).order_by('frame__frame_id')
 
             for annotation in target_future_annotations:
-                target_future_person = annotation.person
-                target_future_person.person_id = new_id
-                target_future_person.save()
-
+                target_future_person = Person.objects.get_or_create(worker_id=frame.worker_id, person_id=new_id)[0]
                 # Update the related Annotation object
                 annotation.person = target_future_person
                 annotation.save()
@@ -164,22 +152,16 @@ def change_annotation_id_propagate(old_id, new_id, frame_id, options):
             print(e)
             return False
 
-
-def get_annotation2dviews_for_frame_and_person(frame_id, person_id):
-    # Get the MultiViewFrame object for the given frame_id
-    #frame = MultiViewFrame.objects.get(frame_id=frame_id)
-
+def get_annotation2dviews_for_frame_and_person(frame, person):
     # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
-    frame_id_start = max(1, frame_id - 100)
-    frame_id_end = frame_id + 100
-
-    # Get the Person object for the given person_id
-    person = Person.objects.get(person_id=person_id)
+    frame_id_start = max(1, frame.frame_id - 100)
+    frame_id_end = frame.frame_id + 100
 
     # Filter the Annotation2DView objects using the calculated frame range and the Person object
     annotation2dviews = Annotation2DView.objects.filter(
         annotation__frame__frame_id__gte=frame_id_start,
         annotation__frame__frame_id__lte=frame_id_end,
+        annotation__frame__worker_id=frame.worker_id,
         annotation__person=person,
         annotation__frame__undistorted = settings.UNDISTORTED_FRAMES
     )

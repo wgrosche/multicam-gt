@@ -27,15 +27,20 @@ class Worker(models.Model):
 class ValidationCode(models.Model):
     validationCode = models.TextField(primary_key=True)
     worker = models.OneToOneField('Worker',on_delete=models.CASCADE)
+    
     def __str__(self):
         return 'Code: ' + self.worker.workerID
 class Person(models.Model):
-    person_id = models.IntegerField(primary_key=True)
+    person_id = models.IntegerField(verbose_name="PersonID")
     annotation_complete = models.BooleanField(default=False)
+    worker = models.ForeignKey(Worker,on_delete=models.CASCADE)
+    class Meta:
+        unique_together = ('person_id', 'worker')
     def __str__(self):
         return f"PersonID{self.person_id}"
     def __repr__(self):
         return f"PersonID{self.person_id}"
+    
 class MultiViewFrame(models.Model):
     frame_id = models.IntegerField(verbose_name="MultiView ID")
     timestamp = models.DateTimeField(default=timezone.now)
@@ -109,7 +114,7 @@ class Annotation2DView(models.Model):
 
     def __str__(self):
         return f"{'UN' if self.annotation.frame.undistorted else ''}DISTORTED FRAME{self.annotation.frame.frame_id} CAM{self.view.view_id+1} PersonID{self.annotation.person.person_id} rectangleID{self.annotation.rectangle_id}"
-    
+
 
 class SingleViewFrame(models.Model):
     frame_id = models.IntegerField(verbose_name="SingleView ID")

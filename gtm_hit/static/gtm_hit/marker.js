@@ -301,7 +301,8 @@ function getTracklet(e) {
     data: {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
       personID: pid,
-      frameID: parseInt(frame_str)
+      frameID: parseInt(frame_str),
+      workerID: workerID
     },
     dataType: "json",
     success: function (msg) {
@@ -336,7 +337,8 @@ function interpolate(e) {
     data: {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
       personID: pid,
-      frameID: parseInt(frame_str)-1
+      frameID: parseInt(frame_str)-1,
+      workerID: workerID
     },
     dataType: "json",
     success: function (msg) {
@@ -729,19 +731,25 @@ function loader_db(uri) {
         if (indof == -1) {
           rectsID.push(rid);
           chosen_rect = rectsID.length - 1;
+        }else{
+          chosen_rect = rectsID[indof];
           var pid = msg[0][i].person_id
           identities[rid] = pid;
-          for (var cami = 0; cami < nb_cams; cami++) {
-            boxes[cami][pid] = msg[cami][i];
-            }
-          if (pid > maxID)
-            maxID = pid;
-          if (uri == "loadprev")
-            validation[pid] = false;
-          else
-            validation[pid] = true;
-          
         }
+        var pid = msg[0][i].person_id
+        identities[rid] = pid;
+        for (var cami = 0; cami < nb_cams; cami++) {
+          boxes[cami][pid] = msg[cami][i];
+          }
+        if (pid > maxID)
+          maxID = pid;
+        if (uri == "loadprev")
+          validation[pid] = false;
+        else
+          validation[pid] = true;
+          
+        
+
       }
 
       if (prev_chosen_identity!=undefined){
@@ -888,9 +896,10 @@ function changeID(opt) {
     url: "changeid",
     data: {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
-      newID: newID,
+      newPersonID: newID,
       frameID: parseInt(frame_str),
-      ID: identities[rectsID[chosen_rect]],
+      personID: identities[rectsID[chosen_rect]],
+      workerID: workerID,
       options: JSON.stringify({'propagate':propagateValue,'conflicts':conflictsValue})
     },
     dataType: "json",
@@ -910,13 +919,15 @@ function personAction(opt) {
     url: "person",
     data: {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
-      ID: identities[rectsID[chosen_rect]],
+      personID: identities[rectsID[chosen_rect]],
+      workerID: workerID,
       options: JSON.stringify(opt)
     },
     dataType: "json",
     success: function (msg) {
       loader_db('load');
-      chosen_rect = old_chosen_rect;
+      if (!opt["delete"] )chosen_rect = old_chosen_rect;
+      
     }
   });
 }
@@ -929,7 +940,8 @@ function sendAJAX(uri, data, id, suc, load) {
     data: {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
       data: data,
-      ID: id
+      ID: id,
+      workerID: workerID
     },
     dataType: "json",
     success: function (msg) {

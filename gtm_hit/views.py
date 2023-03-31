@@ -548,7 +548,7 @@ def save_db(request):
             # Iterate through each annotation in the data and create an annotation object for it
             for annotation_data in data:
                 person, _ = Person.objects.get_or_create(
-                    person_id=annotation_data['personID'])
+                    person_id=annotation_data['personID'],worker=worker)
                 # Create a new annotation object for the given person and frame
                 if person.person_id == 42:
                     pass
@@ -610,15 +610,12 @@ def load_db(request):
             frame_id = int(request.POST['ID'])
             worker_id = request.POST['workerID']
 
-            # Check if the person and frame objects exist
-            worker = Worker.objects.get(workerID=worker_id)
-            frame = MultiViewFrame.objects.get(
-                frame_id=frame_id, worker=worker,undistorted=settings.UNDISTORTED_FRAMES)
+            frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES)
             # set_trace()
             retjson = []
             camviews = View.objects.all()
             for camview in camviews:
-                # set_trace()
+                #set_trace()
                 a2l = serialize_annotation2dviews(
                     Annotation2DView.objects.filter(annotation__frame=frame, view=camview))
                 retjson.append(a2l)
@@ -646,18 +643,19 @@ def load_db(request):
 
     return HttpResponse("Error")
 
-
 def change_id(request):
     #set_trace()
     if is_ajax(request):
         try:
-            pid = int(float(request.POST['ID']))
-            #worker_id = request.POST['workerID']
-            new_pid = int(float(request.POST['newID']))
+            person_id = int(float(request.POST['personID']))
+            new_person_id = int(float(request.POST['newPersonID']))
             frame_id = int(float(request.POST['frameID']))
-            #set_trace()
+            worker_id = request.POST['workerID']
+
+            frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES)
+
             options = json.loads(request.POST['options'])
-            success = change_annotation_id_propagate(pid, new_pid, frame_id,options)
+            success = change_annotation_id_propagate(person_id, new_person_id,frame,options)
             if success:
                 return HttpResponse(JsonResponse({"message": "ID changed.","options":options}))
             else:
@@ -667,12 +665,13 @@ def change_id(request):
     return HttpResponse("Error")
 
 def person_action(request):
-    #set_trace()
+    set_trace()
     if is_ajax(request):
         try:
-            pid = request.POST['ID']
+            person_id = int(float(request.POST['personID']))
+            worker_id = request.POST['workerID']
             options = json.loads(request.POST['options'])
-            person = Person.objects.get(person_id=pid)
+            person = Person.objects.get(person_id=person_id,worker_id=worker_id)
             #set_trace()
             try:
                 if "mark" in options:
@@ -694,9 +693,15 @@ def tracklet(request):
         try:
             person_id = int(float(request.POST['personID']))
             frame_id = int(float(request.POST['frameID']))
-
+            worker_id = request.POST['workerID']
+            #set_trace()
+            try:
+                frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES)
+                person = Person.objects.get(person_id=person_id,worker_id=worker_id)
+            except ValueError:
+                HttpResponse("Error")
             multiview_tracklet = get_annotation2dviews_for_frame_and_person(
-                frame_id, person_id)
+                frame, person)
             # set_trace()
             return HttpResponse(json.dumps(multiview_tracklet), content_type="application/json")
         except KeyError:
@@ -708,9 +713,12 @@ def interpolate(request):
             #set_trace()
             person_id = int(float(request.POST['personID']))
             frame_id = int(float(request.POST['frameID']))
+            worker_id = request.POST['workerID']
             #set_trace()
             try:
-                message = interpolate_until_next_annotation(frame_id=frame_id, person_id=person_id)
+                frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES)
+                person = Person.objects.get(person_id=person_id,worker_id=worker_id)
+                message = interpolate_until_next_annotation(frame=frame, person=person)
             except ValueError:
                 HttpResponse("Error")
             # set_trace()
@@ -721,7 +729,8 @@ def interpolate(request):
 def timeview(request):
     if is_ajax(request):
         try:
-
+            #set_trace()
+            worker_id = request.POST['workerID']
             person_id = int(float(request.POST['personID']))
             frame_id = int(float(request.POST['frameID']))
             view_id = int(float(request.POST['viewID']))
@@ -733,6 +742,7 @@ def timeview(request):
             annotation2dviews = Annotation2DView.objects.filter(
                 annotation__frame__frame_id__gte=frame_id_start,
                 annotation__frame__frame_id__lte=frame_id_end,
+                annotation__frame__worker__workerID=worker_id,
                 annotation__person__person_id=person_id,
                 view__view_id = view_id,
                 annotation__frame__undistorted = settings.UNDISTORTED_FRAMES
