@@ -14,7 +14,7 @@ def cls():
     os.system('cls' if os.name=='nt' else 'clear')
 
 def preprocess_invision_data(path,worker_id):
-    set_trace()
+    #set_trace()
     cam_id_mat = np.mgrid[1:3,1:5].reshape(2,-1).T
     cam_id_keys = [f"cam_{cam_id[0]}_{cam_id[1]}" for cam_id in cam_id_mat]
     cam_id_keys_to_idx = dict([cam_id_keys[i],i] for i in range(len(cam_id_keys)))
