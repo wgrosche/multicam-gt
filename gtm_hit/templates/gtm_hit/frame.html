@@ -11,6 +11,8 @@
   <script src="http://code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
   <script src="{% static 'gtm_hit/jquery.hotkeys.js' %}"></script>
   <script src="{% static 'gtm_hit/marker.js' %}"></script>
+  <script src="{% static 'gtm_hit/timeview.js' %}"></script>
+
   <!-- <link rel="stylesheet" type="text/css" href="{% static 'gtm_hit/frame.css' %}" /> -->
 
   <script type="text/javascript">
@@ -32,7 +34,7 @@
   {% include "includes_hit/navbar.html" %}
 
   {% csrf_token %}
-
+  
   <div class="container-fluid">
     </div>
     <!-- <ul class="row" id="my-row">
@@ -64,6 +66,7 @@
         <div class="row pb-2" id="my-row">
           <div class="col-sm-12">
             <div class="btn-group" role="group">
+              
               <button class="btn btn-success" onclick="save();">Save</button>
               <button class="btn btn-info" onclick="load();">Load</button>
               <button class="btn btn-warning" onclick="load_prev();">Load Previous</button>
@@ -81,6 +84,8 @@
                 <li><a href="#" data-toggle="modal" data-target="#loadModal">Load from File</a></li>
 
               </ul>
+              <!-- <button class="btn toggle-infos-btn" onclick="toggleInfos()">Show Infos</button> -->
+              <button class="btn toggle-menu-btn" onclick="toggleMenu()">Show Menu</button>
               
             </div>
             <div class="pull-right">
@@ -120,7 +125,7 @@
         class="img col-sm-4"></canvas>
         <canvas id='canv8' width="1920" height="1080" data-toggle="tooltip" title="Camera 8" style="padding: 0;"
         class="img col-sm-4"></canvas>
-      <div class="col-sm-4">{% include "includes_hit/controller.html" %} {% include "includes_hit/side_menu.html" %} </div>
+      <div class="col-sm-4">{% include "includes_hit/controller.html" %}  </div>
     </ul>
   </div>
   </div>
@@ -134,7 +139,7 @@
     <strong class="pull-left" style="color:grey;margin-top:5px;margin-left:10px;">Loading ... please wait until
       this text disappear</strong>
   </div>
-  {% include "includes_hit/footer.html" %}
+  {% include "includes_hit/timeview.html" %}
 </body>
 
 </html>

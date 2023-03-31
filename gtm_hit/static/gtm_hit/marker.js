@@ -2,6 +2,7 @@ var rectsID = [];
 var boxes = {};
 var chosen_rect;
 var prev_chosen_identity;
+
 var imgArray = [];
 var arrArray = [];
 var validation = {};
@@ -113,12 +114,16 @@ window.onload = function () {
   $(document).bind('keydown', "space", space);
   $(document).bind("keydown", "v", validate);
   $(document).bind("keydown", "z", zoomControl);
-  $(document).bind("keydown", "t", toggleGround);
+  $(document).bind("keydown", "g", toggleGround);
   $(document).bind("keydown", "c", toggleCuboid);
-  $(document).bind("keydown", "n", toggleUnselected);
+  $(document).bind("keydown", "h", toggleUnselected);
 
-  $(document).bind("keydown", "h", toggleOrientation);
+  $(document).bind("keydown", "n", keyPrevFrame);
+  $(document).bind("keydown", "m", keyNextFrame);
+
+  $(document).bind("keydown", "b", toggleOrientation);
   $(document).bind("keydown", "ctrl+s", save);
+
 
   $("#pID").bind("keydown", "return", changeID);
   $("#pID").val(-1);
@@ -140,6 +145,7 @@ function onMouseDown(event) {
     const pid = identities[rectID];
     const box = boxes[canvasIndex][pid];
     // Cuboid Base point select (Select and prep for drag)
+    if (!box.cuboid || box.cuboid.length == 0) continue;
     let base_point = box.cuboid[8];
 
     let baseX = base_point[0];
@@ -164,6 +170,8 @@ function onMouseDown(event) {
       chosen_rect = rectsID.indexOf(rectID);
       update();
       getTracklet();
+      displayCrops(frame_str, pid,canvasIndex); //display crops --timeview.js
+      timeview_canv_idx = canvasIndex;
       break;
     }
   }
@@ -304,6 +312,7 @@ function getTracklet(e) {
         ctx.lineWidth = "2";
         ctx.strokeStyle = "red";
         const dataList = msg[i];
+        if (dataList==undefined) continue;
         ctx.beginPath();
         ctx.moveTo(dataList[0][1][0], dataList[0][1][1]);
         for (let i = 1; i < dataList.length; i++) {
@@ -312,6 +321,27 @@ function getTracklet(e) {
         ctx.stroke();
         ctx.closePath()
       }
+    }
+  });
+}
+
+function interpolate(e) {
+  if(e)
+  e.preventDefault();
+  
+  var pid = prev_chosen_identity || identities[rectsID[chosen_rect]];
+  $.ajax({
+    method: "POST",
+    url: "interpolate",
+    data: {
+      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+      personID: pid,
+      frameID: parseInt(frame_str)-1
+    },
+    dataType: "json",
+    success: function (msg) {
+      alert(msg["message"])
+      loader_db("load")
     }
   });
 }
@@ -352,6 +382,13 @@ function tab() {
 
 }
 
+function keyNextFrame() {
+  changeFrame('next',1)
+}
+
+function keyPrevFrame() {
+  changeFrame('prev',1)
+}
 function space() {
   if (rectsID.length <= 1)
     return false;
@@ -687,29 +724,37 @@ function loader_db(uri) {
       clean();
       var maxID = 0;
       for (var i = 0; i < msg[0].length; i++) {
-            var rid = msg[0][i].rectangleID;
-            var indof = rectsID.indexOf(rid);
-            if (indof == -1) {
-              rectsID.push(rid);
-              chosen_rect = rectsID.length - 1;
-              var pid = msg[0][i].person_id
-              identities[rid] = pid;
-              for (var cami = 0; cami < nb_cams; cami++) {
-                boxes[cami][pid] = msg[cami][i];
-                }
-              if (prev_chosen_identity!=undefined){
-                if (prev_chosen_identity in boxes[0])
-                  chosen_rect =  rectsID.indexOf(boxes[0][prev_chosen_identity].rectangleID)
-              }
-              if (pid > maxID)
-                maxID = pid;
-              if (uri == "loadprev")
-                validation[pid] = false;
-              else
-                validation[pid] = true;
-              
+        var rid = msg[0][i].rectangleID;
+        var indof = rectsID.indexOf(rid);
+        if (indof == -1) {
+          rectsID.push(rid);
+          chosen_rect = rectsID.length - 1;
+          var pid = msg[0][i].person_id
+          identities[rid] = pid;
+          for (var cami = 0; cami < nb_cams; cami++) {
+            boxes[cami][pid] = msg[cami][i];
             }
+          if (pid > maxID)
+            maxID = pid;
+          if (uri == "loadprev")
+            validation[pid] = false;
+          else
+            validation[pid] = true;
+          
         }
+      }
+
+      if (prev_chosen_identity!=undefined){
+        if (prev_chosen_identity in boxes[0]){
+          chosen_rect =  rectsID.indexOf(boxes[0][prev_chosen_identity].rectangleID)
+          getTracklet();
+          displayCrops(frame_str, prev_chosen_identity, timeview_canv_idx); //display crops --timeview.js
+        }
+        else {
+          interpolate()
+        }
+      }
+      
       personID = maxID + 1;
       update();
       $("#unsaved").html("All changes saved.");
@@ -830,6 +875,11 @@ function validate() {
 // }
 
 function changeID(opt) {
+  const propagateElement = document.getElementById('propagate');
+  const conflictsElement = document.getElementById('conflicts');
+  const propagateValue = propagateElement.value;
+  const conflictsValue = conflictsElement.value;
+
   var newID = parseInt($("#pID").val());
   if (opt==undefined)opt="";
   const old_chosen_rect = chosen_rect;
@@ -841,7 +891,7 @@ function changeID(opt) {
       newID: newID,
       frameID: parseInt(frame_str),
       ID: identities[rectsID[chosen_rect]],
-      options: opt
+      options: JSON.stringify({'propagate':propagateValue,'conflicts':conflictsValue})
     },
     dataType: "json",
     success: function (msg) {
@@ -851,6 +901,26 @@ function changeID(opt) {
     }
   });
 }
+
+function personAction(opt) {
+  if (opt==undefined)return false;
+  const old_chosen_rect = chosen_rect;
+  $.ajax({
+    method: "POST",
+    url: "person",
+    data: {
+      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+      ID: identities[rectsID[chosen_rect]],
+      options: JSON.stringify(opt)
+    },
+    dataType: "json",
+    success: function (msg) {
+      loader_db('load');
+      chosen_rect = old_chosen_rect;
+    }
+  });
+}
+
 
 function sendAJAX(uri, data, id, suc, load) {
   $.ajax({
@@ -966,7 +1036,7 @@ function drawDot(event) {
 
 function drawLine(ctx, v1, v2) {
   ctx.beginPath();
-  ctx.strokeStyle = "lightgreen";
+  ctx.strokeStyle = "pink";
   ctx.lineWidth = "2";
   ctx.moveTo(v1[0], v1[1]);
   ctx.lineTo(v2[0], v2[1]);
@@ -1007,7 +1077,12 @@ function drawCuboid(ctx, vertices) {
   }
 }
 
-
+function removePersonFromAll() {
+  const isConfirmed = confirm("Are you sure you want to delete this object from all frames? This cannot be undone.");
+  if (isConfirmed) {
+    personAction({'delete':true});
+  }
+}
 
 
 function drawRect() {
@@ -1015,6 +1090,8 @@ function drawRect() {
     var c = document.getElementById("canv" + (i + 1));
     var ctx = c.getContext("2d");
     ctx.clearRect(0, 0, c.width, c.height);
+    //check if image is loaded
+    if (!imgArray[i].complete || imgArray[i].naturalWidth === 0) continue;
     ctx.drawImage(imgArray[i], 0, 0);
     if (toggle_orientation)
       drawArrows(ctx, i);
@@ -1032,7 +1109,7 @@ function drawRect() {
         //show only selected 
         if (!(r == chosen_rect) && !toggle_unselected) continue;
         //draw cuboid
-        if (toggle_cuboid && field.cuboid) drawCuboid(ctx, field.cuboid);
+        if (toggle_cuboid && field.cuboid && field.cuboid.length!=0) drawCuboid(ctx, field.cuboid);
 
         var w = field.x2 - field.x1;
         var h = field.y2 - field.y1;
@@ -1048,6 +1125,8 @@ function drawRect() {
             ctx.strokeStyle = "white";
           else
             ctx.strokeStyle = "yellow";
+
+          if (field.annotation_complete) ctx.strokeStyle = "green";
           ctx.lineWidth = "4";
         }
         
@@ -1067,6 +1146,7 @@ function drawRect() {
 
         ctx.beginPath();
         ctx.fillStyle = "black";
+        if (field.annotation_complete) ctx.fillStyle = "green";
         ctx.fillRect(field.x1, field.y1 - 27, 50, 20);
         ctx.stroke();
         ctx.closePath();
@@ -1075,6 +1155,7 @@ function drawRect() {
           ctx.fillStyle = "cyan";
         } else {
           ctx.fillStyle = "white";
+          
         }
         ctx.font = "20px Arial";
 
@@ -1085,9 +1166,10 @@ function drawRect() {
   if (chosen_rect >= 0) {
     let pid = identities[rectsID[chosen_rect]];
     let box = boxes[key][pid];
-    $("#pHeight").text(box.object_size[0]);
-    $("#pWidth").text(box.object_size[1]);
-    $("#pLength").text(box.object_size[2]);
+    //round to 2 decimal places
+    $("#pHeight").text("Height: "+box.object_size[0].toFixed(3)); 
+    $("#pWidth").text("Width: "+box.object_size[1].toFixed(3));
+    $("#pLength").text("Length: "+box.object_size[2].toFixed(3));
     $("#pID").text(pid);
 
 
@@ -1286,7 +1368,7 @@ function load_file(f) {
 
 }
 
-function load_frame(frame_string) {
+async function load_frame(frame_string) {
   loadcount = 0;
   $("#loader").show();
   fstr = frame_string;
@@ -1296,8 +1378,13 @@ function load_frame(frame_string) {
   for (var i = 0; i < cameras; i++)
     //imgArray[i].src = '../../static/marker/day_2/annotation_final/'+ camName[i]+ '/begin/'+frame_string+'.png'; // change 00..0 by a frame variable
     // imgArray[i].src = '../../static/gtm_hit/dset/rayon4/frames/'+ camName[i]+"/"+frame_str+'.png'; // change 00..0 by a frame variable
-    imgArray[i].src = '../../static/gtm_hit/dset/invision/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg'; // change 00..0 by a frame variable
-
+    
+    //imgArray[i].src = '../../static/gtm_hit/dset/invision/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg'; // change 00..0 by a frame variable
+    var imgSrc = '../../static/gtm_hit/dset/invision/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg';
+    const loadedImg = await loadImage(imgSrc);
+    if (loadedImg !== null) {
+      imgArray[i].src = imgSrc;
+    }
   clean();
   update();
 }

@@ -15,7 +15,7 @@ urlpatterns = [
     url(r'^(?P<workerID>[A-Z0-9]+)/processFrame$', views.processFrame, name="processFrame"),
     url(r'^.*click',views.click,name="click"),
     url(r'^.*move',views.move,name="move"),
-    url(r'^.*action',views.action,name="action"),
+    url(r'^.*action$',views.action,name="action"),
     url(r'^.*changeframe$', views.changeframe, name='changeframe'),
     url(r'^.*save$',views.save,name='save'),
     url(r'^.*load$',views.load,name='load'),
@@ -23,8 +23,8 @@ urlpatterns = [
     url(r'^.*processFinish$',views.processFinish,name='processFinish'),
     url(r'^.*tracklet$',views.tracklet,name='tracklet'),
     url(r'^.*changeid$',views.change_id,name='changeid'),
-
-
-
+    url(r'^.*person$',views.person_action,name='personAction'),
+    url(r'^.*timeview$',views.timeview,name='timeview'),
+    url(r'^.*interpolate$',views.interpolate,name='interpolate'),
     url(r'^(?P<workerID>[A-Z0-9]+)/finish$',views.finish,name='finish'),
 ]

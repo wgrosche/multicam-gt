@@ -13,7 +13,6 @@ from django.conf import settings
 from .models import Worker, ValidationCode, MultiViewFrame, View, Annotation, Annotation2DView, Person
 from django.template import RequestContext
 from django.http import JsonResponse
-from django.db import models
 from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
 import re
@@ -25,6 +24,8 @@ from ipdb import set_trace
 import random
 import numpy as np
 from gtm_hit.misc import geometry
+from gtm_hit.misc.db import *
+from gtm_hit.misc.serializer import *
 from gtm_hit.misc.utils import convert_rect_to_dict, request_to_dict, process_action
 from pprint import pprint
 import uuid
@@ -185,9 +186,14 @@ def get_cuboids_2d(world_point, obj):
 
     for cam_id in range(settings.NB_CAMS):
         # set_trace()
-        cuboid = geometry.get_cuboid_from_ground_world(
-            world_point, settings.CALIBS[cam_id], *object_size, obj.get("rotation_theta", 0))
-        p1, p2 = geometry.get_bounding_box(cuboid)
+        try:
+            cuboid = geometry.get_cuboid_from_ground_world(
+                world_point, settings.CALIBS[cam_id], *object_size, obj.get("rotation_theta", 0))
+            p1, p2 = geometry.get_bounding_box(cuboid)
+        except ValueError:
+            cuboid = []
+            p1 = [-1, -1]
+            p2 = [-1, -1]
         rectangle_as_dict = convert_rect_to_dict(
             (*p1, *p2), cuboid, cam_id, rect_id, world_point, object_size, obj.get("rotation_theta", 0))
         rectangles.append(rectangle_as_dict)
@@ -385,20 +391,23 @@ def changeframe(request):
 
             worker = Worker.objects.get(pk=wID)
 
-            # set_trace()
-            worker.increaseFrame(1)
-            worker.save()
+            #   set_trace()
+            #worker.increaseFrame(1)
+            
             timelist = worker.getTimeList()
             timelist.append(timezone.now().isoformat())
             worker.setTimeList(timelist)
             #validation_code = generate_code()
             # return render(request, 'gtm_hit/finish.html',{'workerID' : wID, 'validation_code': validation_code},context)
             if order == "next":
-                frame = int(frame_number) + int(increment)
+                inc = int(increment)
             elif order == "prev" and (int(frame_number) - int(increment)) >= 0:
-                frame = int(frame_number) - int(increment)
+                inc = -int(increment)
             else:
                 return HttpResponse("Requested frame not existing")
+            frame = int(frame_number) + inc
+            worker.frame_labeled = frame
+            worker.save()
             frame = "0" * (8 - len(str(frame))) + str(frame)
             response = {}
             response['frame'] = frame
@@ -595,10 +604,10 @@ def save_db(request):
 
 
 def load_db(request):
-    # set_trace()
+    #set_trace()
     if is_ajax(request):
         try:
-            frame_id = request.POST['ID']
+            frame_id = int(request.POST['ID'])
             worker_id = request.POST['workerID']
 
             # Check if the person and frame objects exist
@@ -610,7 +619,7 @@ def load_db(request):
             camviews = View.objects.all()
             for camview in camviews:
                 # set_trace()
-                a2l = serialize_annotation2dviews_with_person_id(
+                a2l = serialize_annotation2dviews(
                     Annotation2DView.objects.filter(annotation__frame=frame, view=camview))
                 retjson.append(a2l)
             #a2l = list(Annotation2DView.objects.filter(annotation__frame=frame, view=View.objects.get(view_id=0)).values())
@@ -642,30 +651,47 @@ def change_id(request):
     #set_trace()
     if is_ajax(request):
         try:
-            pid = request.POST['ID']
+            pid = int(float(request.POST['ID']))
             #worker_id = request.POST['workerID']
             new_pid = int(float(request.POST['newID']))
             frame_id = int(float(request.POST['frameID']))
-            options = request.POST['options']
-            if options == 'future':
-                success = change_annotation_id_propagate(pid, new_pid, frame_id,"future")
-            elif options == 'past':
-                success = change_annotation_id_propagate(pid, new_pid, frame_id,"past")
-            else:
-                success = change_annotation_id(pid, new_pid, frame_id)
+            #set_trace()
+            options = json.loads(request.POST['options'])
+            success = change_annotation_id_propagate(pid, new_pid, frame_id,options)
             if success:
-                return HttpResponse(JsonResponse({"message": "ID changed."}))
+                return HttpResponse(JsonResponse({"message": "ID changed.","options":options}))
             else:
                 return HttpResponse("Error")
         except KeyError:
-            return HttpResponse("Error",)
+            return HttpResponse("Error")
     return HttpResponse("Error")
 
+def person_action(request):
+    #set_trace()
+    if is_ajax(request):
+        try:
+            pid = request.POST['ID']
+            options = json.loads(request.POST['options'])
+            person = Person.objects.get(person_id=pid)
+            #set_trace()
+            try:
+                if "mark" in options:
+                    person.annotation_complete = options["mark"]
+                    person.save()
+                    return HttpResponse(JsonResponse({"message": "Person annotation complete."}))
+                if "delete" in options:
+                    if "delete" in options and options["delete"]:
+                        person.delete()
+                    return HttpResponse(JsonResponse({"message": "Person deleted."}))
+            except Person.DoesNotExist:
+                return HttpResponse("Error")
+        except KeyError:
+            return HttpResponse("Error")
+    return HttpResponse("Error")
 
 def tracklet(request):
     if is_ajax(request):
         try:
-
             person_id = int(float(request.POST['personID']))
             frame_id = int(float(request.POST['frameID']))
 
@@ -676,173 +702,49 @@ def tracklet(request):
         except KeyError:
             return HttpResponse("Error")
 
-
-def save_2d_views(annotation):
-    # set_trace()
-    for i in range(settings.NB_CAMS):
-        view, _ = View.objects.get_or_create(view_id=i)
-        cuboid = geometry.get_cuboid2d_from_annotation(
-            annotation, settings.CALIBS[i], settings.UNDISTORTED_FRAMES)
-        p1, p2 = geometry.get_bounding_box(cuboid)
-        # Set the cuboid points for the annotation2dview object
-        # set_trace()
+def interpolate(request):
+    if is_ajax(request):
         try:
-            annotation2dview = Annotation2DView.objects.get(
-                view=view,
-                annotation=annotation)
-        except Annotation2DView.DoesNotExist:
-            annotation2dview = Annotation2DView(
-                view=view,
-                annotation=annotation
-            )
-        annotation2dview.x1 = p1[0]
-        annotation2dview.y1 = p1[1]
-        annotation2dview.x2 = p2[0]
-        annotation2dview.y2 = p2[1]
-        annotation2dview.set_cuboid_points_2d(cuboid)
-        annotation2dview.save()
-
-
-def serialize_annotation2dviews_with_person_id(queryset):
-    serialized_data = []
-    for atdv in queryset:
-        serialized_view = {
-            'rectangleID': atdv.annotation.rectangle_id,
-            'cameraID': atdv.view.view_id,
-            'person_id': atdv.annotation.person.person_id,  # Include the person_id
-            'object_size': atdv.annotation.object_size,
-            'rotation_theta': atdv.annotation.rotation_theta,
-            'Xw': atdv.annotation.Xw,
-            'Yw': atdv.annotation.Yw,
-            'Zw': atdv.annotation.Zw,
-            'x1': atdv.x1,
-            'y1': atdv.y1,
-            'x2': atdv.x2,
-            'xMid': atdv.x1+(atdv.x2-atdv.x1)/2,
-            'y2': atdv.y2,
-            'cuboid':  [atdv.cuboid_points[0:2],
-                        atdv.cuboid_points[2:4],
-                        atdv.cuboid_points[4:6],
-                        atdv.cuboid_points[6:8],
-                        atdv.cuboid_points[8:10],
-                        atdv.cuboid_points[10:12],
-                        atdv.cuboid_points[12:14],
-                        atdv.cuboid_points[14:16],
-                        atdv.cuboid_points[16:18],
-                        atdv.cuboid_points[18:20],
-                        ],
-        }
-        serialized_data.append(serialized_view)
-    return serialized_data
-
-
-def get_annotation2dviews_for_frame_and_person(frame_id, person_id):
-    # Get the MultiViewFrame object for the given frame_id
-    #frame = MultiViewFrame.objects.get(frame_id=frame_id)
-
-    # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
-    frame_id_start = max(1, frame_id - 100)
-    frame_id_end = frame_id + 100
-
-    # Get the Person object for the given person_id
-    person = Person.objects.get(person_id=person_id)
-
-    # Filter the Annotation2DView objects using the calculated frame range and the Person object
-    annotation2dviews = Annotation2DView.objects.filter(
-        annotation__frame__frame_id__gte=frame_id_start,
-        annotation__frame__frame_id__lte=frame_id_end,
-        annotation__person=person,
-    )
-    # set_trace()
-    camtrackviews = {}
-    for annotation2dview in annotation2dviews:
-        vid = annotation2dview.view.view_id
-        if vid not in camtrackviews:
-            camtrackviews[vid] = []
-        camtrackviews[vid].append(
-            (annotation2dview.annotation.frame.frame_id, annotation2dview.cuboid_points_2d[8]))
-    for view_id in camtrackviews:
-        camtrackviews[view_id].sort()
-    return camtrackviews
-
-
-def get_next_available_id():
-    max_id = Person.objects.aggregate(models.Max('pk'))['pk__max']
-    return max_id + 1 if max_id is not None else 1
-
-def change_annotation_id(old_id, new_id, frame_id):
-    with transaction.atomic():  # Start a transaction to ensure data consistency
-        # Check if an Annotation object with the new_id exists
-        # set_trace()
-        try:
-            annotation_to_replace = Annotation.objects.get(
-                person__person_id=new_id, frame__frame_id=frame_id,frame__undistorted=settings.UNDISTORTED_FRAMES)
-        except Annotation.DoesNotExist:
-            annotation_to_replace = None
-        try:
-            if annotation_to_replace:
-                # Find the next available unique ID for the Person model
-                next_id = get_next_available_id()
-
-                # Update the conflicting annotation's person with the new unique ID
-                person_to_replace = annotation_to_replace.person
-                person_to_replace.person_id = next_id
-                person_to_replace.save()
-
-                # Update the related Annotation object
-                annotation_to_replace.person = person_to_replace
-                annotation_to_replace.save()
-
-            # Change the ID of the target Annotation object's person to new_id
-            target_annotation = Annotation.objects.get(
-                person__person_id=old_id, frame__frame_id=frame_id,frame__undistorted=settings.UNDISTORTED_FRAMES)
-            target_person = target_annotation.person
-            target_person.person_id = new_id
-            target_person.save()
-
-            # Update the related Annotation object
-            target_annotation.person = target_person
-            target_annotation.save()
-            return True
-        except Exception as e:
-            print(e)
-            return False
+            #set_trace()
+            person_id = int(float(request.POST['personID']))
+            frame_id = int(float(request.POST['frameID']))
+            #set_trace()
+            try:
+                message = interpolate_until_next_annotation(frame_id=frame_id, person_id=person_id)
+            except ValueError:
+                HttpResponse("Error")
+            # set_trace()
+            return HttpResponse(json.dumps({"message":message}), content_type="application/json")
+        except KeyError:
+            return HttpResponse("Error")
         
-
-def change_annotation_id_propagate(old_id, new_id, frame_id, temporaldirection):
-    with transaction.atomic():  # Start a transaction to ensure data consistency
+def timeview(request):
+    if is_ajax(request):
         try:
-            next_id = get_next_available_id()
-            filterargs={'person__person_id': new_id, 'frame__frame_id__gte': frame_id,'frame__undistorted':settings.UNDISTORTED_FRAMES}
-            if temporaldirection == 'past':
-                filterargs['frame__frame_id__lte'] = frame_id
-                del filterargs['frame__frame_id__gte']
-            # Find all conflicting future annotations
-            annotation_conflicts = Annotation.objects.filter(**filterargs).order_by('frame__frame_id')
-            set_trace()
-            for conflict in annotation_conflicts:
-                # Update the conflicting annotation's person with the new unique ID
-                person_to_replace = conflict.person
-                person_to_replace.person_id = next_id
-                person_to_replace.save()
 
-                # Update the related Annotation object
-                conflict.person = person_to_replace
-                conflict.save()
+            person_id = int(float(request.POST['personID']))
+            frame_id = int(float(request.POST['frameID']))
+            view_id = int(float(request.POST['viewID']))
+            
+            # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
+            frame_id_start = max(1, frame_id - 5)
+            frame_id_end = frame_id + 5
+            # Filter the Annotation2DView objects using the calculated frame range and the Person object
+            annotation2dviews = Annotation2DView.objects.filter(
+                annotation__frame__frame_id__gte=frame_id_start,
+                annotation__frame__frame_id__lte=frame_id_end,
+                annotation__person__person_id=person_id,
+                view__view_id = view_id,
+                annotation__frame__undistorted = settings.UNDISTORTED_FRAMES
+            ).order_by('annotation__frame__frame_id')
+            timeviews =  serialize_annotation2dviews(annotation2dviews)
+            # set_trace()
+            return HttpResponse(json.dumps(timeviews), content_type="application/json")
+        except KeyError:
+            return HttpResponse("Error")
 
-            # Find all target future annotations
-            filterargs["person__person_id"]=old_id
-            target_future_annotations = Annotation.objects.filter(**filterargs).order_by('frame__frame_id')
-            for annotation in target_future_annotations:
-                target_future_person = annotation.person
-                target_future_person.person_id = new_id
-                target_future_person.save()
+import numpy as np
 
-                # Update the related Annotation object
-                annotation.person = target_future_person
-                annotation.save()
 
-            return True
-        except Exception as e:
-            print(e)
-            return False
+
+

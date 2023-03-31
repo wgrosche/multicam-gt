@@ -251,8 +251,8 @@ UNLABELED = list(range(0,NBFRAMES,INCREMENT))
 HEIGHT = 1.8
 RADIUS = 0.5 #person radius
 
-STEPL = 0.1
-MOVE_STEP = 0.1 #same as stepl
+STEPL = 0.02
+MOVE_STEP = 0.02 #same as stepl
 SIZE_CHANGE_STEP=0.03
 DSETNAME = "invision"
 CAMS = ["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
