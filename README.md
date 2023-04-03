@@ -16,13 +16,14 @@ DATABASES = {
         'PASSWORD': '',
         'HOST': 'localhost',
         'PORT': '',
-    }
+    }h
 }
 ```
 You can load the INVISION data into the database by running the following command:
 ```bash
 python manage.py shell < invision_data_process.py
 ```
+By default, the worker name will be 'INVISION'. You can change it by editing the invision_data_process.py file.
 You can then run the following commands to run the application:
 ```bash
 conda env create -n ENVNAME --file ENV.yml
