@@ -9,3 +9,5 @@ gtm_hit/static/gtm_hit/dset
 gtm_hit/labels/invision
 gtm_hit/labels
 logfile
+# vim swap files
+*.sw[po]
