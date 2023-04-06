@@ -103,7 +103,7 @@ WSGI_APPLICATION = 'gtmarker.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'invision4',
+        'NAME': 'invision',
         'USER': 'invision',
         'PASSWORD': '',
         'HOST': 'localhost',
@@ -261,6 +261,6 @@ FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 NB_CAMS = len(CAMS)
 CALIBS= load_invision_calib("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations")
 ROTATION_THETA = np.pi/24
-UNDISTORTED_FRAMES=True
+UNDISTORTED_FRAMES=False
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

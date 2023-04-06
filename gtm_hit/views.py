@@ -30,7 +30,6 @@ from gtm_hit.misc.utils import convert_rect_to_dict, request_to_dict, process_ac
 from pprint import pprint
 import uuid
 
-
 def requestID(request):
     context = RequestContext(request).flatten()
     if request.method == "POST":
@@ -173,7 +172,7 @@ def is_ajax(request):
     return request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
 
 
-def get_cuboids_2d(world_point, obj):
+def get_cuboids_2d(world_point, obj,new=False):
     rectangles = list()
     rect_id = str(int(world_point[0])) + "_" + str(int(world_point[1])
                                                    ) + "_" + uuid.uuid1().__str__().split("-")[0]
@@ -196,6 +195,8 @@ def get_cuboids_2d(world_point, obj):
             p2 = [-1, -1]
         rectangle_as_dict = convert_rect_to_dict(
             (*p1, *p2), cuboid, cam_id, rect_id, world_point, object_size, obj.get("rotation_theta", 0))
+        if "person_id" in obj:
+            rectangle_as_dict["personID"] = obj["person_id"]
         rectangles.append(rectangle_as_dict)
 
     return rectangles
@@ -209,15 +210,20 @@ def click(request):
         obj = request_to_dict(request)
         cam = request.POST['canv']
         cam = int(re.findall('\d+', cam)[0]) - 1
+        #set_trace()
+        worker_id = request.POST['workerID']
+        
         if 0 <= cam < settings.NB_CAMS:
             feet2d_h = np.array([[x], [y], [1]])
             # set_trace()
             world_point = geometry.reproject_to_world_ground(
                 feet2d_h, settings.CALIBS[cam].K, settings.CALIBS[cam].R, settings.CALIBS[cam].T)
-
+            if "person_id" not in obj:
+                obj["person_id"] = get_next_available_id(worker_id=worker_id)
             rectangles = get_cuboids_2d(world_point, obj)
 
             rect_json = json.dumps(rectangles)
+            #set_trace()
             return HttpResponse(rect_json, content_type="application/json")
 
         return HttpResponse("OK")
@@ -266,7 +272,7 @@ def move(request):
 
 def action(request):
     # set_trace()
-    # set_trace()
+    #set_trace()
     if is_ajax(request):
         try:
 
@@ -544,6 +550,10 @@ def save_db(request):
             
             frame, created = MultiViewFrame.objects.get_or_create(
                 frame_id=frame_id, worker=worker,undistorted=settings.UNDISTORTED_FRAMES)
+            
+            #delete all annotations for this frame
+            Annotation.objects.filter(frame=frame).delete()
+
             # set_trace()
             # Iterate through each annotation in the data and create an annotation object for it
             for annotation_data in data:

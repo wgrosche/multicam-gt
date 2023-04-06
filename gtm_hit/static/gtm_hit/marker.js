@@ -13,7 +13,7 @@ var camName = '';
 var loadcount = 0;
 var zoomOn = false;
 var toggle_cuboid = true;
-var toggle_unselected = false;
+var toggle_unselected = true;
 
 var undistort_frames_path ='';
 var zoomratio = [];
@@ -225,7 +225,9 @@ function onMouseUp() {
       y: box.y2,
       rotation_theta: box.rotation_theta,
       object_size: box.object_size,
-      canv: this.id
+      canv: this.id,
+      person_id: pid,
+      workerID: workerID,
     },
     dataType: "json",
     success: function (msg) {
@@ -268,7 +270,8 @@ function mainClick(e) {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
       x: xCorr,
       y: yCorr,
-      canv: this.id
+      canv: this.id,
+      workerID: workerID
     },
     dataType: "json",
     success: function (msg) {
@@ -277,8 +280,7 @@ function mainClick(e) {
       if (indof == -1) {
         rectsID.push(rid);
         chosen_rect = rectsID.length - 1;
-        while (personID in validation)
-          personID++;
+        const personID = msg[0].personID;
         identities[rid] = personID;
         validation[personID] = true;
         saveRect(msg, personID);
