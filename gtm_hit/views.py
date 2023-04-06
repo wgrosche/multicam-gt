@@ -57,7 +57,7 @@ def processInit(request, dataset_name, workerID):
 
 
 def index(request, workerID,dataset_name):
-    set_trace()
+    
     context = RequestContext(request).flatten()
     try:
         w = Worker.objects.get(pk=workerID)
@@ -66,7 +66,7 @@ def index(request, workerID,dataset_name):
         return render(request, 'gtm_hit/index.html', {'workerID': workerID, **context, 'dset_name': dataset_name})
 
     except Worker.DoesNotExist:
-        set_trace()
+        
         return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
 
@@ -79,13 +79,13 @@ def processIndex(request, workerID,dataset_name):
             w.state = 3
             w.save()
     except Worker.DoesNotExist:
-        set_trace()
+        
         return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
     return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
 
 def dispatch(request, dataset_name,workerID):
-    set_trace()
+    
     context = RequestContext(request)
     try:
         w = Worker.objects.get(pk=workerID)
@@ -498,7 +498,7 @@ def generate_code(worker):
 
 def tuto(request, workerID,dataset_name):
     context = RequestContext(request).flatten()
-    set_trace()
+    
     try:
         w = Worker.objects.get(pk=workerID)
         if w.state != 3:

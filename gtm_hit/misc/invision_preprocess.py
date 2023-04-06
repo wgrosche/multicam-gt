@@ -4,7 +4,7 @@ from IPython.display import clear_output
 import time
 import json
 import uuid
-from gtm_hit.models import MultiViewFrame, Worker, Annotation, Person, View, Annotation2DView
+from gtm_hit.models import MultiViewFrame, Worker, Annotation, Person,Dataset
 from django.conf import settings
 from gtm_hit.misc.db import save_2d_views
 import os
@@ -13,7 +13,7 @@ import os.path as osp
 def cls():
     os.system('cls' if os.name=='nt' else 'clear')
 
-def preprocess_invision_data(path,worker_id):
+def preprocess_invision_data(path,worker_id,dataset_name):
     #set_trace()
     cam_id_mat = np.mgrid[1:3,1:5].reshape(2,-1).T
     cam_id_keys = [f"cam_{cam_id[0]}_{cam_id[1]}" for cam_id in cam_id_mat]
@@ -32,6 +32,9 @@ def preprocess_invision_data(path,worker_id):
 
     frame_id=0
     
+
+    worker, _ = Worker.objects.get_or_create(workerID=worker_id)
+    dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
     while(frame_id<5000):
         print(frame_id)
         #clear_output(wait=True)
@@ -47,11 +50,11 @@ def preprocess_invision_data(path,worker_id):
                     track_id = tdet["trackId"]
                     if track_id not in obj_set:
                         obj_set.add(track_id)
-                        process_tracked_location(tdet,worker_id,frame_id)
+                        process_tracked_location(tdet,worker,frame_id,dataset)
         cls()
         frame_id+=1
 
-def process_tracked_location(tdet,worker_id,frame_id):
+def process_tracked_location(tdet,worker,frame_id,dataset):
     world_coords = tdet["cuboidToWorldTransform"] @ np.array([0,0,0,1]).reshape(-1,1)
     world_coords = world_coords[:3,0].T
     rect_id = uuid.uuid4().__str__().split("-")[-1]
@@ -66,14 +69,13 @@ def process_tracked_location(tdet,worker_id,frame_id):
             "rotation_theta":rotation_theta,
             "rectangleID":rect_id
             }
-
-    worker, _ = Worker.objects.get_or_create(workerID=worker_id)
+    
             
     frame, created = MultiViewFrame.objects.get_or_create(
-        frame_id=frame_id, worker=worker,undistorted=settings.UNDISTORTED_FRAMES)
+        frame_id=frame_id, worker=worker,undistorted=settings.UNDISTORTED_FRAMES,dataset=dataset)
     
     person, _ = Person.objects.get_or_create(
-        person_id=annotation_data['personID'],worker=worker)
+        person_id=annotation_data['personID'],worker=worker,dataset=dataset)
     
     # Create a new annotation object for the given person and frame
     try:

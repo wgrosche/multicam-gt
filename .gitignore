@@ -11,3 +11,4 @@ gtm_hit/labels
 logfile
 # vim swap files
 *.sw[po]
+.DS_Store
