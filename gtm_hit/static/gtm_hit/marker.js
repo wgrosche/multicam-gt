@@ -40,7 +40,7 @@ window.onload = function () {
     d.className = d.className; // + " disabled";
     if (nblabeled >= to_label) {
       var button = document.getElementById("changeF");
-      button.href = "/gtm_hit/" + workerID + "/processFrame";
+      button.href = "/gtm_hit/"  + dset_name + "/"+ workerID + "/processFrame";
       button.text = "Finish";
     }
   }
@@ -819,7 +819,7 @@ function changeFrame(order, increment) {
       nblabeled = msg['nblabeled'];
       if (nblabeled >= to_label) {
         var button = document.getElementById("changeF");
-        button.href = "/gtm_hit/" + workerID + "/processFrame";
+        button.href = "/gtm_hit/" + dset_name + "/"+ workerID + "/processFrame";
         button.text = "Finish";
       }
       loadcount = 0;

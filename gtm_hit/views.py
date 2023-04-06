@@ -31,7 +31,7 @@ from pprint import pprint
 import uuid
 
 def requestID(request):
-    set_trace()
+    
     context = RequestContext(request).flatten()
     if request.method == "POST":
         if 'wID' in request.POST:
@@ -44,7 +44,7 @@ def requestID(request):
     return render(request, 'gtm_hit/requestID.html', context)
 
 def processInit(request, dataset_name, workerID):
-    set_trace()
+    
     context = RequestContext(request).flatten()
     try:
         w = Worker.objects.get(pk=workerID)
@@ -56,21 +56,22 @@ def processInit(request, dataset_name, workerID):
         return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
 
-def index(request, workerID):
+def index(request, workerID,dataset_name):
     set_trace()
     context = RequestContext(request).flatten()
     try:
         w = Worker.objects.get(pk=workerID)
         if w.state != 0:
-            return redirect("/gtm_hit/"+workerID)
-        return render(request, 'gtm_hit/index.html', {'workerID': workerID, **context})
+            return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
+        return render(request, 'gtm_hit/index.html', {'workerID': workerID, **context, 'dset_name': dataset_name})
 
     except Worker.DoesNotExist:
-        return redirect("/gtm_hit/"+workerID)
+        set_trace()
+        return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
 
-def processIndex(request, workerID):
-    set_trace()
+def processIndex(request, workerID,dataset_name):
+    
     context = RequestContext(request)
     try:
         w = Worker.objects.get(pk=workerID)
@@ -78,8 +79,9 @@ def processIndex(request, workerID):
             w.state = 3
             w.save()
     except Worker.DoesNotExist:
-        return redirect("/gtm_hit/"+workerID)
-    return redirect("/gtm_hit/"+workerID)
+        set_trace()
+        return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
+    return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
 
 def dispatch(request, dataset_name,workerID):
@@ -99,13 +101,15 @@ def dispatch(request, dataset_name,workerID):
                 except Worker.DoesNotExist:
                     stop = True
                 except ValidationCode.DoesNotExist:
-                    return redirect("/gtm_hit/"+workerID+str(i))
-            return redirect("/gtm_hit/"+workerID+str(i))
+                    return redirect(f"/gtm_hit/{dataset_name}/{workerID+str(i)}")
+            return redirect(f"/gtm_hit/{dataset_name}/{workerID+str(i)}")
         except ValidationCode.DoesNotExist:
             pass
     except Worker.DoesNotExist:
         w = registerWorker(workerID)
     
+    dataset = Dataset.objects.get_or_create(name=dataset_name)
+
     urlpath = "/gtm_hit/"+dataset_name+"/"+workerID+"/"
     #urlpath = ""
     state = w.state
@@ -128,12 +132,12 @@ def dispatch(request, dataset_name,workerID):
         # return render(request, 'gtm_hit/index.html',{'workerID' : workerID},context)
 
 def frame(request, dataset_name,workerID):
-    set_trace()
+    
     context = RequestContext(request).flatten()
     try:
         w = Worker.objects.get(pk=workerID)
         if w.state != 1:
-            return redirect("/gtm_hit/"+workerID)
+            return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
         if w.frameNB < 0:
             w.frameNB = settings.STARTFRAME
             w.save()
@@ -141,16 +145,16 @@ def frame(request, dataset_name,workerID):
         nblabeled = w.frame_labeled
 
         try:
-            dataset = Dataset.objects.get(name=dataset_name)
+            dataset = Dataset.objects.get_or_create(name=dataset_name)[0]
         except Dataset.DoesNotExist:
             return HttpResponseNotFound("Dataset not found")
 
         return render(request, 'gtm_hit/frame.html', {'dset_name': dataset.name, 'frame_number': frame_number, 'frame_inc': settings.INCREMENT, 'workerID': workerID, 'cams': settings.CAMS, 'frame_size': settings.FRAME_SIZES, 'nb_cams': settings.NB_CAMS, 'nblabeled': nblabeled, **context, "undistort": settings.UNDISTORTED_FRAMES})
     except Worker.DoesNotExist:
-        return redirect("/gtm_hit/"+workerID)
+        return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
-def processFrame(request, workerID):
-    set_trace()
+def processFrame(request, workerID,dataset_name):
+    
     context = RequestContext(request)
     try:
         w = Worker.objects.get(pk=workerID)
@@ -160,13 +164,13 @@ def processFrame(request, workerID):
             timelist.append(timezone.now().isoformat())
             w.setTimeList(timelist)
             w.save()
-        return redirect("/gtm_hit/"+workerID)
+        return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
     except Worker.DoesNotExist:
-        return redirect("/gtm_hit/"+workerID)
+        return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
 
-def finish(request, workerID):
-    set_trace()
+def finish(request, workerID,dataset_name):
+    
     context = RequestContext(request).flatten()
     try:
         w = Worker.objects.get(pk=workerID)
@@ -179,8 +183,8 @@ def finish(request, workerID):
                 pass
             return render(request, 'gtm_hit/finish.html', {'workerID': workerID, 'validation_code': validation_code, **context})
     except Worker.DoesNotExist:
-        return redirect("/gtm_hit/"+workerID)
-    return redirect("/gtm_hit/"+workerID)
+        return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
+    return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
 
 def is_ajax(request):
@@ -191,7 +195,7 @@ def get_cuboids_2d(world_point, obj,new=False):
     rectangles = list()
     rect_id = str(int(world_point[0])) + "_" + str(int(world_point[1])
                                                    ) + "_" + uuid.uuid1().__str__().split("-")[0]
-    # set_trace()
+    # 
 
     if "object_size" in obj:
         object_size = obj["object_size"]
@@ -199,7 +203,7 @@ def get_cuboids_2d(world_point, obj,new=False):
         object_size = [settings.HEIGHT, settings.RADIUS, settings.RADIUS]
 
     for cam_id in range(settings.NB_CAMS):
-        # set_trace()
+        # 
         try:
             cuboid = geometry.get_cuboid_from_ground_world(
                 world_point, settings.CALIBS[cam_id], *object_size, obj.get("rotation_theta", 0))
@@ -225,20 +229,20 @@ def click(request):
         obj = request_to_dict(request)
         cam = request.POST['canv']
         cam = int(re.findall('\d+', cam)[0]) - 1
-        #set_trace()
+        #
         worker_id = request.POST['workerID']
         dataset_name = request.POST['datasetName']
         if 0 <= cam < settings.NB_CAMS:
             feet2d_h = np.array([[x], [y], [1]])
-            # set_trace()
+            # 
             world_point = geometry.reproject_to_world_ground(
                 feet2d_h, settings.CALIBS[cam].K, settings.CALIBS[cam].R, settings.CALIBS[cam].T)
             if "person_id" not in obj:
-                obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset__name=dataset_name)
+                obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset_name=dataset_name)
             rectangles = get_cuboids_2d(world_point, obj)
 
             rect_json = json.dumps(rectangles)
-            #set_trace()
+            #
             return HttpResponse(rect_json, content_type="application/json")
 
         return HttpResponse("OK")
@@ -273,11 +277,11 @@ def move(request):
             else:
                 return HttpResponse("Error")
 
-            # set_trace()
+            # 
             next_rect = get_cuboids_2d(world_point, obj)
 
             next_rect_json = json.dumps(next_rect)
-            # set_trace()
+            # 
             return HttpResponse(next_rect_json, content_type="application/json")
 
         except KeyError:
@@ -286,8 +290,8 @@ def move(request):
 
 
 def action(request):
-    # set_trace()
-    #set_trace()
+    # 
+    #
     if is_ajax(request):
         try:
 
@@ -304,7 +308,7 @@ def action(request):
             next_rect = get_cuboids_2d(world_point, obj)
 
             next_rect_json = json.dumps(next_rect)
-            # set_trace()
+            # 
             return HttpResponse(next_rect_json, content_type="application/json")
         except KeyError:
             return HttpResponse("Error")
@@ -313,10 +317,10 @@ def action(request):
 
 def save(request):
     return save_db(request)
-    # set_trace()
+    # 
     if is_ajax(request):
         try:
-            # set_trace()
+            # 
             data = json.loads(request.POST['data'])
             frameID = request.POST['ID']
             wid = request.POST['workerID']
@@ -329,7 +333,7 @@ def save(request):
             #     row = data[r]
             #     row.insert(0,r)
             #     annotations.append(row)
-            # set_trace()
+            # 
             if not os.path.exists("./gtm_hit/labels/"+settings.DSETNAME+"/" + wid + "/"):
                 os.makedirs("./gtm_hit/labels/" +
                             settings.DSETNAME+"/" + wid + "/")
@@ -391,7 +395,7 @@ def load_previous(request):
 
 
 def read_save(frameID, workerID):
-    # set_trace()
+    # 
     filename = "./gtm_hit/static/gtm_hit/dset/"+settings.DSETNAME + \
         "/labels/" + workerID + "/" + workerID + "_" + frameID + '.json'
     with open(filename, 'r') as loadFile:
@@ -401,7 +405,7 @@ def read_save(frameID, workerID):
 
 def changeframe(request):
     context = RequestContext(request)
-    #set_trace()
+    #
     if is_ajax(request):
         frame = 0
         try:
@@ -412,7 +416,7 @@ def changeframe(request):
 
             worker = Worker.objects.get(pk=wID)
 
-            #   set_trace()
+            #   
             #worker.increaseFrame(1)
             
             timelist = worker.getTimeList()
@@ -492,19 +496,20 @@ def generate_code(worker):
     return code.validationCode
 
 
-def tuto(request, workerID):
+def tuto(request, workerID,dataset_name):
     context = RequestContext(request).flatten()
+    set_trace()
     try:
         w = Worker.objects.get(pk=workerID)
         if w.state != 3:
-            return redirect("/gtm_hit/"+workerID)
-        return render(request, 'gtm_hit/tuto.html', {'workerID': workerID, **context})
+            return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
+        return render(request, 'gtm_hit/tuto.html', {'workerID': workerID, 'dset_name':dataset_name, **context})
 
     except Worker.DoesNotExist:
-        return redirect("/gtm_hit/"+workerID)
+        return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
 
-def processTuto(request, workerID):
+def processTuto(request, workerID,dataset_name):
     context = RequestContext(request)
     try:
         w = Worker.objects.get(pk=workerID)
@@ -514,8 +519,8 @@ def processTuto(request, workerID):
             w.setTimeList(timelist)
             w.save()
     except Worker.DoesNotExist:
-        return redirect("/gtm_hit/"+workerID)
-    return redirect("/gtm_hit/"+workerID)
+        return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
+    return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
 
 def processFinish(request):
@@ -554,7 +559,7 @@ def delete_and_load(startframe):
 
 
 def save_db(request):
-    # set_trace()
+    # 
     if is_ajax(request) and request.method == 'POST':
         try:
             data = json.loads(request.POST['data'])
@@ -569,7 +574,7 @@ def save_db(request):
             #delete all annotations for this frame
             Annotation.objects.filter(frame=frame).delete()
 
-            # set_trace()
+            # 
             # Iterate through each annotation in the data and create an annotation object for it
             for annotation_data in data:
                 person, _ = Person.objects.get_or_create(
@@ -577,7 +582,7 @@ def save_db(request):
                 # Create a new annotation object for the given person and frame
                 if person.person_id == 42:
                     pass
-                    # set_trace()
+                    # 
                 try:
                     annotation = Annotation.objects.get(
                         person=person, frame=frame)
@@ -629,7 +634,7 @@ def save_db(request):
 
 
 def load_db(request):
-    #set_trace()
+    #
     if is_ajax(request):
         try:
             frame_id = int(request.POST['ID'])
@@ -637,11 +642,11 @@ def load_db(request):
             dataset_name = request.POST['datasetName']
 
             frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES,dataset__name=dataset_name)
-            # set_trace()
+            # 
             retjson = []
             camviews = View.objects.all()
             for camview in camviews:
-                #set_trace()
+                #
                 a2l = serialize_annotation2dviews(
                     Annotation2DView.objects.filter(annotation__frame=frame, view=camview))
                 retjson.append(a2l)
@@ -670,7 +675,7 @@ def load_db(request):
     return HttpResponse("Error")
 
 def change_id(request):
-    #set_trace()
+    #
     if is_ajax(request):
         try:
             person_id = int(float(request.POST['personID']))
@@ -692,7 +697,7 @@ def change_id(request):
     return HttpResponse("Error")
 
 def person_action(request):
-    set_trace()
+    
     if is_ajax(request):
         try:
             person_id = int(float(request.POST['personID']))
@@ -701,7 +706,7 @@ def person_action(request):
             dataset_name = request.POST['datasetName']
 
             person = Person.objects.get(person_id=person_id,worker_id=worker_id,dataset__name=dataset_name)
-            #set_trace()
+            #
             try:
                 if "mark" in options:
                     person.annotation_complete = options["mark"]
@@ -723,7 +728,7 @@ def tracklet(request):
             person_id = int(float(request.POST['personID']))
             frame_id = int(float(request.POST['frameID']))
             worker_id = request.POST['workerID']
-            #set_trace()
+            #
             dataset_name = request.POST['datasetName']
             try:
                 frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES,dataset__name=dataset_name)
@@ -732,7 +737,7 @@ def tracklet(request):
                 HttpResponse("Error")
             multiview_tracklet = get_annotation2dviews_for_frame_and_person(
                 frame, person)
-            #set_trace()
+            #
             return HttpResponse(json.dumps(multiview_tracklet), content_type="application/json")
         except KeyError:
             return HttpResponse("Error")
@@ -740,19 +745,19 @@ def tracklet(request):
 def interpolate(request):
     if is_ajax(request):
         try:
-            #set_trace()
+            #
             person_id = int(float(request.POST['personID']))
             frame_id = int(float(request.POST['frameID']))
             worker_id = request.POST['workerID']
             dataset_name = request.POST['datasetName']
-            #set_trace()
+            #
             try:
                 frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES,dataset__name=dataset_name)
                 person = Person.objects.get(person_id=person_id,worker_id=worker_id, dataset__name=dataset_name)
                 message = interpolate_until_next_annotation(frame=frame, person=person)
             except ValueError:
                 HttpResponse("Error")
-            # set_trace()
+            # 
             return HttpResponse(json.dumps({"message":message}), content_type="application/json")
         except KeyError:
             return HttpResponse("Error")
@@ -760,7 +765,7 @@ def interpolate(request):
 def timeview(request):
     if is_ajax(request):
         try:
-            #set_trace()
+            #
             worker_id = request.POST['workerID']
             person_id = int(float(request.POST['personID']))
             frame_id = int(float(request.POST['frameID']))
@@ -780,7 +785,7 @@ def timeview(request):
                 annotation__frame__undistorted = settings.UNDISTORTED_FRAMES
             ).order_by('annotation__frame__frame_id')
             timeviews =  serialize_annotation2dviews(annotation2dviews)
-            # set_trace()
+            # 
             return HttpResponse(json.dumps(timeviews), content_type="application/json")
         except KeyError:
             return HttpResponse("Error")
