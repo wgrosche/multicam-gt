@@ -53,7 +53,7 @@ window.onload = function () {
 
     arrArray[i] = new Image();
     arrArray[i].id = ("arrows" + i);
-    arrArray[i].src = '../../static/gtm_hit/images/arrows' + i + '_3D.png';
+    arrArray[i].src = '/static/gtm_hit/images/arrows' + i + '_3D.png';
 
     imgArray[i] = new Image();
     imgArray[i].id = (i + 1);
@@ -82,7 +82,7 @@ window.onload = function () {
 
     if (useUndistorted=="True") undistort_frames_path="undistorted_"
     // imgArray[i].src = '../../static/gtm_hit/dset/'+dset_name+'/frames/'+ camName[i]+ '/'+frame_str+'.png'; // change 00..0 by a frame variable
-    imgArray[i].src = '../../static/gtm_hit/dset/' + dset_name + '/'+undistort_frames_path+'frames/' + camName[i] + '/' + frame_str + '.jpg'; // change 00..0 by a frame variable
+    imgArray[i].src = '/static/gtm_hit/dset/' + dset_name + '/'+undistort_frames_path+'frames/' + camName[i] + '/' + frame_str + '.jpg'; // change 00..0 by a frame variable
     //imgArray[i].src = '../../static/gtm_hit/frames/'+ camName[i]+frame_str+'.png'; // change 00..0 by a frame variable
   }
 
@@ -228,6 +228,7 @@ function onMouseUp() {
       canv: this.id,
       person_id: pid,
       workerID: workerID,
+      datasetName: dset_name,
     },
     dataType: "json",
     success: function (msg) {
@@ -271,7 +272,8 @@ function mainClick(e) {
       x: xCorr,
       y: yCorr,
       canv: this.id,
-      workerID: workerID
+      workerID: workerID,
+      datasetName: dset_name
     },
     dataType: "json",
     success: function (msg) {
@@ -304,7 +306,8 @@ function getTracklet(e) {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
       personID: pid,
       frameID: parseInt(frame_str),
-      workerID: workerID
+      workerID: workerID,
+      datasetName: dset_name
     },
     dataType: "json",
     success: function (msg) {
@@ -340,7 +343,8 @@ function interpolate(e) {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
       personID: pid,
       frameID: parseInt(frame_str)-1,
-      workerID: workerID
+      workerID: workerID,
+      datasetName: dset_name
     },
     dataType: "json",
     success: function (msg) {
@@ -611,7 +615,8 @@ function save(e) {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
       data: JSON.stringify(dims),
       ID: frame_str,
-      workerID: workerID
+      workerID: workerID,
+      datasetName: dset_name
     },
     success: function (msg) {
       console.log(msg);
@@ -638,7 +643,8 @@ function loader(uri) {
     data: {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
       ID: frame_str,
-      workerID: workerID
+      workerID: workerID,
+      datasetName: dset_name
     },
     dataType: 'json',
     success: function (msg) {
@@ -680,7 +686,8 @@ function loader2(uri) {
     data: {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
       ID: frame_str,
-      workerID: workerID
+      workerID: workerID,
+      datasetName: dset_name
     },
     dataType: 'json',
     success: function (msg) {
@@ -721,7 +728,8 @@ function loader_db(uri) {
     data: {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
       ID: frame_str,
-      workerID: workerID
+      workerID: workerID,
+      datasetName: dset_name
     },
     dataType: 'json',
     success: function (msg) {
@@ -802,7 +810,8 @@ function changeFrame(order, increment) {
       order: order,
       frameID: frame_str,
       incr: increment,
-      workerID: workerID
+      workerID: workerID,
+      datasetName: dset_name
     },
     dataType: "json",
     success: function (msg) {
@@ -818,7 +827,7 @@ function changeFrame(order, increment) {
       fstr = parseInt(frame_str);
       $("#frameID").html("Frame ID: " + fstr.toString() + "&nbsp;&nbsp;");
       for (var i = 0; i < nb_cams; i++)
-        imgArray[i].src = '../../static/gtm_hit/dset/' + dset_name + '/'+undistort_frames_path+'frames/' + camName[i] + '/' + frame_str + '.jpg'; // change 00..0 by a frame variable
+        imgArray[i].src = '/static/gtm_hit/dset/' + dset_name + '/'+undistort_frames_path+'frames/' + camName[i] + '/' + frame_str + '.jpg'; // change 00..0 by a frame variable
       //imgArray[i].src = '../../static/gtm_hit/frames/'+ camName[i]+frame_str+'.png'; // change 00..0 by a frame variable
 
     },
@@ -902,6 +911,7 @@ function changeID(opt) {
       frameID: parseInt(frame_str),
       personID: identities[rectsID[chosen_rect]],
       workerID: workerID,
+      datasetName: dset_name,
       options: JSON.stringify({'propagate':propagateValue,'conflicts':conflictsValue})
     },
     dataType: "json",
@@ -923,6 +933,7 @@ function personAction(opt) {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
       personID: identities[rectsID[chosen_rect]],
       workerID: workerID,
+      datasetName: dset_name,
       options: JSON.stringify(opt)
     },
     dataType: "json",
@@ -943,7 +954,8 @@ function sendAJAX(uri, data, id, suc, load) {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
       data: data,
       ID: id,
-      workerID: workerID
+      workerID: workerID,
+      datasetName: dset_name
     },
     dataType: "json",
     success: function (msg) {
@@ -1394,7 +1406,7 @@ async function load_frame(frame_string) {
     // imgArray[i].src = '../../static/gtm_hit/dset/rayon4/frames/'+ camName[i]+"/"+frame_str+'.png'; // change 00..0 by a frame variable
     
     //imgArray[i].src = '../../static/gtm_hit/dset/invision/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg'; // change 00..0 by a frame variable
-    var imgSrc = '../../static/gtm_hit/dset/invision/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg';
+    var imgSrc = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg';
     const loadedImg = await loadImage(imgSrc);
     if (loadedImg !== null) {
       imgArray[i].src = imgSrc;

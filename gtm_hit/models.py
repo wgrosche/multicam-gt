@@ -30,12 +30,21 @@ class ValidationCode(models.Model):
     
     def __str__(self):
         return 'Code: ' + self.worker.workerID
+    
+class Dataset(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Dataset: {self.name}"
+
 class Person(models.Model):
     person_id = models.IntegerField(verbose_name="PersonID")
     annotation_complete = models.BooleanField(default=False)
     worker = models.ForeignKey(Worker,on_delete=models.CASCADE)
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE,default=1)
     class Meta:
-        unique_together = ('person_id', 'worker')
+        unique_together = ('person_id', 'worker', 'dataset')
     def __str__(self):
         return f"PersonID{self.person_id}"
     def __repr__(self):
@@ -46,11 +55,13 @@ class MultiViewFrame(models.Model):
     timestamp = models.DateTimeField(default=timezone.now)
     undistorted = models.BooleanField(default=False)
     worker = models.ForeignKey(Worker, on_delete=models.CASCADE,default="IVAN")
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE,default=1)
 
     class Meta:
-        unique_together = ('frame_id', 'undistorted', 'worker')
+        unique_together = ('frame_id', 'undistorted', 'worker', 'dataset')
     def __str__(self):
         return f"{'UN' if self.undistorted else ''}DISTORTED MVFRAME{self.frame_id}"
+    
 class View(models.Model):
     view_id = models.IntegerField(primary_key=True,verbose_name="View ID")
     def __str__(self):
@@ -120,5 +131,6 @@ class SingleViewFrame(models.Model):
     frame_id = models.IntegerField(verbose_name="SingleView ID")
     timestamp = models.DateTimeField(default=timezone.now)
     view = models.ForeignKey(View, on_delete=models.CASCADE)
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, default=1)
     def __str__(self):
         return f"CAM{self.view_id+1} SVFRAME{self.frame_id} {self.timestamp}" 

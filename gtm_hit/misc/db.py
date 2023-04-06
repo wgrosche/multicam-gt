@@ -67,7 +67,7 @@ def interpolate_between_annotations(annotation1, annotation2):
 
     for j in range(1, num_interpolations + 1):
         interpolated_frame_id = frame_id1 + j
-        interpolated_frame = MultiViewFrame.objects.get_or_create(frame_id=interpolated_frame_id, undistorted=settings.UNDISTORTED_FRAMES, worker_id=annotation1.frame.worker_id)[0]
+        interpolated_frame = MultiViewFrame.objects.get_or_create(frame_id=interpolated_frame_id, undistorted=settings.UNDISTORTED_FRAMES, worker_id=annotation1.frame.worker_id, dataset__name=annotation1.frame.dataset.name)[0]
 
         # Try to get the existing annotation for the given person and frame
         try:
@@ -109,8 +109,8 @@ def propagation_filter(arguments,options,frame_id):
         arguments['frame__frame_id'] = frame_id
     return arguments
 
-def get_next_available_id(worker_id):
-    max_id = Person.objects.filter(worker_id=worker_id).aggregate(models.Max('person_id'))['person_id__max']
+def get_next_available_id(worker_id,dataset_name):
+    max_id = Person.objects.filter(worker_id=worker_id,dataset__name=dataset_name).aggregate(models.Max('person_id'))['person_id__max']
     return max_id + 1 if max_id is not None else 1
 
 def change_annotation_id_propagate(old_id, new_id, frame, options):
@@ -127,7 +127,7 @@ def change_annotation_id_propagate(old_id, new_id, frame, options):
                 set_trace()
                 for conflict in annotation_conflicts:
                     # Update the conflicting annotation's person with the new unique ID
-                    person_to_replace = Person.objects.get_or_create(worker_id=frame.worker_id, person_id=next_id)[0]
+                    person_to_replace = Person.objects.get_or_create(worker_id=frame.worker_id, person_id=next_id, dataset__name=frame.dataset.name)[0]
 
                     # Update the related Annotation object
                     conflict.person = person_to_replace
@@ -142,7 +142,7 @@ def change_annotation_id_propagate(old_id, new_id, frame, options):
             target_future_annotations = Annotation.objects.filter(**filterargs).order_by('frame__frame_id')
 
             for annotation in target_future_annotations:
-                target_future_person = Person.objects.get_or_create(worker_id=frame.worker_id, person_id=new_id)[0]
+                target_future_person = Person.objects.get_or_create(worker_id=frame.worker_id, person_id=new_id,dataset__name=frame.dataset.name)[0]
                 # Update the related Annotation object
                 annotation.person = target_future_person
                 annotation.save()

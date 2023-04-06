@@ -1,17 +1,21 @@
 from django.urls import re_path as url
+from django.urls import path
 
 from . import views
 
 urlpatterns = [
     url(r'^&MID=(?P<workerID>[A-Z0-9]+)$', views.index, name="index"),
     url(r'^$', views.requestID, name="requestID"),
-    url(r'^(?P<workerID>[A-Z0-9]+)/processInit$', views.processInit, name="processInit"),
+    #url(r'^(?P<workerID>[A-Z0-9]+)/processInit$', views.processInit, name="processInit"),
+    path('<str:dataset_name>/<str:workerID>/processInit/', views.processInit, name='processInit'),
     url(r'^(?P<workerID>[A-Z0-9]+)/processIndex$', views.processIndex, name="processIndex"),
     url(r'^(?P<workerID>[A-Z0-9]+)/processTuto$', views.processTuto, name="processTuto"),
-    url(r'^(?P<workerID>[A-Z0-9]+)$', views.dispatch, name="dispatch"),
+    #url(r'^(?P<workerID>[A-Z0-9]+)$', views.dispatch, name="dispatch"),
+    path('<str:dataset_name>/<str:workerID>/', views.dispatch, name="dispatch"),
     url(r'^(?P<workerID>[A-Z0-9]+)/index$', views.index, name="index"),
     url(r'^(?P<workerID>[A-Z0-9]+)/tuto$', views.tuto, name="tuto"),
-    url(r'^(?P<workerID>[A-Z0-9]+)/frame$', views.frame, name='frame'),
+    #url(r'^(<str:dataset_name>/?P<workerID>[A-Z0-9]+)/frame$', views.frame, name='frame'),
+    path('<str:dataset_name>/<str:workerID>/frame', views.frame, name='frame'),
     url(r'^(?P<workerID>[A-Z0-9]+)/processFrame$', views.processFrame, name="processFrame"),
     url(r'^.*click',views.click,name="click"),
     url(r'^.*move',views.move,name="move"),

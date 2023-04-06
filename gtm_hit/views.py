@@ -4,13 +4,13 @@ from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseRedirect, HttpResponse
+from django.http import HttpResponseRedirect, HttpResponse, HttpResponseNotFound
 from django.core import serializers
 from django.urls import reverse
 from django.views import generic
 from django.utils import timezone
 from django.conf import settings
-from .models import Worker, ValidationCode, MultiViewFrame, View, Annotation, Annotation2DView, Person
+from .models import Worker, ValidationCode, MultiViewFrame, View, Annotation, Annotation2DView, Person, Dataset
 from django.template import RequestContext
 from django.http import JsonResponse
 from django.db import transaction
@@ -31,29 +31,33 @@ from pprint import pprint
 import uuid
 
 def requestID(request):
+    set_trace()
     context = RequestContext(request).flatten()
     if request.method == "POST":
         if 'wID' in request.POST:
             workerID = request.POST['wID']
             pattern = re.compile("^[A-Z0-9]+$")
             if pattern.match(workerID):
-                return redirect("/gtm_hit/"+workerID+"/processInit")
+                if 'datasetName' in request.POST:
+                    dataset_name = request.POST['datasetName']
+                    return redirect(f"/gtm_hit/{dataset_name}/{workerID}/processInit")
     return render(request, 'gtm_hit/requestID.html', context)
 
-
-def processInit(request, workerID):
+def processInit(request, dataset_name, workerID):
+    set_trace()
     context = RequestContext(request).flatten()
     try:
         w = Worker.objects.get(pk=workerID)
         if w.state == -1:
             w.state = 0
             w.save()
-        return redirect("/gtm_hit/"+workerID)
+        return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
     except Worker.DoesNotExist:
-        return redirect("/gtm_hit/"+workerID)
+        return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
 
 def index(request, workerID):
+    set_trace()
     context = RequestContext(request).flatten()
     try:
         w = Worker.objects.get(pk=workerID)
@@ -66,6 +70,7 @@ def index(request, workerID):
 
 
 def processIndex(request, workerID):
+    set_trace()
     context = RequestContext(request)
     try:
         w = Worker.objects.get(pk=workerID)
@@ -77,7 +82,8 @@ def processIndex(request, workerID):
     return redirect("/gtm_hit/"+workerID)
 
 
-def dispatch(request, workerID):
+def dispatch(request, dataset_name,workerID):
+    set_trace()
     context = RequestContext(request)
     try:
         w = Worker.objects.get(pk=workerID)
@@ -99,28 +105,30 @@ def dispatch(request, workerID):
             pass
     except Worker.DoesNotExist:
         w = registerWorker(workerID)
-
+    
+    urlpath = "/gtm_hit/"+dataset_name+"/"+workerID+"/"
+    #urlpath = ""
     state = w.state
     if state == 0:
-        return redirect(workerID+'/index')
+        return redirect(urlpath+'index')
         # return render(request, 'gtm_hit/frame.html',{'frame_number': frame_number, 'workerID' : workerID},context)
     elif state == 1:
-        return redirect(workerID+'/frame')
+        return redirect(urlpath+'frame')
 #        return render(request, 'gtm_hit/finish.html',{'workerID' : workerID, 'validation_code' : validation_code},context)
     elif state == 2:
-        return redirect(workerID+'/finish')
+        return redirect(urlpath+'finish')
 #        return render(request, 'gtm_hit/finish.html',{'workerID' : workerID, 'validation_code' : validation_code},context)
     elif state == 3:
-        return redirect(workerID+'/tuto')
+        return redirect(urlpath+'tuto')
     elif state == -1:
-        return redirect(workerID+'/processInit')
+        return redirect(urlpath+'processInit')
         # return render(request, 'gtm_hit/index.html',{'workerID' : workerID},context)
     else:
-        return redirect(workerID+'/index')
+        return redirect(urlpath+'index')
         # return render(request, 'gtm_hit/index.html',{'workerID' : workerID},context)
 
-
-def frame(request, workerID):
+def frame(request, dataset_name,workerID):
+    set_trace()
     context = RequestContext(request).flatten()
     try:
         w = Worker.objects.get(pk=workerID)
@@ -131,12 +139,18 @@ def frame(request, workerID):
             w.save()
         frame_number = w.frameNB
         nblabeled = w.frame_labeled
-        return render(request, 'gtm_hit/frame.html', {'dset_name': settings.DSETNAME, 'frame_number': frame_number, 'frame_inc': settings.INCREMENT, 'workerID': workerID, 'cams': settings.CAMS, 'frame_size': settings.FRAME_SIZES, 'nb_cams': settings.NB_CAMS, 'nblabeled': nblabeled, **context, "undistort": settings.UNDISTORTED_FRAMES})
+
+        try:
+            dataset = Dataset.objects.get(name=dataset_name)
+        except Dataset.DoesNotExist:
+            return HttpResponseNotFound("Dataset not found")
+
+        return render(request, 'gtm_hit/frame.html', {'dset_name': dataset.name, 'frame_number': frame_number, 'frame_inc': settings.INCREMENT, 'workerID': workerID, 'cams': settings.CAMS, 'frame_size': settings.FRAME_SIZES, 'nb_cams': settings.NB_CAMS, 'nblabeled': nblabeled, **context, "undistort": settings.UNDISTORTED_FRAMES})
     except Worker.DoesNotExist:
         return redirect("/gtm_hit/"+workerID)
 
-
 def processFrame(request, workerID):
+    set_trace()
     context = RequestContext(request)
     try:
         w = Worker.objects.get(pk=workerID)
@@ -152,6 +166,7 @@ def processFrame(request, workerID):
 
 
 def finish(request, workerID):
+    set_trace()
     context = RequestContext(request).flatten()
     try:
         w = Worker.objects.get(pk=workerID)
@@ -212,14 +227,14 @@ def click(request):
         cam = int(re.findall('\d+', cam)[0]) - 1
         #set_trace()
         worker_id = request.POST['workerID']
-        
+        dataset_name = request.POST['datasetName']
         if 0 <= cam < settings.NB_CAMS:
             feet2d_h = np.array([[x], [y], [1]])
             # set_trace()
             world_point = geometry.reproject_to_world_ground(
                 feet2d_h, settings.CALIBS[cam].K, settings.CALIBS[cam].R, settings.CALIBS[cam].T)
             if "person_id" not in obj:
-                obj["person_id"] = get_next_available_id(worker_id=worker_id)
+                obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset__name=dataset_name)
             rectangles = get_cuboids_2d(world_point, obj)
 
             rect_json = json.dumps(rectangles)
@@ -547,9 +562,9 @@ def save_db(request):
             worker_id = request.POST['workerID']
             # Check if the frame exists or create a new frame object
             worker, _ = Worker.objects.get_or_create(workerID=worker_id)
-            
+            dataset_name = request.POST['datasetName']
             frame, created = MultiViewFrame.objects.get_or_create(
-                frame_id=frame_id, worker=worker,undistorted=settings.UNDISTORTED_FRAMES)
+                frame_id=frame_id, worker=worker,undistorted=settings.UNDISTORTED_FRAMES,dataset__name=dataset_name)
             
             #delete all annotations for this frame
             Annotation.objects.filter(frame=frame).delete()
@@ -558,7 +573,7 @@ def save_db(request):
             # Iterate through each annotation in the data and create an annotation object for it
             for annotation_data in data:
                 person, _ = Person.objects.get_or_create(
-                    person_id=annotation_data['personID'],worker=worker)
+                    person_id=annotation_data['personID'],worker=worker,dataset__name=dataset_name)
                 # Create a new annotation object for the given person and frame
                 if person.person_id == 42:
                     pass
@@ -619,8 +634,9 @@ def load_db(request):
         try:
             frame_id = int(request.POST['ID'])
             worker_id = request.POST['workerID']
+            dataset_name = request.POST['datasetName']
 
-            frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES)
+            frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES,dataset__name=dataset_name)
             # set_trace()
             retjson = []
             camviews = View.objects.all()
@@ -661,8 +677,9 @@ def change_id(request):
             new_person_id = int(float(request.POST['newPersonID']))
             frame_id = int(float(request.POST['frameID']))
             worker_id = request.POST['workerID']
+            dataset_name = request.POST['datasetName']
 
-            frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES)
+            frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES,dataset__name=dataset_name)
 
             options = json.loads(request.POST['options'])
             success = change_annotation_id_propagate(person_id, new_person_id,frame,options)
@@ -681,7 +698,9 @@ def person_action(request):
             person_id = int(float(request.POST['personID']))
             worker_id = request.POST['workerID']
             options = json.loads(request.POST['options'])
-            person = Person.objects.get(person_id=person_id,worker_id=worker_id)
+            dataset_name = request.POST['datasetName']
+
+            person = Person.objects.get(person_id=person_id,worker_id=worker_id,dataset__name=dataset_name)
             #set_trace()
             try:
                 if "mark" in options:
@@ -705,14 +724,15 @@ def tracklet(request):
             frame_id = int(float(request.POST['frameID']))
             worker_id = request.POST['workerID']
             #set_trace()
+            dataset_name = request.POST['datasetName']
             try:
-                frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES)
-                person = Person.objects.get(person_id=person_id,worker_id=worker_id)
+                frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES,dataset__name=dataset_name)
+                person = Person.objects.get(person_id=person_id,worker_id=worker_id,dataset__name = dataset_name)
             except ValueError:
                 HttpResponse("Error")
             multiview_tracklet = get_annotation2dviews_for_frame_and_person(
                 frame, person)
-            # set_trace()
+            #set_trace()
             return HttpResponse(json.dumps(multiview_tracklet), content_type="application/json")
         except KeyError:
             return HttpResponse("Error")
@@ -724,10 +744,11 @@ def interpolate(request):
             person_id = int(float(request.POST['personID']))
             frame_id = int(float(request.POST['frameID']))
             worker_id = request.POST['workerID']
+            dataset_name = request.POST['datasetName']
             #set_trace()
             try:
-                frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES)
-                person = Person.objects.get(person_id=person_id,worker_id=worker_id)
+                frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES,dataset__name=dataset_name)
+                person = Person.objects.get(person_id=person_id,worker_id=worker_id, dataset__name=dataset_name)
                 message = interpolate_until_next_annotation(frame=frame, person=person)
             except ValueError:
                 HttpResponse("Error")
@@ -744,7 +765,7 @@ def timeview(request):
             person_id = int(float(request.POST['personID']))
             frame_id = int(float(request.POST['frameID']))
             view_id = int(float(request.POST['viewID']))
-            
+            dataset_name=request.POST['datasetName']
             # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
             frame_id_start = max(1, frame_id - 5)
             frame_id_end = frame_id + 5
@@ -753,6 +774,7 @@ def timeview(request):
                 annotation__frame__frame_id__gte=frame_id_start,
                 annotation__frame__frame_id__lte=frame_id_end,
                 annotation__frame__worker__workerID=worker_id,
+                annotation__frame__dataset__name=dataset_name,
                 annotation__person__person_id=person_id,
                 view__view_id = view_id,
                 annotation__frame__undistorted = settings.UNDISTORTED_FRAMES
