@@ -13,7 +13,8 @@ async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames
           personID: pid,
           frameID: parseInt(frame_str),
           viewID: camid,
-          workerID: workerID
+          workerID: workerID,
+          datasetName: dset_name
         },
         dataType: "json",
         success: function (msg) {

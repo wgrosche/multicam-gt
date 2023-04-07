@@ -6,14 +6,20 @@ from gtm_hit.models import Annotation, Annotation2DView, MultiViewFrame, Person,
 from django.core.exceptions import ObjectDoesNotExist
 from ipdb import set_trace
 
-def find_closest_annotations_to(person,frame):
+def find_closest_annotations_to(person,frame,bidirectional=True):
     try:
         next_annotation = Annotation.objects.filter(person=person, frame__worker_id=frame.worker_id,frame__frame_id__gt=frame.frame_id,frame__undistorted=settings.UNDISTORTED_FRAMES).order_by('frame__frame_id').first()
         last_annotation = Annotation.objects.filter(person=person, frame__worker_id=frame.worker_id,frame__frame_id__lte=frame.frame_id,frame__undistorted=settings.UNDISTORTED_FRAMES).order_by('frame__frame_id').last()
-        
-        if last_annotation is None or next_annotation is None:
-            raise ObjectDoesNotExist
-
+        if bidirectional:
+            if last_annotation is None or next_annotation is None:
+                raise ObjectDoesNotExist
+        else:
+            if last_annotation is None:
+                return next_annotation
+            if next_annotation is None:
+                return ObjectDoesNotExist
+            return last_annotation
+            
     except ObjectDoesNotExist:
         raise ValueError(f"No next annotation found for person {person.person_id} after frame {frame.frame_id}.")
 
@@ -180,3 +186,35 @@ def get_annotation2dviews_for_frame_and_person(frame, person):
     for view_id in camtrackviews:
         camtrackviews[view_id].sort()
     return camtrackviews
+
+def copy_annotation_to_frame(annotation, current_frame):
+    new_annotation = Annotation.objects.create(
+        frame=current_frame,
+        person=annotation.person,
+        creation_method=annotation.creation_method,
+        validated=annotation.validated,
+        rectangle_id=annotation.rectangle_id,
+        rotation_theta=annotation.rotation_theta,
+        Xw=annotation.Xw,
+        Yw=annotation.Yw,
+        Zw=annotation.Zw,
+        object_size_x=annotation.object_size_x,
+        object_size_y=annotation.object_size_y,
+        object_size_z=annotation.object_size_z
+    )
+    new_annotation.save()
+
+    # Copy 2D annotations for each view
+    for annotation_2d_view in annotation.twod_views.all():
+        new_annotation_2d_view = Annotation2DView.objects.create(
+            view=annotation_2d_view.view,
+            annotation=new_annotation,
+            x1=annotation_2d_view.x1,
+            y1=annotation_2d_view.y1,
+            x2=annotation_2d_view.x2,
+            y2=annotation_2d_view.y2,
+            cuboid_points=annotation_2d_view.cuboid_points
+        )
+        new_annotation_2d_view.save()
+
+    return True

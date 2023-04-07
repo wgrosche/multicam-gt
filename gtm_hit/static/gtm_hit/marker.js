@@ -350,6 +350,35 @@ function interpolate(e) {
     success: function (msg) {
       alert(msg["message"])
       loader_db("load")
+    },
+    error: function (msg) {
+      console.log("Error while interpolating,running copy from previous/next frame")
+      copyPrevOrNext()
+    }
+  });
+}
+
+function copyPrevOrNext(e) {
+  if(e)
+  e.preventDefault();
+  var pid = prev_chosen_identity || identities[rectsID[chosen_rect]];
+  $.ajax({
+    method: "POST",
+    url: "copy",
+    data: {
+      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+      personID: pid,
+      frameID: parseInt(frame_str),
+      workerID: workerID,
+      datasetName: dset_name
+    },
+    dataType: "json",
+    success: function (msg) {
+      console.log(msg["message"])
+      loader_db("load")
+    },
+    error: function (msg) {
+      console.log("Error while copying from previous/next frame")
     }
   });
 }

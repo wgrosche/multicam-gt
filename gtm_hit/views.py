@@ -756,13 +756,35 @@ def interpolate(request):
                 person = Person.objects.get(person_id=person_id,worker_id=worker_id, dataset__name=dataset_name)
                 message = interpolate_until_next_annotation(frame=frame, person=person)
             except ValueError:
-                HttpResponse("Error")
-            # 
+                message = "Error while interpolating"
+                return HttpResponse("Error", status=500)
             return HttpResponse(json.dumps({"message":message}), content_type="application/json")
         except KeyError:
             return HttpResponse("Error")
-        
+
+def cp_prev_or_next_annotation(request):
+    #set_trace()
+    if is_ajax(request):
+        try:
+            person_id = int(float(request.POST['personID']))
+            frame_id = int(float(request.POST['frameID']))
+            worker_id = request.POST['workerID']
+            dataset_name = request.POST['datasetName']
+            try:
+                frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES,dataset__name=dataset_name)
+                person = Person.objects.get(person_id=person_id,worker_id=worker_id, dataset__name=dataset_name)
+                annotation = find_closest_annotations_to(person,frame,bidirectional=False)
+                success = copy_annotation_to_frame(annotation, frame)
+                if success:
+                    return HttpResponse(JsonResponse({"message": "Annotation copied."}))
+                else:
+                    return HttpResponse("Error", status=500)
+            except ValueError:
+                HttpResponse("Error", status=500)
+        except KeyError:
+            return HttpResponse("Error",status=500)
 def timeview(request):
+    
     if is_ajax(request):
         try:
             #
@@ -774,6 +796,7 @@ def timeview(request):
             # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
             frame_id_start = max(1, frame_id - 5)
             frame_id_end = frame_id + 5
+            
             # Filter the Annotation2DView objects using the calculated frame range and the Person object
             annotation2dviews = Annotation2DView.objects.filter(
                 annotation__frame__frame_id__gte=frame_id_start,
