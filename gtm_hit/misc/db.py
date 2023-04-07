@@ -15,9 +15,9 @@ def find_closest_annotations_to(person,frame,bidirectional=True):
                 raise ObjectDoesNotExist
         else:
             if last_annotation is None:
+                if next_annotation is None:
+                    return ObjectDoesNotExist
                 return next_annotation
-            if next_annotation is None:
-                return ObjectDoesNotExist
             return last_annotation
             
     except ObjectDoesNotExist:
