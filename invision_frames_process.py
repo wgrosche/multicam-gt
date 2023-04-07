@@ -568,7 +568,7 @@ def process_multiple_cameras(input_dir, output_base_dir, start_time, end_time, t
 
 
 def main():
-    #python process_frames.py your/input/path gtm_hit/static/gtm_hit/dset/myDataset 2022-06-10T16:00:00Z 2022-06-10T16:04:00Z
+    #python invison_frames_process.py your/input/path gtm_hit/static/gtm_hit/dset/myDataset 2022-06-10T16:00:00Z 2022-06-10T16:04:00Z
     parser = argparse.ArgumentParser(description="Save frames from video within a specified time interval.")
     parser.add_argument("input_path", help="Input path. Must contain the structure as described in the README and process_multiple_cameras function")
     parser.add_argument("output_path", help="Directory to save the extracted frames. To be used as the dataset name in the annotation tool.")
