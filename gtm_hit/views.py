@@ -108,7 +108,7 @@ def dispatch(request, dataset_name,workerID):
     except Worker.DoesNotExist:
         w = registerWorker(workerID)
     
-    dataset = Dataset.objects.get_or_create(name=dataset_name)
+    dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
 
     urlpath = "/gtm_hit/"+dataset_name+"/"+workerID+"/"
     #urlpath = ""
@@ -145,7 +145,7 @@ def frame(request, dataset_name,workerID):
         nblabeled = w.frame_labeled
 
         try:
-            dataset = Dataset.objects.get_or_create(name=dataset_name)[0]
+            dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
         except Dataset.DoesNotExist:
             return HttpResponseNotFound("Dataset not found")
 
@@ -568,8 +568,10 @@ def save_db(request):
             # Check if the frame exists or create a new frame object
             worker, _ = Worker.objects.get_or_create(workerID=worker_id)
             dataset_name = request.POST['datasetName']
+            #set_trace()
+            dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
             frame, created = MultiViewFrame.objects.get_or_create(
-                frame_id=frame_id, worker=worker,undistorted=settings.UNDISTORTED_FRAMES,dataset__name=dataset_name)
+                frame_id=frame_id, worker=worker,undistorted=settings.UNDISTORTED_FRAMES,dataset=dataset)
             
             #delete all annotations for this frame
             Annotation.objects.filter(frame=frame).delete()
@@ -578,7 +580,7 @@ def save_db(request):
             # Iterate through each annotation in the data and create an annotation object for it
             for annotation_data in data:
                 person, _ = Person.objects.get_or_create(
-                    person_id=annotation_data['personID'],worker=worker,dataset__name=dataset_name)
+                    person_id=annotation_data['personID'],worker=worker,dataset=dataset)
                 # Create a new annotation object for the given person and frame
                 if person.person_id == 42:
                     pass
@@ -794,8 +796,10 @@ def timeview(request):
             view_id = int(float(request.POST['viewID']))
             dataset_name=request.POST['datasetName']
             # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
-            frame_id_start = max(1, frame_id - 5)
-            frame_id_end = frame_id + 5
+
+            FRAMES_NO = 35
+            frame_id_start = max(1, frame_id - FRAMES_NO)
+            frame_id_end = frame_id + FRAMES_NO
             
             # Filter the Annotation2DView objects using the calculated frame range and the Person object
             annotation2dviews = Annotation2DView.objects.filter(

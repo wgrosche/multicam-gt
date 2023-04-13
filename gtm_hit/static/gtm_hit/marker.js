@@ -24,11 +24,13 @@ var bounds = [[0, 396, 1193, 180, 1883, 228, 1750, 1080], [0, 344, 1467, 77, 192
 [0, 244, 1920, 162, -1, -1, -1, -1]];
 var toggle_ground;
 var toggle_orientation;
-var to_label = 415;
+var to_label = 5000;
 
 let mouseDown = false;
 let selectedBox = null;
 var unsavedChanges = false;
+var boxesLoaded = true;
+
 // hashsets --> rect per camera ? rect -> id to coordinates?
 // store variables here? in db ? (reupload db?)
 window.onload = function () {
@@ -420,11 +422,11 @@ function tab() {
 }
 
 function keyNextFrame() {
-  changeFrame('next',1)
+  changeFrame('next',parseInt(frame_inc))
 }
 
 function keyPrevFrame() {
-  changeFrame('prev',1)
+  changeFrame('prev',parseInt(frame_inc))
 }
 function space() {
   if (rectsID.length <= 1)
@@ -677,6 +679,7 @@ function loader(uri) {
     },
     dataType: 'json',
     success: function (msg) {
+      boxesLoaded=false;
       clean();
       var maxID = 0;
       for (var i = 0; i < msg.length; i++) {
@@ -699,6 +702,8 @@ function loader(uri) {
       personID = maxID + 1;
       update();
       $("#unsaved").html("All changes saved.");
+      unsavedChanges = false;
+      boxesLoaded=true;
     },
     error: function (msg) {
       if (uri == "load")
@@ -762,6 +767,7 @@ function loader_db(uri) {
     },
     dataType: 'json',
     success: function (msg) {
+      boxesLoaded=false;
       clean();
       var maxID = 0;
       for (var i = 0; i < msg[0].length; i++) {
@@ -787,8 +793,6 @@ function loader_db(uri) {
         else
           validation[pid] = true;
           
-        
-
       }
 
       if (prev_chosen_identity!=undefined){
@@ -803,8 +807,9 @@ function loader_db(uri) {
       }
       
       personID = maxID + 1;
-      update();
+      boxesLoaded=true;
       $("#unsaved").html("All changes saved.");
+      update();
     },
     error: function (msg) {
       if (uri == "load")
@@ -827,10 +832,11 @@ function clean() {
 
 
 function changeFrame(order, increment) {
-  save();
+  if(boxesLoaded) save();
   if (nblabeled >= to_label) {
     return true;
   }
+  boxesLoaded=false;
   $.ajax({
     method: "POST",
     url: 'changeframe',

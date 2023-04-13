@@ -71,7 +71,7 @@ def interpolate_between_annotations(annotation1, annotation2):
         raise ValueError("Frame IDs must be integers.")
     num_interpolations = frame_id2 - frame_id1 -1
 
-    for j in range(1, num_interpolations + 1):
+    for j in range(settings.INCREMENT, num_interpolations + 1,settings.INCREMENT):
         interpolated_frame_id = frame_id1 + j
         interpolated_frame = MultiViewFrame.objects.get_or_create(frame_id=interpolated_frame_id, undistorted=settings.UNDISTORTED_FRAMES, worker_id=annotation1.frame.worker_id, dataset__name=annotation1.frame.dataset.name)[0]
 

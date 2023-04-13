@@ -13,7 +13,7 @@ import os.path as osp
 def cls():
     os.system('cls' if os.name=='nt' else 'clear')
 
-def preprocess_invision_data(path,worker_id,dataset_name):
+def preprocess_invision_data(path,worker_id,dataset_name,range_start=0,range_end=5000):
     #set_trace()
     cam_id_mat = np.mgrid[1:3,1:5].reshape(2,-1).T
     cam_id_keys = [f"cam_{cam_id[0]}_{cam_id[1]}" for cam_id in cam_id_mat]
@@ -32,10 +32,16 @@ def preprocess_invision_data(path,worker_id,dataset_name):
 
     frame_id=0
     
-
+    print("\n\n","*"*50)
+    print("Working with worker_id:",worker_id)
+    print("Working with dataset_name:",dataset_name)
+    print("Working with undistorted frames:",settings.UNDISTORTED_FRAMES)
+    print("Processing data...")
+    print("*"*50,"\n\n")
     worker, _ = Worker.objects.get_or_create(workerID=worker_id)
     dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
-    while(frame_id<5000):
+
+    for frame_id in range(range_start,range_end,settings.INCREMENT):
         print(frame_id)
         #clear_output(wait=True)
         obj_set = set()
@@ -52,7 +58,6 @@ def preprocess_invision_data(path,worker_id,dataset_name):
                         obj_set.add(track_id)
                         process_tracked_location(tdet,worker,frame_id,dataset)
         cls()
-        frame_id+=1
 
 def process_tracked_location(tdet,worker,frame_id,dataset):
     world_coords = tdet["cuboidToWorldTransform"] @ np.array([0,0,0,1]).reshape(-1,1)
