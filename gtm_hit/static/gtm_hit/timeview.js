@@ -29,6 +29,7 @@ async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames
             if (cropImg !== null) {
               const canvas = createCroppedCanvas(cropImg, box, cropFrame, currentFrame);
               canvas.className = "crop-image";
+              canvas.style.maxWidth = "100px";
               cropsContainer.append(canvas);
             }
           }

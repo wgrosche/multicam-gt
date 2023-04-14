@@ -15,6 +15,14 @@ def cls():
 
 def preprocess_invision_data(path,worker_id,dataset_name,range_start=0,range_end=5000):
     #set_trace()
+
+
+    #temp fix
+    fd_matrix_path = "gtm_hit/static/gtm_hit/labels/framcnt.pkl"
+    
+    fd_matrix = np.load(fd_matrix_path,allow_pickle=True)
+    fd_matrix = np.vstack((np.zeros(fd_matrix.shape[0]),fd_matrix.T)).astype(int)
+    # tempfix end
     cam_id_mat = np.mgrid[1:3,1:5].reshape(2,-1).T
     cam_id_keys = [f"cam_{cam_id[0]}_{cam_id[1]}" for cam_id in cam_id_mat]
     cam_id_keys_to_idx = dict([cam_id_keys[i],i] for i in range(len(cam_id_keys)))
@@ -41,11 +49,12 @@ def preprocess_invision_data(path,worker_id,dataset_name,range_start=0,range_end
     worker, _ = Worker.objects.get_or_create(workerID=worker_id)
     dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
 
-    for frame_id in range(range_start,range_end,settings.INCREMENT):
-        print(frame_id)
+    for frame_idx in range(range_start,range_end,settings.INCREMENT):
+        print(frame_idx,fd_matrix[frame_idx])
         #clear_output(wait=True)
         obj_set = set()
         for i,cam_id in enumerate(cam_id_mat):
+            frame_id = fd_matrix[frame_idx][i]
             cam_id = tuple(cam_id)
             cam_id_key = f"cam_{cam_id[0]}_{cam_id[1]}"
             cam_data = output_data[cam_id_key]
@@ -54,9 +63,12 @@ def preprocess_invision_data(path,worker_id,dataset_name,range_start=0,range_end
                     continue
                 for tdet in cam_data[frame_id]["tracked_locations"]:
                     track_id = tdet["trackId"]
+                    #add metadata to the tracked location
+                    tdet["cam_id"] = cam_id_key
+                    tdet["frame_id"] = frame_id
                     if track_id not in obj_set:
                         obj_set.add(track_id)
-                        process_tracked_location(tdet,worker,frame_id,dataset)
+                        process_tracked_location(tdet,worker,frame_idx,dataset)
         cls()
 
 def process_tracked_location(tdet,worker,frame_id,dataset):
@@ -96,7 +108,7 @@ def process_tracked_location(tdet,worker,frame_id,dataset):
         annotation.object_size_x = annotation_data['object_size'][0]
         annotation.object_size_y = annotation_data['object_size'][1]
         annotation.object_size_z = annotation_data['object_size'][2]
-        annotation.creation_method = "imported"
+        annotation.creation_method = f"imported_{tdet['cam_id']}_frame_{tdet['frame_id']}"
     except Annotation.DoesNotExist:
         annotation = Annotation(
             person=person,
@@ -109,7 +121,7 @@ def process_tracked_location(tdet,worker,frame_id,dataset):
             object_size_x=annotation_data['object_size'][0],
             object_size_y=annotation_data['object_size'][1],
             object_size_z=annotation_data['object_size'][2],
-            creation_method = "imported"
+            creation_method = f"imported_{tdet['cam_id']}_frame_{tdet['frame_id']}"
         )
 
     # Save the annotation object to the database

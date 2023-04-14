@@ -236,7 +236,7 @@ DELTA_SEARCH = 5
 #         print("Error: Rectangle file not found")
 
 VALIDATIONCODES = []
-STARTFRAME = 2
+STARTFRAME = 3150
 NBFRAMES = 5000
 LASTLOADED = 0
 INCREMENT = 7
@@ -254,7 +254,7 @@ RADIUS = 0.5 #person radius
 STEPL = 0.02
 MOVE_STEP = 0.02 #same as stepl
 SIZE_CHANGE_STEP=0.03
-DSETNAME = "INVISION1"
+DSETNAME = "invision"
 CAMS = ["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
 FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 #CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)

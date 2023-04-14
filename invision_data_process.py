@@ -10,8 +10,8 @@ from gtm_hit.misc.invision_preprocess import preprocess_invision_data
 class Args:
     def __init__(self,
                  input_path="gtm_hit/static/gtm_hit/labels/json_output",
-                 worker_id="UF2",
-                 dataset_name="invision", 
+                 worker_id="UND_FD_NEWD2",
+                 dataset_name="13apr", 
                  range_start=3150,
                  range_end=5000):
         self.input_path = input_path
