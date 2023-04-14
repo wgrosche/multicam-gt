@@ -89,9 +89,13 @@
               
             </div>
             <div class="pull-right">
-              <a href="#" id="changeF" class="btn btn-primary" onclick="changeFrame('prev',frame_inc)">Prev frame</a>
+              <a href="#" id="changeF" class="btn btn-primary" onclick="changeFrame('prev',frame_inc*10)">&lt;&lt;</a>
+              <a href="#" id="changeF" class="btn btn-primary" onclick="changeFrame('prev',frame_inc)">&lt;</a>
+
               <strong id="frameID">Frame ID: {{frame_number}}&nbsp;&nbsp;</strong>
-              <a href="#" id="changeF" class="btn btn-primary" onclick="changeFrame('next',frame_inc)">Next frame</a>
+              <a href="#" id="changeF" class="btn btn-primary" onclick="changeFrame('next',frame_inc)">&gt;</a>
+              <a href="#" id="changeF" class="btn btn-primary" onclick="changeFrame('next',frame_inc*10)">&gt;&gt;</a>
+
             </div>
             <p id="unsaved" class="pull-right" style="color:grey; padding-right: 10px;">Unsaved changes</p>
           </div>

@@ -133,7 +133,7 @@ def change_annotation_id_propagate(old_id, new_id, frame, options):
                 #set_trace()
                 for conflict in annotation_conflicts:
                     # Update the conflicting annotation's person with the new unique ID
-                    person_to_replace = Person.objects.get_or_create(worker_id=frame.worker_id, person_id=next_id, dataset__name=frame.dataset.name)[0]
+                    person_to_replace = Person.objects.get_or_create(worker_id=frame.worker_id, person_id=next_id, dataset=frame.dataset)[0]
 
                     # Update the related Annotation object
                     conflict.person = person_to_replace
@@ -148,7 +148,7 @@ def change_annotation_id_propagate(old_id, new_id, frame, options):
             target_future_annotations = Annotation.objects.filter(**filterargs).order_by('frame__frame_id')
 
             for annotation in target_future_annotations:
-                target_future_person = Person.objects.get_or_create(worker_id=frame.worker_id, person_id=new_id,dataset__name=frame.dataset.name)[0]
+                target_future_person = Person.objects.get_or_create(worker_id=frame.worker_id, person_id=new_id,dataset=frame.dataset)[0]
                 # Update the related Annotation object
                 annotation.person = target_future_person
                 annotation.save()
