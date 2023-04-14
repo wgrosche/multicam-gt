@@ -123,14 +123,14 @@ def change_annotation_id_propagate(old_id, new_id, frame, options):
     with transaction.atomic():  # Start a transaction to ensure data consistency
         #set_trace()
         try:
-            next_id = get_next_available_id(worker_id=frame.worker_id)
+            next_id = get_next_available_id(worker_id=frame.worker_id,dataset_name=frame.dataset.name)
             filterargs={'person__person_id': new_id, 'frame__undistorted':settings.UNDISTORTED_FRAMES, 'frame__worker_id':frame.worker_id}
             filterargs = propagation_filter(filterargs,options,frame.frame_id)
             # Find all conflicting future annotations
             annotation_conflicts = Annotation.objects.filter(**filterargs).order_by('frame__frame_id')
             #set_trace()
             if options["conflicts"] == "assign_new":
-                set_trace()
+                #set_trace()
                 for conflict in annotation_conflicts:
                     # Update the conflicting annotation's person with the new unique ID
                     person_to_replace = Person.objects.get_or_create(worker_id=frame.worker_id, person_id=next_id, dataset__name=frame.dataset.name)[0]
