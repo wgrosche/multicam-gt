@@ -319,12 +319,16 @@ function getTracklet(e) {
         ctx.strokeStyle = "chartreuse";
         ctx.lineWidth = "2";
         ctx.strokeStyle = "red";
+        ctx.font = "11px Arial";
+        ctx.fillStyle = "red";
         const dataList = msg[i];
         if (dataList==undefined) continue;
         ctx.beginPath();
         ctx.moveTo(dataList[0][1][0], dataList[0][1][1]);
+        ctx.fillText(dataList[0][0], dataList[0][1][0], dataList[0][1][1] - 5);
         for (let i = 1; i < dataList.length; i++) {
           ctx.lineTo(dataList[i][1][0], dataList[i][1][1]);
+          ctx.fillText(dataList[i][0], dataList[i][1][0], dataList[i][1][1] - 5);
         }
         ctx.stroke();
         ctx.closePath()
@@ -355,12 +359,18 @@ function interpolate(e) {
     },
     error: function (msg) {
       console.log("Error while interpolating,running copy from previous/next frame")
-      copyPrevOrNext()
+      var copyBtn = document.getElementById('copyBtn');
+      if (copyBtn.style.display === 'none') {
+        copyBtn.style.display = 'inline';
+        var pid = prev_chosen_identity || identities[rectsID[chosen_rect]];
+        copyBtn.innerHTML = "Copy "+pid+" from previous/next frame"
+      }
     }
   });
 }
 
 function copyPrevOrNext(e) {
+  copyBtn.style.display = 'none';
   if(e)
   e.preventDefault();
   var pid = prev_chosen_identity || identities[rectsID[chosen_rect]];
