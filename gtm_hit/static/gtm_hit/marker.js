@@ -359,16 +359,19 @@ function interpolate(e) {
     },
     error: function (msg) {
       console.log("Error while interpolating,running copy from previous/next frame")
-      var copyBtn = document.getElementById('copyBtn');
-      if (copyBtn.style.display === 'none') {
-        copyBtn.style.display = 'inline';
-        var pid = prev_chosen_identity || identities[rectsID[chosen_rect]];
-        copyBtn.innerHTML = "Copy "+pid+" from previous/next frame"
-      }
+      showCopyBtn()
     }
   });
 }
 
+function showCopyBtn(){
+  var copyBtn = document.getElementById('copyBtn');
+  var pid = prev_chosen_identity || identities[rectsID[chosen_rect]];
+  copyBtn.innerHTML = "Copy Prev/Next (ID:"+pid+")";
+  if (copyBtn.style.display === 'none') {
+    copyBtn.style.display = 'inline';
+  }
+}
 function copyPrevOrNext(e) {
   copyBtn.style.display = 'none';
   if(e)
@@ -810,6 +813,7 @@ function loader_db(uri) {
           chosen_rect =  rectsID.indexOf(boxes[0][prev_chosen_identity].rectangleID)
           getTracklet();
           displayCrops(frame_str, prev_chosen_identity, timeview_canv_idx); //display crops --timeview.js
+          showCopyBtn()
         }
         else {
           interpolate()
@@ -881,7 +885,7 @@ function changeFrame(order, increment) {
       prev_chosen_identity= identities[rectsID[chosen_rect]];
       clean()
       load();
-
+      showCopyBtn()
     }
   });
 
