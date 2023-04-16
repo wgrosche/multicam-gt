@@ -775,6 +775,12 @@ def cp_prev_or_next_annotation(request):
             try:
                 frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES,dataset__name=dataset_name)
                 person = Person.objects.get(person_id=person_id,worker_id=worker_id, dataset__name=dataset_name)
+                #delete person from current frame
+                try:
+                    annotation = Annotation.objects.get(person=person,frame=frame)
+                    annotation.delete()
+                except Annotation.DoesNotExist:
+                    pass
                 annotation = find_closest_annotations_to(person,frame,bidirectional=False)
                 success = copy_annotation_to_frame(annotation, frame)
                 if success:
