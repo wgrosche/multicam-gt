@@ -13,6 +13,51 @@ import os.path as osp
 def cls():
     os.system('cls' if os.name=='nt' else 'clear')
 
+
+def sync_annotations(dataset_name):
+    dataset= Dataset.objects.get(name=dataset_name)
+    workers = Worker.objects.all()
+    persons_complete = Person.objects.filter(dataset=dataset, annotation_complete=True)
+
+    for person_complete in persons_complete:
+        person_complete_worker = person_complete.worker
+        other_workers = [worker for worker in workers if worker != person_complete_worker]
+        person_complete_annotations = Annotation.objects.filter(person=person_complete)
+
+        #print (f"Syncing {person_complete.person_id} from {person_complete.worker.workerID}...")
+        print("***")
+        for other_worker in other_workers:
+            try:
+                person_other_worker = Person.objects.get(person_id=person_complete.person_id, worker=other_worker, dataset=dataset)
+                if person_other_worker.annotation_complete:
+                    continue
+            except Person.DoesNotExist:
+                continue
+            print(f"Syncing {person_complete.person_id} from {person_complete.worker.workerID} to {other_worker.workerID}...")
+            for complete_annotation in person_complete_annotations:
+                try:
+                    target_annotation = Annotation.objects.get(person=person_other_worker, frame__frame_id=complete_annotation.frame.frame_id, frame__undistorted=complete_annotation.frame.undistorted, frame__worker=other_worker, frame__dataset=dataset)
+                except Annotation.DoesNotExist:
+                    target_annotation = Annotation()
+                    frame,_ = MultiViewFrame.objects.get_or_create(frame_id=complete_annotation.frame.frame_id, undistorted=complete_annotation.frame.undistorted, worker=other_worker, dataset=dataset)
+                    target_annotation.frame = frame
+                    target_annotation.person = person_other_worker
+
+                target_annotation.rectangle_id = complete_annotation.rectangle_id
+                target_annotation.creation_method = f"sync_{person_complete_worker.workerID}__{complete_annotation.creation_method}"
+                target_annotation.validated = complete_annotation.validated
+                target_annotation.rotation_theta = complete_annotation.rotation_theta
+                target_annotation.Xw = complete_annotation.Xw
+                target_annotation.Yw = complete_annotation.Yw
+                target_annotation.Zw = complete_annotation.Zw
+                target_annotation.object_size_x = complete_annotation.object_size_x
+                target_annotation.object_size_y = complete_annotation.object_size_y
+                target_annotation.object_size_z = complete_annotation.object_size_z
+                target_annotation.save()
+                save_2d_views(target_annotation)
+            person_other_worker.annotation_complete = True
+            person_other_worker.save()
+
 def preprocess_invision_data(path,worker_id,dataset_name,range_start=0,range_end=5000):
     #set_trace()
 

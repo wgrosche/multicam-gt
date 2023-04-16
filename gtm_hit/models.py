@@ -46,9 +46,10 @@ class Person(models.Model):
     class Meta:
         unique_together = ('person_id', 'worker', 'dataset')
     def __str__(self):
-        return f"PersonID{self.person_id}"
+        return f"pID:{self.person_id} wID:{self.worker.workerID} ds:{self.dataset.name}"
     def __repr__(self):
-        return f"PersonID{self.person_id}"
+        return f"pID:{self.person_id} wID:{self.worker.workerID} ds:{self.dataset.name}"
+
     
 class MultiViewFrame(models.Model):
     frame_id = models.IntegerField(verbose_name="MultiView ID")
@@ -60,7 +61,7 @@ class MultiViewFrame(models.Model):
     class Meta:
         unique_together = ('frame_id', 'undistorted', 'worker', 'dataset')
     def __str__(self):
-        return f"{'UN' if self.undistorted else ''}DISTORTED MVFRAME{self.frame_id}"
+        return f"{'UN' if self.undistorted else ''}DMVF{self.frame_id} wID:{self.worker.workerID} ds:{self.dataset.name}"
     
 class View(models.Model):
     view_id = models.IntegerField(primary_key=True,verbose_name="View ID")
@@ -93,7 +94,9 @@ class Annotation(models.Model):
         return np.array([self.Xw, self.Yw, self.Zw]).reshape(-1,1)
 
     def __str__(self):
-        return f"{'UN' if self.frame.undistorted else ''}DISTORTED MVFRAME{self.frame.frame_id} PersonID{self.person.person_id} rectangleID{self.rectangle_id.split('_')[-1]}"
+        assert self.person.worker.workerID == self.frame.worker.workerID
+        assert self.person.dataset.name == self.frame.dataset.name
+        return f"{'UN' if self.frame.undistorted else ''}DMVF{self.frame.frame_id} pID{self.person.person_id} wID:{self.person.worker.workerID} ds:{self.person.dataset.name}"
 class Annotation2DView(models.Model):
     view = models.ForeignKey(View, on_delete=models.CASCADE)
     annotation = models.ForeignKey(Annotation, related_name="twod_views", on_delete=models.CASCADE)
@@ -124,7 +127,7 @@ class Annotation2DView(models.Model):
         self.cuboid_points = [point for sublist in points for point in sublist]
 
     def __str__(self):
-        return f"{'UN' if self.annotation.frame.undistorted else ''}DISTORTED FRAME{self.annotation.frame.frame_id} CAM{self.view.view_id+1} PersonID{self.annotation.person.person_id} rectangleID{self.annotation.rectangle_id}"
+        return f"{'UN' if self.annotation.frame.undistorted else ''}DF{self.annotation.frame.frame_id} CAM{self.view.view_id+1} pID{self.annotation.person.person_id} rID{self.annotation.rectangle_id}"
 
 
 class SingleViewFrame(models.Model):
