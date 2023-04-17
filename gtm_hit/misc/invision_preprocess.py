@@ -138,7 +138,9 @@ def process_tracked_location(tdet,worker,frame_id,dataset):
     
     person, _ = Person.objects.get_or_create(
         person_id=annotation_data['personID'],worker=worker,dataset=dataset)
-    
+    if person.annotation_complete==True:
+        print("Person",person.person_id, "marked as complete. Skipping...")
+        return
     # Create a new annotation object for the given person and frame
     try:
         annotation = Annotation.objects.get(
