@@ -677,7 +677,7 @@ def load_db(request):
     return HttpResponse("Error")
 
 def change_id(request):
-    set_trace()
+    #set_trace()
     if is_ajax(request):
         try:
             person_id = int(float(request.POST['personID']))
@@ -725,6 +725,9 @@ def person_action(request):
     return HttpResponse("Error")
 
 def tracklet(request):
+    # set_trace()
+    # from gtm_hit.misc.invision_preprocess import sync_annotations
+    # sync_annotations("13apr")
     if is_ajax(request):
         try:
             person_id = int(float(request.POST['personID']))

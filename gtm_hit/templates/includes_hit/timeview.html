@@ -11,6 +11,13 @@
         margin: 5px;
     }
 </style>
-<p>test</p>
-<div class="container" id="crops-container"></div>
+<p></p>
+<script>
+function hideCrops() {
+    document.getElementById("crops-container").style.display = "none";
+};
+</script>
+<div class="container" id="crops-container">
+<button id="close-button" style="position: absolute; top: 0; right: 0;" onclick="hideCrops()">Close</button>
+</div>
 

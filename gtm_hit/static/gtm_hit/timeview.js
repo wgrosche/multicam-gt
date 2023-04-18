@@ -2,9 +2,10 @@ var timeview_canv_idx;
 
 async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames = 5) {
     const cropsContainer = $("#crops-container");
+    document.getElementById("crops-container").style.display = "inline";
     cropsContainer.empty();
     const currentFrame = parseInt(frame);
-
+    document.getElementById("crops-container").innerHTML = '<button id="close-button" style="position: absolute; top: 0; right: 0;" onclick="hideCrops()">X</button>';
     $.ajax({
         method: "POST",
         url: "timeview",
