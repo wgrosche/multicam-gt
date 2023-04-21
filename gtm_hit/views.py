@@ -29,6 +29,7 @@ from gtm_hit.misc.serializer import *
 from gtm_hit.misc.utils import convert_rect_to_dict, request_to_dict, process_action
 from pprint import pprint
 import uuid
+from gtm_hit.misc.invision.create_video import create_video as create_video_invision
 
 def requestID(request):
     
@@ -297,8 +298,6 @@ def action(request):
 
             obj = json.loads(request.POST["data"])
 
-            obj["object_size"] = obj["object_size"]  # [::-1]
-
             obj = process_action(obj)
             Xw = obj["Xw"]
             Yw = obj["Yw"]
@@ -559,7 +558,8 @@ def delete_and_load(startframe):
 
 
 def save_db(request):
-    # 
+    #set_trace()
+    
     if is_ajax(request) and request.method == 'POST':
         try:
             data = json.loads(request.POST['data'])
@@ -573,9 +573,9 @@ def save_db(request):
             frame, created = MultiViewFrame.objects.get_or_create(
                 frame_id=frame_id, worker=worker,undistorted=settings.UNDISTORTED_FRAMES,dataset=dataset)
             
-            #delete all annotations for this frame
-            Annotation.objects.filter(frame=frame).delete()
-
+            #delete all annotations for this frame (if not single person save)
+            if len(data)>1:
+                Annotation.objects.filter(frame=frame).delete()
             # 
             # Iterate through each annotation in the data and create an annotation object for it
             for annotation_data in data:
@@ -728,7 +728,6 @@ def tracklet(request):
             person_id = int(float(request.POST['personID']))
             frame_id = int(float(request.POST['frameID']))
             worker_id = request.POST['workerID']
-            #
             dataset_name = request.POST['datasetName']
             try:
                 frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES,dataset__name=dataset_name)
@@ -823,7 +822,8 @@ def timeview(request):
 
 import numpy as np
 
-def reset_annotation_complete(request):
+def reset_ac_flag(request):
+    set_trace()
     if is_ajax(request):
         try:
             worker_id = request.POST['workerID']
@@ -834,3 +834,14 @@ def reset_annotation_complete(request):
             return HttpResponse(json.dumps({"message":"ok"}), content_type="application/json")
         except KeyError:
             return HttpResponse("Error")
+
+def create_video(request):
+    if is_ajax(request):
+        try:
+            dataset_name = request.POST['datasetName']
+            worker_id = request.POST['workerID']
+            create_video_invision(f"{worker_id}.mp4",15,dataset_name,worker_id)
+            return HttpResponse(json.dumps({"message":"ok"}), content_type="application/json")
+        except KeyError:
+            return HttpResponse("Error")
+        

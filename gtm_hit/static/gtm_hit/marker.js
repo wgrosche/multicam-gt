@@ -88,7 +88,16 @@ window.onload = function () {
     // imgArray[i].src = '../../static/gtm_hit/dset/'+dset_name+'/frames/'+ camName[i]+ '/'+frame_str+'.png'; // change 00..0 by a frame variable
     imgArray[i].src = '/static/gtm_hit/dset/' + dset_name + '/'+undistort_frames_path+'frames/' + camName[i] + '/' + frame_str + '.jpg'; // change 00..0 by a frame variable
     //imgArray[i].src = '../../static/gtm_hit/frames/'+ camName[i]+frame_str+'.png'; // change 00..0 by a frame variable
+
   }
+  var topview = new Image();
+  topview.id = "topviewimg";
+  topview.onload = function () {
+    var c = document.getElementById("topview" + this.id);
+    var ctx = c.getContext('2d');
+    ctx.drawImage(this, 0, 0);
+    }
+  topview.src = '/static/gtm_hit/dset/13apr/NewarkPennTopView2.tif'
 
   $(document).bind('keydown', "backspace", backSpace);
 
@@ -160,9 +169,9 @@ function onMouseDown(event) {
       mousey >= baseY - threshold &&
       mousey <= baseY + threshold
     ) {
-      selectedBox = { rectID, canvasIndex }; //select for drag
-      chosen_rect = rectsID.indexOf(rectID);
-      break;
+      // selectedBox = { rectID, canvasIndex }; //select for drag
+      // chosen_rect = rectsID.indexOf(rectID);
+      // break;
     }
     // Bounding Box mid point select (Select only)
     if (
@@ -431,6 +440,43 @@ function copyPrevOrNext(e) {
   });
 }
 
+function createVideo(e) {
+  $.ajax({
+    method: "POST",
+    url: "createvideo",
+    data: {
+      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+      workerID: workerID,
+      datasetName: dset_name
+    },
+    dataType: "json",
+    success: function (msg) {
+      alert("Video created.")
+    },
+    error: function (msg) {
+      alert("Error while creating video.")
+    }
+  });
+}
+
+function removeCompleteFlags(e) {
+  $.ajax({
+    method: "POST",
+    url: "resetacflags",
+    data: {
+      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+      workerID: workerID,
+      datasetName: dset_name
+    },
+    dataType: "json",
+    success: function (msg) {
+      loader_db("load");
+      alert("AC flags removed.")
+    },
+    error: function (msg) {
+    }
+  });
+}
 
 function backSpace() {
   if (rectsID.length > 0) {
@@ -698,7 +744,6 @@ function save(e) {
     box["personID"] = pid;
     dims.push(box);
   }
-
   $.ajax({
     method: "POST",
     url: 'save',
@@ -717,6 +762,33 @@ function save(e) {
   });
 
 }
+
+function saveCurrentlySelected() {
+  var dims = [];
+  var pid = identities[rectsID[chosen_rect]];
+  let box = boxes[0][pid];
+  if (!box) return;
+  box["personID"] = pid;
+  dims.push(box);
+
+  $.ajax({
+    method: "POST",
+    url: 'save',
+    data: {
+      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+      data: JSON.stringify(dims),
+      ID: frame_str,
+      workerID: workerID,
+      datasetName: dset_name
+    },
+    success: function (msg) {
+      console.log(msg);
+      unsavedChanges = false;
+      $("#unsaved").html("All changes saved.");
+    }
+  });
+}
+
 function load() {
   loader_db('load');
 }
@@ -893,7 +965,7 @@ function clean() {
 
 
 function changeFrame(order, increment) {
-  //if(boxesLoaded) save();
+  if(boxesLoaded) saveCurrentlySelected();
   if (nblabeled >= to_label) {
     return true;
   }

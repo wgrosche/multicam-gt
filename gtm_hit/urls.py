@@ -30,6 +30,7 @@ urlpatterns = [
     url(r'^.*timeview$',views.timeview,name='timeview'),
     url(r'^.*interpolate$',views.interpolate,name='interpolate'),
     url(r'^.*copy$',views.cp_prev_or_next_annotation,name='copyPrevOrNextAnnotation'),
-
-    url(r'^(?P<workerID>[A-Z0-9]+)/finish$',views.finish,name='finish'),
+    url(r'^.*createvideo$',views.create_video,name='createVideo'),
+    url(r'^.*resetacflags$',views.reset_ac_flag,name='resetACFlag'),
+    url(r'^(?P<workerID>[A-Z0-9]+)/finish$',views.finish,name='finish')
 ]
