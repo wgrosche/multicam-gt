@@ -1,11 +1,12 @@
 var timeview_canv_idx;
 
 async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames = 5) {
+    document.getElementById("crops-container").style.display = "flex";
     const cropsContainer = $("#crops-container");
-    document.getElementById("crops-container").style.display = "inline";
     cropsContainer.empty();
+    //cropsContainer.style.display = "flex";
     const currentFrame = parseInt(frame);
-    document.getElementById("crops-container").innerHTML = '<button id="close-button" style="position: absolute; top: 0; right: 0;" onclick="hideCrops()">X</button>';
+    document.getElementById("crops-container").innerHTML = '<button id="close-button" style="position: absolute; top: 0; left: 0;" onclick="hideCrops()">X</button>';
     $.ajax({
         method: "POST",
         url: "timeview",
@@ -30,6 +31,12 @@ async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames
             if (cropImg !== null) {
               const canvas = createCroppedCanvas(cropImg, box, cropFrame, currentFrame);
               canvas.className = "crop-image";
+              canvas.id = cropFrame;
+              canvas.onclick = function() {
+                if (cropFrame < frame_str) changeFrame("prev",frame_str-cropFrame);
+                else
+                changeFrame("next",cropFrame-frame_str);
+              };
               canvas.style.maxWidth = "100px";
               cropsContainer.append(canvas);
             }

@@ -582,9 +582,6 @@ def save_db(request):
                 person, _ = Person.objects.get_or_create(
                     person_id=annotation_data['personID'],worker=worker,dataset=dataset)
                 # Create a new annotation object for the given person and frame
-                if person.person_id == 42:
-                    pass
-                    # 
                 try:
                     annotation = Annotation.objects.get(
                         person=person, frame=frame)
@@ -725,9 +722,7 @@ def person_action(request):
     return HttpResponse("Error")
 
 def tracklet(request):
-    # set_trace()
-    # from gtm_hit.misc.invision_preprocess import sync_annotations
-    # sync_annotations("13apr")
+    
     if is_ajax(request):
         try:
             person_id = int(float(request.POST['personID']))
@@ -807,8 +802,8 @@ def timeview(request):
             # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
 
             FRAMES_NO = 35
-            frame_id_start = max(1, frame_id - FRAMES_NO)
-            frame_id_end = frame_id + FRAMES_NO
+            frame_id_start = 3150 #max(1, frame_id - FRAMES_NO)
+            frame_id_end =  4425 #frame_id + FRAMES_NO
             
             # Filter the Annotation2DView objects using the calculated frame range and the Person object
             annotation2dviews = Annotation2DView.objects.filter(
@@ -828,6 +823,14 @@ def timeview(request):
 
 import numpy as np
 
-
-
-
+def reset_annotation_complete(request):
+    if is_ajax(request):
+        try:
+            worker_id = request.POST['workerID']
+            dataset_name = request.POST['datasetName']
+            for person in Person.objects.filter(worker_id=worker_id,dataset__name=dataset_name):
+                person.annotation_complete = False
+                person.save()
+            return HttpResponse(json.dumps({"message":"ok"}), content_type="application/json")
+        except KeyError:
+            return HttpResponse("Error")

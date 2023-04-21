@@ -2,6 +2,8 @@ var rectsID = [];
 var boxes = {};
 var chosen_rect;
 var prev_chosen_identity;
+var tracklet;
+var toggleTrackletClick = true;
 
 var imgArray = [];
 var arrArray = [];
@@ -90,10 +92,10 @@ window.onload = function () {
 
   $(document).bind('keydown', "backspace", backSpace);
 
-  $(document).bind('keydown', "left", left);
-  $(document).bind('keydown', "right", right);
-  $(document).bind('keydown', "up", up);
-  $(document).bind('keydown', "down", down);
+  $(document).bind('keydown', "left", leftLarge);
+  $(document).bind('keydown', "right", rightLarge);
+  $(document).bind('keydown', "up", upLarge);
+  $(document).bind('keydown', "down", downLarge);
 
   $(document).bind('keydown', "a", left);
   $(document).bind('keydown', "d", right);
@@ -175,6 +177,25 @@ function onMouseDown(event) {
       displayCrops(frame_str, pid,canvasIndex); //display crops --timeview.js
       timeview_canv_idx = canvasIndex;
       break;
+    }
+  }
+  if (toggleTrackletClick) {
+    // Check tracklet change frame
+    const dataList = tracklet[canvasIndex];
+    if (dataList==undefined) return;
+    for (let i = 0; i < dataList.length; i++) {
+      var x = dataList[i][1][0];
+      var y  = dataList[i][1][1];
+      if (
+        mousex >= x - threshold &&
+        mousex <= x + threshold &&
+        mousey >= y - threshold &&
+        mousey <= y + threshold
+      ) {
+        if (dataList[i][0] < frame_str) changeFrame("prev",frame_str-dataList[i][0])
+        else
+        changeFrame("next",dataList[i][0]-frame_str)
+      }
     }
   }
 }
@@ -313,6 +334,7 @@ function getTracklet(e) {
     },
     dataType: "json",
     success: function (msg) {
+      tracklet = msg;
       for (var i = 0; i < nb_cams; i++) {
         var c = document.getElementById("canv" + (i + 1));
         var ctx = c.getContext("2d");
@@ -332,6 +354,17 @@ function getTracklet(e) {
         }
         ctx.stroke();
         ctx.closePath()
+        
+        if (toggleTrackletClick) {
+          for (let i = 1; i < dataList.length; i++) {
+              ctx.beginPath();
+              ctx.fillStyle = "green";
+              ctx.fillRect(dataList[i][1][0] - 3, dataList[i][1][1] - 3, 6, 6);
+              ctx.stroke();
+              ctx.closePath();
+          }
+        }
+        
       }
     }
   });
@@ -430,8 +463,8 @@ function tab() {
   if (zoomOn)
     zoomOut();
   update();
+  getTracklet();
   return false;
-
 }
 
 function keyNextFrame() {
@@ -479,8 +512,22 @@ function up() {
 function down() {
   return sendAction({ "move": "down" });
 }
+
+function leftLarge() {
+  return sendAction({ "move": "left","stepMultiplier":10});
+}
+function rightLarge() {
+  return sendAction({ "move": "right","stepMultiplier":10 });
+}
+function upLarge() {
+  return sendAction({ "move": "up","stepMultiplier":10 });
+}
+function downLarge() {
+  return sendAction({ "move": "down","stepMultiplier":10 });
+}
+
 function rotateCW() {
-  return sendAction({ "rotate": "cw" });
+  return sendAction({ "rotate": "cw"});
 }
 function rotateCCW() {
   return sendAction({ "rotate": "ccw" });
@@ -846,7 +893,7 @@ function clean() {
 
 
 function changeFrame(order, increment) {
-  if(boxesLoaded) save();
+  //if(boxesLoaded) save();
   if (nblabeled >= to_label) {
     return true;
   }
@@ -975,6 +1022,7 @@ function changeID(opt) {
 function personAction(opt) {
   if (opt==undefined)return false;
   const old_chosen_rect = chosen_rect;
+  prev_chosen_identity = identities[rectsID[chosen_rect]];
   $.ajax({
     method: "POST",
     url: "person",
@@ -1070,6 +1118,7 @@ function rectAction(msg, id, load) {
 }
 
 function update() {
+  tracklet = null;
   if (chosen_rect==undefined) chosen_rect = 0;
   chosen_rect = ((chosen_rect % rectsID.length) + rectsID.length) % rectsID.length;
   $("#pID").val(identities[rectsID[chosen_rect]]);

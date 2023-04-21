@@ -160,8 +160,8 @@ def change_annotation_id_propagate(old_id, new_id, frame, options):
 
 def get_annotation2dviews_for_frame_and_person(frame, person):
     # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
-    frame_id_start = max(1, frame.frame_id - 100)
-    frame_id_end = frame.frame_id + 100
+    frame_id_start = 3150 #max(1, frame.frame_id - 100)
+    frame_id_end = 4500 #frame.frame_id + 100
 
     # Filter the Annotation2DView objects using the calculated frame range and the Person object
     annotation2dviews = Annotation2DView.objects.filter(

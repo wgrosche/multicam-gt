@@ -70,18 +70,21 @@ def process_action(obj):
 
         if "move" in action_dict:
             move_direction = action_dict["move"]
+            step = settings.MOVE_STEP
+            if "stepMultiplier" in action_dict:
+                step*=action_dict["stepMultiplier"]
             if move_direction=="left":
-                obj["Xw"] -= settings.MOVE_STEP
+                obj["Xw"] -= step
             elif move_direction=="right":
-                obj["Xw"] += settings.MOVE_STEP
+                obj["Xw"] += step
             elif move_direction=="up":
-                obj["Yw"] += settings.MOVE_STEP
+                obj["Yw"] += step
             elif move_direction=="down":
-                obj["Yw"] -= settings.MOVE_STEP
+                obj["Yw"] -= step
             elif move_direction=="forward":
-                obj["Zw"] += settings.MOVE_STEP
+                obj["Zw"] += step
             elif move_direction=="backward":
-                obj["Zw"] -= settings.MOVE_STEP
+                obj["Zw"] -= step
     return obj
 
 def convert_rect_to_dict(rect_tuple,cuboid, cam_id, rect_id, world_point,object_size,rotation_theta):
