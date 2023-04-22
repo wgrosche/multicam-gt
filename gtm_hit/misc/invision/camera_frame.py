@@ -3,6 +3,8 @@ import numpy as np
 import os
 from gtm_hit.misc.invision_calib import CameraParams
 from gtm_hit.models import Annotation, Annotation2DView, MultiViewFrame, Person, View
+from django.db.models import QuerySet
+from django.core.exceptions import ObjectDoesNotExist
 
 class CameraFrame:
     def __init__(self, frame = None, output: dict = None , camera_params: CameraParams = None, is_distorted: bool = True, apply_undistortion: bool = True):
@@ -48,17 +50,39 @@ class CameraFrame:
             self.tracked_detections = [TrackedDetection(det) for det in self.tracked_detections]
             self.tracked_detections_dict = dict([(det.track_id, det) for det in self.tracked_detections])
     
-    def get_frame_with_db_annotations(self, detections: Annotation2DView):
+    def get_frame_with_db_annotations(self, detections: QuerySet[Annotation2DView]):
         frame_copy = self.frame.copy()
         for det in detections:
             if det.cuboid_points==None:
                 continue
-            plot_cuboid(frame_copy, det.cuboid_points_2d, GREEN)
+            plot_cuboid(frame_copy, det.cuboid_points_2d, PINK)
             int_tuple = lambda x,y : (int(x),int(y))
             p1 = int_tuple(det.x1,det.y1)
             p2 = int_tuple(det.x2,det.y2)
-            plot_bounding_box(frame_copy, p1,p2,PINK,name=f"ID:{det.annotation.person.person_id}")
+            
+            annotation_complete = det.annotation.person.annotation_complete
+            if annotation_complete:
+                plot_bounding_box(frame_copy, p1,p2,GREEN,name=f"ID:{det.annotation.person.person_id}")
+            else:
+                plot_bounding_box(frame_copy, p1,p2,RED,name=f"ID:{det.annotation.person.person_id}")
         return frame_copy
+    
+    def get_crop_from_db_annotation(self, detection: Annotation2DView):
+        frame_copy = self.frame.copy()
+        if detection.cuboid_points==None:
+            return None
+        
+        x1 = int(max(0, detection.x1))
+        y1 = int(max(0, detection.y1))
+        x2 = int(min(frame_copy.shape[1], detection.x2))
+        y2 = int(min(frame_copy.shape[0], detection.y2))
+
+        # Check if the clipped detection has a valid size (i.e., width and height > 0)
+        if x2 > x1 and y2 > y1:
+            return frame_copy[y1:y2, x1:x2]
+        else:
+            return None
+
     def get_frame(self, display_network_detections = False, display_tracked_detections = True):
         frame_copy = self.frame.copy()
         if self.is_distorted:

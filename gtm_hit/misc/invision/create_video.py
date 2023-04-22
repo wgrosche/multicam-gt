@@ -33,12 +33,6 @@ def create_video(video_out, fps, dataset_name, worker_id):
     cam_id_mat = np.mgrid[1:3,1:5].reshape(2,-1).T
     for frame_id in range(3150, 5000,7):
         frame_list = []
-        
-        # if frame_id==3300:
-        #     video_writer.release()
-        #     print(f'Output video saved... {video_out}')
-        #     break
-            
         try:
             frame = MultiViewFrame.objects.get(frame_id=frame_id, dataset__name=dataset_name,worker_id=worker_id)
         except ObjectDoesNotExist:
@@ -54,8 +48,8 @@ def create_video(video_out, fps, dataset_name, worker_id):
             framesave = camera_frame.get_frame_with_db_annotations(annotations2d_cam)
             if not os.path.exists(f"13apr/undistorted_frames/cam{i+1}/"):
                 os.makedirs(f"13apr/undistorted_frames/cam{i+1}/")
-            ret = cv.imwrite(
-                f"13apr/undistorted_frames/cam{i+1}/{frame_id:08d}.jpg", framesave)
+            # ret = cv.imwrite(
+            #     f"13apr/undistorted_frames/cam{i+1}/{frame_id:08d}.jpg", framesave)
             frame_list.append(framesave)
             
         
@@ -74,4 +68,3 @@ def create_video(video_out, fps, dataset_name, worker_id):
         if break_flag:
             break
     video_writer.release()
-
