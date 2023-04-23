@@ -223,10 +223,10 @@ def copy_annotation_to_frame(annotation, current_frame):
 
 def remove_people_with_few_annotations(worker_id,dataset_name,less_than=3,only_uncomplete=True):
     person_annotation_counts = Person.objects.annotate(annotation_count=Count('annotation'))
-    persons_with_few_annotations = person_annotation_counts.filter(annotation_count__lte=less_than, worker_id=worker_id,dataset_name=dataset_name)
+    persons_with_few_annotations = person_annotation_counts.filter(annotation_count__lte=less_than, worker_id=worker_id,dataset__name=dataset_name)
 
     if only_uncomplete:
-        persons_with_few_annotations = person_annotation_counts.filter(annotation_count__lte=less_than, worker_id=worker_id,dataset_name=dataset_name,annotation_complete=False)
+        persons_with_few_annotations = person_annotation_counts.filter(annotation_count__lte=less_than, worker_id=worker_id,dataset__name=dataset_name,annotation_complete=False)
 
     person_ids_with_few_annotations = persons_with_few_annotations.values_list('person_id', flat=True)
     annotations_to_delete = Annotation.objects.filter(person__person_id__in=person_ids_with_few_annotations, person__worker_id=worker_id,person__dataset__name=dataset_name)
