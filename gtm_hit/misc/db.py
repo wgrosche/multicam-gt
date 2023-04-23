@@ -230,6 +230,5 @@ def remove_people_with_few_annotations(worker_id,dataset_name,less_than=3,only_u
 
     person_ids_with_few_annotations = persons_with_few_annotations.values_list('person_id', flat=True)
     annotations_to_delete = Annotation.objects.filter(person__person_id__in=person_ids_with_few_annotations, person__worker_id=worker_id,person__dataset__name=dataset_name)
-    annotations_to_delete.delete()
     
-    return True
+    return annotations_to_delete.delete()
