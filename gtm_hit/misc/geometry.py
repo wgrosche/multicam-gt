@@ -11,17 +11,29 @@ Annotations = namedtuple(
 Homography = namedtuple('Homography', ['H', 'input_size', 'output_size'])
 
 
-def reproject_to_world_ground(ground_pix, K0, R0, T0):
+def reproject_to_world_ground(ground_pix, calib=None, undistort=False):
     """
     Compute world coordinate from pixel coordinate of point on the groundplane
     """
     # set_trace()
-    C0 = -R0.T @ T0
-    l = R0.T @ np.linalg.inv(K0) @ ground_pix
-    world_point = C0 - l*(C0[2]/l[2])
+    undistort = settings.UNDISTORTED_FRAMES
+    K0 = calib.K
+    R0 = calib.R
+    T0 = calib.T
+    if undistort:
+        K0 = calib.intrinsics.newCameraMatrix
+        
+        C0 = -R0.T @ T0
+        l = R0.T @ calib.intrinsics.Rmat.T @ np.linalg.inv(K0) @ ground_pix
+        world_point = C0 - l*(C0[2]/l[2])
 
+    else: #distorted
+        C0 = -R0.T @ T0
+        l = R0.T @ np.linalg.inv(K0) @ ground_pix
+        world_point = C0 - l#*(C0[2]/l[2])
+        world_point = world_point/world_point[2]
+    
     return world_point
-
 
 def project_world_to_camera(world_point, K1, R1, T1):
     """

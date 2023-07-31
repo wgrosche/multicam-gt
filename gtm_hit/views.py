@@ -237,7 +237,7 @@ def click(request):
             feet2d_h = np.array([[x], [y], [1]])
             # 
             world_point = geometry.reproject_to_world_ground(
-                feet2d_h, settings.CALIBS[cam].K, settings.CALIBS[cam].R, settings.CALIBS[cam].T)
+                feet2d_h, settings.CALIBS[cam], undistort=settings.UNDISTORTED_FRAMES)
             if "person_id" not in obj:
                 obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset_name=dataset_name)
             rectangles = get_cuboids_2d(world_point, obj)

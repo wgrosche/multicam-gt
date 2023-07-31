@@ -30,7 +30,7 @@ SECRET_KEY = '%z1g%^3%nf-k3sf$i^qra_d*0m4745c57f&(su(2=&nuwt#=z1'
 DEBUG = True
 
 #ALLOWED_HOSTS = ['127.0.0.1']
-ALLOWED_HOSTS = ['10.90.43.13', 'pedestriantag.epfl.ch','localhost','127.0.0.1', '0.0.0.0']
+ALLOWED_HOSTS = ['10.90.43.13', 'pedestriantag.epfl.ch','localhost','127.0.0.1', '0.0.0.0',"192.168.100.23"]
 
 # Application definition
 
@@ -103,7 +103,7 @@ WSGI_APPLICATION = 'gtmarker.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'invision2',
+        'NAME': 'invision',
         'USER': 'invision',
         'PASSWORD': '',
         'HOST': 'localhost',
@@ -236,7 +236,7 @@ DELTA_SEARCH = 5
 #         print("Error: Rectangle file not found")
 
 VALIDATIONCODES = []
-STARTFRAME = 3150
+STARTFRAME = 2
 NBFRAMES = 5000
 LASTLOADED = 0
 INCREMENT = 7
@@ -252,9 +252,9 @@ HEIGHT = 1.8
 RADIUS = 0.5 #person radius
 
 STEPL = 0.02
-MOVE_STEP = 0.02 #same as stepl
+MOVE_STEP = 0.02 #same as stepl vidis ovoDA
 SIZE_CHANGE_STEP=0.03
-DSETNAME = "invision"
+DSETNAME = "INVISION1"
 CAMS = ["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
 FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 #CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)

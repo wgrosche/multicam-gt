@@ -10,7 +10,11 @@ from gtm_hit.misc.invision_preprocess import preprocess_invision_data
 class Args:
     def __init__(self,
                  input_path="gtm_hit/static/gtm_hit/labels/json_output",
+<<<<<<< Updated upstream
                  worker_id="sync2",
+=======
+                 worker_id="SYNC17APR0908",
+>>>>>>> Stashed changes
                  dataset_name="13apr", 
                  range_start=3150,
                  range_end=5000):

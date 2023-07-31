@@ -1,9 +1,12 @@
 
 
-# EPFL Multi-camera detection annotation tool
-Our web-application to annotate multi-camera detection datasets. Feel free to download and use it to annotate other datasets.
+# EPFL MultiCam-GT v2
+Updated version of EPFL MultiCam-GT Tool, now with:
 
-#
+- **Enhanced Object Transformation**: The new version includes object representation using dimensions and spatial orientation.
+- **Tracklet Merging**: Functionality for merging tracklets, providing more streamlined object tracking.
+- **Trajectory Visualization**: Features new tools for visualizing trajectories, enhancing understanding and analysis of object movement.
+- **Database Integration**: All transformation and tracking data is now stored in the database, enabling more efficient data management and retrieval.
 
 ## Usage
 Define the DATABASES variable in the settings.py file to point to your database. The application is configured to use a PostgreSQL database. You can use the following configuration:
@@ -42,5 +45,4 @@ You can now access the application at http://localhost:4444
 
 
 ### Acknowledgements
-Written by Stephane Bouquet during his MSc. Thesis at CVLab, EPFL, under the supervision of Pierre Baqué.
-We acknowledge the WILDTRACK project and the Swiss National Scientific Fund.
+

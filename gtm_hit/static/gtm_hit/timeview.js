@@ -100,7 +100,9 @@ async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames
 function getFrameUrl(frame, cameraID) {
     const frameStr = String(frame).padStart(8, "0");
     const camName = String(cameraID);
+    // const url = `/static/gtm_hit/dset/${dset_name}/${undistort_frames_path}frames/${camName}/${frameStr}.jpg`;
     const url = `/static/gtm_hit/dset/${dset_name}/${undistort_frames_path}frames/${camName}/${frameStr}.jpg`;
+
     return url;
   }
   

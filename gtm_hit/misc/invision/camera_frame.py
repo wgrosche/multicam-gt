@@ -1,29 +1,29 @@
+
+import matplotlib.pyplot as plt
 import cv2 as cv
 import numpy as np
 import os
-from gtm_hit.misc.invision_calib import CameraParams
-from gtm_hit.models import Annotation, Annotation2DView, MultiViewFrame, Person, View
-from django.db.models import QuerySet
-from django.core.exceptions import ObjectDoesNotExist
+import glob
+import json
+import sys
+import pandas as pd
 
 class CameraFrame:
-    def __init__(self, frame = None, output: dict = None , camera_params: CameraParams = None, is_distorted: bool = True, apply_undistortion: bool = True):
+    def __init__(self, frame = None, output: dict = None , camera_params= None, is_distorted: bool = True, apply_undistortion: bool = True, median_frame = None):
         if isinstance(frame, np.ndarray):
             self.frame = frame
         elif isinstance(frame, str):
             self.frame = cv.imread(frame,cv.COLOR_RGB2BGR)
-        if output is None:
-            output = {}
         self.frameId = output.get('frameId',None)
         self.timestamp = output.get('timestamp',None)
         self.network_detections = output.get('network_detections',None)
         self.tracked_detections = output.get('tracked_locations',None)
-
-        if camera_params is None:
-            camera_params = CameraParams()
         self.camera_params = camera_params
         self.is_distorted = is_distorted
-
+        if median_frame is not None:
+            self.frame = self.frame - median_frame #subtract median frame and convert all negative values to zero
+            self.frame[self.frame<0] = 0
+            
         if is_distorted and apply_undistortion:
             self.undistort()
             self.is_distorted = False
@@ -42,46 +42,12 @@ class CameraFrame:
     def undistort(self):
         mapx, mapy = self.camera_params.getMaps()
         self.frame = cv.remap(self.frame, mapx, mapy, cv.INTER_LINEAR)
-    
     def load_detections(self):
         if self.network_detections is not None:
             self.network_detections = [NetworkDetection(det) for det in self.network_detections]
         if self.tracked_detections is not None:
             self.tracked_detections = [TrackedDetection(det) for det in self.tracked_detections]
             self.tracked_detections_dict = dict([(det.track_id, det) for det in self.tracked_detections])
-    
-    def get_frame_with_db_annotations(self, detections: QuerySet[Annotation2DView]):
-        frame_copy = self.frame.copy()
-        for det in detections:
-            if det.cuboid_points==None:
-                continue
-            plot_cuboid(frame_copy, det.cuboid_points_2d, PINK)
-            int_tuple = lambda x,y : (int(x),int(y))
-            p1 = int_tuple(det.x1,det.y1)
-            p2 = int_tuple(det.x2,det.y2)
-            
-            annotation_complete = det.annotation.person.annotation_complete
-            if annotation_complete:
-                plot_bounding_box(frame_copy, p1,p2,GREEN,name=f"ID:{det.annotation.person.person_id}")
-            else:
-                plot_bounding_box(frame_copy, p1,p2,RED,name=f"ID:{det.annotation.person.person_id}")
-        return frame_copy
-    
-    def get_crop_from_db_annotation(self, detection: Annotation2DView):
-        frame_copy = self.frame.copy()
-        if detection.cuboid_points==None:
-            return None
-        
-        x1 = int(max(0, detection.x1))
-        y1 = int(max(0, detection.y1))
-        x2 = int(min(frame_copy.shape[1], detection.x2))
-        y2 = int(min(frame_copy.shape[0], detection.y2))
-
-        # Check if the clipped detection has a valid size (i.e., width and height > 0)
-        if x2 > x1 and y2 > y1:
-            return frame_copy[y1:y2, x1:x2]
-        else:
-            return None
 
     def get_frame(self, display_network_detections = False, display_tracked_detections = True):
         frame_copy = self.frame.copy()
@@ -106,12 +72,12 @@ class CameraFrame:
         else: #undistorted
             if display_tracked_detections and self.tracked_detections is not None:
                 for tdet in self.tracked_detections:
-
+                    
                     cuboid_points2d = np.array(tdet.cuboid).reshape(-1,2)
                     cuboid_points2d = [tuple(p) for p in cuboid_points2d]
                     cuboid_points2d = cuboid_points2d[:4]+ [cuboid_points2d[6],cuboid_points2d[4],cuboid_points2d[5],cuboid_points2d[7]] #correct the order for plotting
                     
-                    # plot_cuboid(frame_copy, cuboid_points2d,PURPLE)
+                    plot_cuboid(frame_copy, cuboid_points2d,PURPLE)
                     
                     # p1,p2 = get_bounding_box(cuboid_points2d) #compute cuboid bbox
                     # plot_bounding_box(frame_copy, p1,p2,PINK,name=f"ID:{tdet.track_id}") #plot cuboid bbox
@@ -129,56 +95,6 @@ class CameraFrame:
                     # p1,p2 = tdet.get_bbox_points()
                     # plot_bounding_box(frame_copy, p1,p2,PINK,name=f"ID:{tdet.track_id}") #plot precomputed bbox
 
-                    
-        return frame_copy
-    
-    def get_frame_db(self, display_network_detections = False, display_tracked_detections = True):
-        frame_copy = self.frame.copy()
-        if self.is_distorted:
-            if display_network_detections and self.network_detections is not None:
-                for ndet in self.network_detections:
-                    pass
-                    #todo finish
-            if display_tracked_detections and self.tracked_detections is not None:
-                for tdet in self.tracked_detections:
-                    
-                    cuboid_points3d = tdet.get_cuboid_world_vertices()
-                    cuboid_points2d = self.get_projected_points(cuboid_points3d)
-                    
-                    plot_cuboid(frame_copy, cuboid_points2d)
-
-                    p1,p2 = get_bounding_box(cuboid_points2d)
-                    plot_bounding_box(frame_copy, p1,p2,RED,name=f"ID:{tdet.track_id}") #plot cuboid bb
-                    
-
-
-        else: #undistorted
-            if display_tracked_detections and self.tracked_detections is not None:
-                for tdet in self.tracked_detections:
-
-                    cuboid_points2d = np.array(tdet.cuboid).reshape(-1,2)
-                    cuboid_points2d = [tuple(p) for p in cuboid_points2d]
-                    cuboid_points2d = cuboid_points2d[:4]+ [cuboid_points2d[6],cuboid_points2d[4],cuboid_points2d[5],cuboid_points2d[7]] #correct the order for plotting
-                    
-                    # plot_cuboid(frame_copy, cuboid_points2d,PURPLE)
-                    
-                    # p1,p2 = get_bounding_box(cuboid_points2d) #compute cuboid bbox
-                    # plot_bounding_box(frame_copy, p1,p2,PINK,name=f"ID:{tdet.track_id}") #plot cuboid bbox
-
-
-                    #NEW: get projected with undistortion
-                    cuboid_points3d = tdet.get_cuboid_world_vertices()
-                    cuboid_points2d = self.get_projected_points(cuboid_points3d,undistort=True)
-                    
-                    plot_cuboid(frame_copy, cuboid_points2d,GREEN)
-                    
-                    p1,p2 = get_bounding_box(cuboid_points2d) #compute cuboid bbox
-                    plot_bounding_box(frame_copy, p1,p2,PINK,name=f"ID:{tdet.track_id}") #plot cuboid bbox
-
-                    # p1,p2 = tdet.get_bbox_points()
-                    # plot_bounding_box(frame_copy, p1,p2,PINK,name=f"ID:{tdet.track_id}") #plot precomputed bbox
-
-                    
         return frame_copy
     def get_tracked_person(self, track_id,return_points=False):
         frame_copy = self.frame.copy()
@@ -360,9 +276,12 @@ class TrackedDetection(Detection):
         return f"TrackedDetection({self.__dict__})"
     def __init__(self, tracked_location_dict):
         super().__init__(tracked_location_dict)
-        self.cuboid_to_world_transform = tracked_location_dict["cuboidToWorldTransform"]
+        #self.cuboid_to_world_transform = tracked_location_dict["cuboidToWorldTransform"]
+        self.cuboid_to_world_transform =np.array(tracked_location_dict["object_to_world"],dtype=np.float32) 
+
         self.detected_associated_idx = tracked_location_dict["detection_associated_idx"]
-        self.object_size = tracked_location_dict["objectSize"]
+        # self.object_size = tracked_location_dict["objectSize"]
+        self.object_size = [2,0.5,0.5]
         self.track_id = tracked_location_dict["trackId"]
         self.uncertainty_ellipse_m2 = tracked_location_dict["uncertainty_ellipse_m2"]
         self.compute_cuboid()
@@ -372,6 +291,9 @@ class TrackedDetection(Detection):
         self._cuboid_world_vertices = self.cuboid_obj.get_world_vertices(self.cuboid_to_world_transform)
     def get_cuboid_world_vertices(self):
         return self._cuboid_world_vertices
+    
+    def get_base_in_world(self):
+        return self.cuboid_obj.get_base_in_world(self.cuboid_to_world_transform)
 
 class Cuboid:
     def __init__(self, object_size):
@@ -381,7 +303,7 @@ class Cuboid:
     def __repr__(self) -> str:
         return "Cuboid({})".format(self.vertices)
     def gen_vertices(self):
-        width, length, height = self.object_size
+        width, length, height = self.object_size[::-1]
         self.vertices[CuboidVertexEnum.FrontTopRight] = [width / 2, length / 2, height]
         self.vertices[CuboidVertexEnum.FrontTopLeft] = [-width / 2, length / 2, height]
         self.vertices[CuboidVertexEnum.FrontBottomLeft] = [-width / 2, -length / 2, height]
@@ -390,11 +312,15 @@ class Cuboid:
         self.vertices[CuboidVertexEnum.RearTopLeft] = [-width / 2, length / 2, 0]
         self.vertices[CuboidVertexEnum.RearBottomLeft] = [-width / 2, -length / 2, 0]
         self.vertices[CuboidVertexEnum.RearBottomRight] = [width / 2, -length / 2, 0]
-        self.base = [0, 0, 0]
+        self.base = np.zeros((1, 3))
     
     def get_world_vertices(self, cuboid_to_world_transform):
         vertices = np.hstack([self.vertices,np.ones((8,1))])
         return (cuboid_to_world_transform @ vertices.T).T[:,:3]
+
+    def get_base_in_world(self, cuboid_to_world_transform):
+        base = np.hstack([self.base,np.ones((1,1))])
+        return (cuboid_to_world_transform @ base.T).T[:,:3]
 
 PINK = (250,190,203)
 BLUE = (255,0,0)
