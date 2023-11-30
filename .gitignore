@@ -1,7 +1,7 @@
 *.pyc
 *.pom
 day2
-./invision/
+invision
 ./gtm_hit/static/gtm_hit/dset
 ./gtm_hit/static/gtm_hit/labels
 ./gtm_hit/labels/invision
