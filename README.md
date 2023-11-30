@@ -46,4 +46,4 @@ You can now access the application at http://localhost:4444
 
 
 ### Acknowledgements
-This project was based on the original MultiCam-GT Tool developed by the Computer Vision Laboratory at EPFL. The original project can be found [here](https://github.com/cvlab-epfl/multicam-gt).
+This project was based on the original [MultiCam-GT Tool](https://github.com/cvlab-epfl/multicam-gt) developed by the Computer Vision Laboratory at EPFL.
