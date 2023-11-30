@@ -1,8 +1,9 @@
 
 
 # EPFL MultiCam-GT v2
-Updated version of EPFL MultiCam-GT Tool, now with:
+Updated version of EPFL MultiCam-GT Tool, a multiple view object annotation tool, now with:
 
+- **Elevation model**: Improved ground plane representation through mesh-based elevation modeling, for object annotation in varying terrains.
 - **Enhanced Object Transformation**: The new version includes object representation using dimensions and spatial orientation.
 - **Tracklet Merging**: Functionality for merging tracklets, providing more streamlined object tracking.
 - **Trajectory Visualization**: Features new tools for visualizing trajectories, enhancing understanding and analysis of object movement.
@@ -45,4 +46,4 @@ You can now access the application at http://localhost:4444
 
 
 ### Acknowledgements
-
+This project was based on the original MultiCam-GT Tool developed by the Computer Vision Laboratory at EPFL. The original project can be found [here](https://github.com/cvlab-epfl/multicam-gt).
