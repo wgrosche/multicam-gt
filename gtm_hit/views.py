@@ -304,6 +304,7 @@ def action(request):
             Zw = obj["Zw"]
 
             world_point = np.array([[Xw], [Yw], [Zw]])
+            world_point = geometry.move_with_mesh_intersection(world_point)
             next_rect = get_cuboids_2d(world_point, obj)
 
             next_rect_json = json.dumps(next_rect)

@@ -169,9 +169,9 @@ function onMouseDown(event) {
       mousey >= baseY - threshold &&
       mousey <= baseY + threshold
     ) {
-      // selectedBox = { rectID, canvasIndex }; //select for drag
-      // chosen_rect = rectsID.indexOf(rectID);
-      // break;
+      selectedBox = { rectID, canvasIndex }; //select for drag
+      chosen_rect = rectsID.indexOf(rectID);
+      break;
     }
     // Bounding Box mid point select (Select only)
     if (

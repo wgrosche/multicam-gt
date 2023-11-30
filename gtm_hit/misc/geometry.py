@@ -4,14 +4,52 @@ from collections import namedtuple
 from enum import IntEnum
 from django.conf import settings
 from ipdb import set_trace
+import point_cloud_utils as pcu
+
 Calibration = namedtuple('Calibration', ['K', 'R', 'T', 'view_id'])
 Bbox = namedtuple('Bbox', ['xc', 'yc', 'w', 'h'])  # , 'id', 'frame'])
 Annotations = namedtuple(
     'Annotations', ['bbox', 'head', 'feet', 'height', 'id', 'frame', 'view'])
 Homography = namedtuple('Homography', ['H', 'input_size', 'output_size'])
 
+def get_simple_half_sphere():
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    # Define world plane size (for example, 100x100 units)
+    world_plane_size = 100
+    # Define the radius of the sphere (12.5% of world plane size for 25% coverage)
+    radius = world_plane_size * 0.125
+    # Define the number of latitude and longitude points
+    num_pts = 100
+    # Latitude and Longitude arrays (from 0 to pi for half-sphere and full circle respectively)
+    latitude = np.linspace(0, np.pi / 2, num_pts)
+    longitude = np.linspace(0, 2 * np.pi, num_pts)
+    # Convert latitude and longitude to Cartesian coordinates
+    x = radius * np.outer(np.sin(latitude), np.cos(longitude)) + 178360
+    y = radius * np.outer(np.sin(latitude), np.sin(longitude)) + 211090
+    z = 0.2 * radius * np.outer(np.cos(latitude), np.ones_like(longitude))
+    # Compute faces
+    faces = []
+    for i in range(len(latitude) - 1):
+        for j in range(len(longitude) - 1):
+            # vertices of the first triangle
+            v0 = (i * len(longitude) + j)
+            v1 = (i * len(longitude) + (j + 1))
+            v2 = ((i + 1) * len(longitude) + j)
+            # vertices of the second triangle
+            v3 = ((i + 1) * len(longitude) + (j + 1))
+            # add the two triangles
+            faces.append([v0, v1, v2])
+            faces.append([v1, v3, v2])
+    faces = np.array(faces)
+    v_sphere = np.array([x.flatten(), y.flatten(), z.flatten()]).T
+    return v_sphere, faces
 
-def reproject_to_world_ground(ground_pix, calib=None, undistort=False):
+v,faces = get_simple_half_sphere() #todo: mesh here, sample sphere mesh is used for now
+
+
+def reproject_to_world_ground_old(ground_pix, calib=None, undistort=False):
     """
     Compute world coordinate from pixel coordinate of point on the groundplane
     """
@@ -27,13 +65,99 @@ def reproject_to_world_ground(ground_pix, calib=None, undistort=False):
         l = R0.T @ calib.intrinsics.Rmat.T @ np.linalg.inv(K0) @ ground_pix
         world_point = C0 - l*(C0[2]/l[2])
 
+
+
     else: #distorted
         C0 = -R0.T @ T0
         l = R0.T @ np.linalg.inv(K0) @ ground_pix
-        world_point = C0 - l#*(C0[2]/l[2])
-        world_point = world_point/world_point[2]
+        lambda1 = -1*(C0[2]/l[2])
+        world_point = C0 + l*lambda1
+        #world_point = world_point/world_point[2]
     
     return world_point
+
+def reproject_to_world_ground(ground_pix, calib=None, undistort=False): #reproject to mesh
+    """
+    Compute world coordinate from pixel coordinate of point on the groundplane
+    """
+    #set_trace()
+    undistort = settings.UNDISTORTED_FRAMES
+    K0 = calib.K
+    R0 = calib.R
+    T0 = calib.T
+
+    if undistort:
+        K0 = calib.intrinsics.newCameraMatrix
+        
+        C0 = -R0.T @ T0 #cam pos in world coord
+        ray_o = C0.reshape(1,-1)
+        l = R0.T @ calib.intrinsics.Rmat.T @ np.linalg.inv(K0) @ ground_pix #camera centric ray
+        
+        ray_d = l.reshape(1,-1)
+        ray_d /= np.linalg.norm(ray_d, axis=-1, keepdims=True)  # Normalize ray directions
+        #world_point = C0 - l*(C0[2]/l[2])
+        
+        v,faces = get_simple_half_sphere()
+
+        fid, bc, t = pcu.ray_mesh_intersection(v.astype(ray_o.dtype), faces, ray_o, ray_d)
+
+        hit = fid.item() >= 0
+
+        if not hit:
+            world_point = C0 - l*(C0[2]/l[2])
+            return world_point
+        else:
+            #set_trace()
+            world_point = pcu.interpolate_barycentric_coords(faces, fid[fid>= 0], bc[fid>=0], v).reshape(-1,1)
+            return world_point
+
+    else: #distorted
+        C0 = -R0.T @ T0
+        l = R0.T @ np.linalg.inv(K0) @ ground_pix
+        lambda1 = -1*(C0[2]/l[2])
+        world_point = C0 + l*lambda1
+        #world_point = world_point/world_point[2]
+    
+    return world_point
+
+def move_with_mesh_intersection(ground_pix): #reproject to mesh
+    ray_o = ground_pix.reshape(1,-1)
+    ray_o[0,2] = -10
+    ray_d = np.array([0,0,1],dtype=np.float).reshape(1,-1)
+    fid, bc, t = pcu.ray_mesh_intersection(v.astype(ray_o.dtype), faces, ray_o, ray_d)
+    hit = fid.item() >= 0
+    
+    if not hit:
+        world_point = ground_pix
+        world_point[2] = 0
+        return world_point
+    else:
+        #set_trace()
+        world_point = pcu.interpolate_barycentric_coords(faces, fid[fid>= 0], bc[fid>=0], v).reshape(-1,1)
+        return world_point
+
+
+def find_height_from_ground(obj, calib=None, undistort=False):
+    x_bottom = (obj["x1"] + obj['x2'])/2
+    y_bottom = obj['y2']
+    ground_pix = np.array([[x_bottom], [y_bottom], [1]])
+    world_point_bottom = reproject_to_world_ground(ground_pix, calib, undistort)
+
+    y_top = obj['y1']
+    top_pix = np.array([[x_bottom], [y_top], [1]])
+    K0 = calib.K
+    R0 = calib.R
+    T0 = calib.T
+
+    if undistort:
+        K0 = calib.intrinsics.newCameraMatrix
+        
+        C0 = -R0.T @ T0
+        l2 = R0.T @ calib.intrinsics.Rmat.T @ np.linalg.inv(K0) @ top_pix
+
+        lambda2 = (world_point_bottom[0] - C0[0])/(l2[0])
+        world_point_top = C0 + l2*lambda2
+        return world_point_top
 
 def project_world_to_camera(world_point, K1, R1, T1):
     """
