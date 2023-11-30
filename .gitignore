@@ -15,4 +15,4 @@ invision3
 # vim swap files
 *.sw[po]
 .DS_Store
-./dump*
+dump*
