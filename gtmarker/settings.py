@@ -16,6 +16,8 @@ import numpy as np
 from gtm_hit.misc.wildtrack_calib import load_calibrations
 from gtm_hit.misc.utils import read_calibs, get_frame_size
 from gtm_hit.misc.invision_calib import load_invision_calib
+from gtm_hit.misc.scout_calib import load_scout_calib
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -103,8 +105,8 @@ WSGI_APPLICATION = 'gtmarker.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'invision',
-        'USER': 'invision',
+        'NAME': 'scout',
+        'USER': 'scout',
         'PASSWORD': '',
         'HOST': 'localhost',
         'PORT': '',
@@ -259,7 +261,7 @@ CAMS = ["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
 FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 #CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)
 NB_CAMS = len(CAMS)
-CALIBS= load_invision_calib("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations")
+CALIBS= load_scout_calib("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations", cameras=CAMS)
 ROTATION_THETA = np.pi/24
 UNDISTORTED_FRAMES=True
 

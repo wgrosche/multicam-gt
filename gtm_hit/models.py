@@ -1,9 +1,11 @@
 from django.db import models
 from django.core.validators import validate_comma_separated_integer_list
-import json
 from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
+
 import numpy as np
+import json
+
 class Worker(models.Model):
     workerID = models.TextField(primary_key=True,max_length=40)
     frameNB = models.IntegerField(default=-1)
@@ -13,6 +15,7 @@ class Worker(models.Model):
     state = models.IntegerField(default=-1)
     tuto = models.BooleanField(default=False)
     time_list = models.TextField(default="")
+    
     def increaseFrame(self,val):
         self.frame_labeled = self.frame_labeled + val
     def decreaseFrame(self,val):
@@ -67,6 +70,7 @@ class View(models.Model):
     view_id = models.IntegerField(primary_key=True,verbose_name="View ID")
     def __str__(self):
         return f"CAM{self.view_id+1}"
+    
 class Annotation(models.Model):
     frame = models.ForeignKey(MultiViewFrame, on_delete=models.CASCADE)
     person = models.ForeignKey(Person, on_delete=models.CASCADE)
@@ -97,6 +101,7 @@ class Annotation(models.Model):
         assert self.person.worker.workerID == self.frame.worker.workerID
         assert self.person.dataset.name == self.frame.dataset.name
         return f"{'UN' if self.frame.undistorted else ''}DMVF{self.frame.frame_id} pID{self.person.person_id} wID:{self.person.worker.workerID} ds:{self.person.dataset.name}"
+    
 class Annotation2DView(models.Model):
     view = models.ForeignKey(View, on_delete=models.CASCADE)
     annotation = models.ForeignKey(Annotation, related_name="twod_views", on_delete=models.CASCADE)

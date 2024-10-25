@@ -9,6 +9,9 @@ Updated version of EPFL MultiCam-GT Tool, a multiple view object annotation tool
 - **Trajectory Visualization**: Features new tools for visualizing trajectories, enhancing understanding and analysis of object movement.
 - **Database Integration**: All transformation and tracking data is now stored in the database, enabling more efficient data management and retrieval.
 
+## TODO
+
+
 ## Usage
 Define the DATABASES variable in the settings.py file to point to your database. The application is configured to use a PostgreSQL database. You can use the following configuration:
 ```python
@@ -25,9 +28,9 @@ DATABASES = {
 ```
 You can load the INVISION data into the database by running the following command:
 ```bash
-python manage.py shell < invision_data_process.py
+python manage.py shell < data_process.py
 ```
-By default, the worker name will be 'INVISION'. You can change it by editing the invision_data_process.py file.
+By default, the worker name will be 'INVISION'. You can change it by editing the data_process.py file.
 You can then run the following commands to run the application:
 ```bash
 conda env create -n ENVNAME --file ENV.yml

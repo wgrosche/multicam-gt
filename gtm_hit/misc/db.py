@@ -7,7 +7,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from ipdb import set_trace
 from django.db.models import Count
 
-def find_closest_annotations_to(person,frame,bidirectional=True):
+def find_closest_annotations_to(person,frame, bidirectional=True):
     try:
         next_annotation = Annotation.objects.filter(person=person, frame__worker_id=frame.worker_id,frame__frame_id__gt=frame.frame_id,frame__undistorted=settings.UNDISTORTED_FRAMES).order_by('frame__frame_id').first()
         last_annotation = Annotation.objects.filter(person=person, frame__worker_id=frame.worker_id,frame__frame_id__lte=frame.frame_id,frame__undistorted=settings.UNDISTORTED_FRAMES).order_by('frame__frame_id').last()
