@@ -5,6 +5,7 @@ from enum import IntEnum
 from django.conf import settings
 from ipdb import set_trace
 import point_cloud_utils as pcu
+import trimesh
 
 Calibration = namedtuple('Calibration', ['K', 'R', 'T', 'view_id'])
 Bbox = namedtuple('Bbox', ['xc', 'yc', 'w', 'h'])  # , 'id', 'frame'])
@@ -119,6 +120,105 @@ def reproject_to_world_ground(ground_pix, calib=None, undistort=False): #reproje
         #world_point = world_point/world_point[2]
     
     return world_point
+
+
+def get_ray_directions(points_2d, calib):
+    points_2d = np.array(points_2d, dtype=np.float32).reshape(-1, 1, 2)
+
+    # Vectorized undistortion
+    undistorted_points = cv.undistortPoints(points_2d, calib.K, calib.dist, P=calib.K)
+    undistorted_points = undistorted_points.reshape(-1, 2)
+
+    # Homogeneous coordinates
+    homogenous = np.hstack([undistorted_points, np.ones((len(undistorted_points), 1))])
+
+    # Precompute matrices
+    R_T = calib.R.T
+    K_inv = np.linalg.inv(calib.K)
+    ray_origin = (-R_T @ calib.T).flatten()
+
+    # Compute ray directions
+    temp = K_inv @ homogenous.T
+    ray_directions = (R_T @ temp).T
+
+    # Expand ray_origin to match number of points
+    ray_origins = np.tile(ray_origin, (len(points_2d), 1))
+
+    return ray_origins, ray_directions
+
+def project_2d_points_to_mesh(points_2d, calib, mesh, VERBOSE=False):
+    # Get ray origins and directions
+    ray_origins, ray_directions = get_ray_directions(points_2d, calib)
+    
+    # Import optional Trimesh ray tracing with pyembree if available
+    if not hasattr(mesh, 'ray'):
+        try:
+            import trimesh.ray.ray_pyembree
+            if VERBOSE:
+                print("Using pyembree for ray tracing.")
+        except ImportError:
+            if VERBOSE:
+                print("Using default Trimesh ray tracer.")
+    
+    # Perform ray-mesh intersections
+    locations, index_ray, index_tri = mesh.ray.intersects_location(
+        ray_origins=ray_origins,
+        ray_directions=ray_directions,
+        multiple_hits=True
+    )
+
+    num_rays = len(ray_origins)
+    ground_points = np.full((num_rays, 3), None)  # Initialize with None to allow filtering
+
+    # Check if there are no intersections
+    if len(locations) == 0:
+        if VERBOSE:
+            print("No intersections found for any rays.")
+        return ground_points#.tolist()
+
+    # Cache variables to reduce attribute lookups
+    R, T = calib.R, calib.T.reshape(3, 1)
+    camera_coords = - (R @ locations.T) - T
+    depths = np.abs(camera_coords[2, :])
+
+    if VERBOSE:
+        print(f"Depths sample: {depths[:5]}")
+
+    # Use NumPy to efficiently process the intersections
+    min_dist = 1.0
+    z_coord_threshold = 0.8
+
+    # Filter intersections by depth and z-coordinates in a single pass
+    valid_mask = (depths > min_dist) & (locations[:, 2] < z_coord_threshold)
+    
+    # Get valid indices per ray
+    valid_indices = index_ray[valid_mask]
+    valid_depths = depths[valid_mask]
+    valid_points = locations[valid_mask]
+
+    # Group and find the closest point for each ray
+    if len(valid_indices) > 0:
+        unique_rays, inverse_indices = np.unique(valid_indices, return_inverse=True)
+        
+        # For each unique ray, find the minimum depth and corresponding point
+        min_depths_per_ray = np.full(num_rays, np.inf)
+        closest_points = np.full((num_rays, 3), None)
+        
+        for i, ray_idx in enumerate(unique_rays):
+            # Get depths and points for the current ray
+            ray_depths = valid_depths[inverse_indices == i]
+            ray_points = valid_points[inverse_indices == i]
+
+            # Find the closest point based on minimum depth
+            closest_idx = np.argmin(ray_depths)
+            closest_points[ray_idx] = ray_points[closest_idx]
+        
+        # Assign only those rays that had valid intersections
+        ground_points[unique_rays] = closest_points[unique_rays]
+    
+    return ground_points#.tolist()
+
+
 
 def move_with_mesh_intersection(ground_pix): #reproject to mesh
     ray_o = ground_pix.reshape(1,-1)

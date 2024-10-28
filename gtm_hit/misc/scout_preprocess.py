@@ -10,6 +10,11 @@ from gtm_hit.misc.db import save_2d_views
 import os
 from ipdb import set_trace
 import os.path as osp
+
+from pathlib import Path
+from typing import Optional
+import pickle
+
 def cls():
     os.system('cls' if os.name=='nt' else 'clear')
 
@@ -79,7 +84,6 @@ def transfer_complete_annotations(dataset_name:str,
 
         person_other_worker.annotation_complete = True
         person_other_worker.save()
-
 
 def sync_annotations(dataset_name):
     dataset= Dataset.objects.get(name=dataset_name)
@@ -191,11 +195,6 @@ def process_tracked_location(tdet,worker,frame_id,dataset):
         print("Error saving annotation:", e)
     
     print("Saved annotation for person", person.person_id, "in frame", frame.frame_id)
-
-
-from pathlib import Path
-from typing import Optional
-import pickle
 
 def preprocess_scout_data(frames_path: Path, calibration_path: Path, 
                           tracks_path: Path, worker_id: str, dataset_name: str, range_start: int = 0, range_end: int = 5000):
