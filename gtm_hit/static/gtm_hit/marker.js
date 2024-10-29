@@ -1572,7 +1572,7 @@ async function load_frame(frame_string) {
   frame_str = frame_string;
   $("#frameID").html("Frame ID: " + fstr + "&nbsp;&nbsp;");
   for (var i = 0; i < cameras; i++)
-    //imgArray[i].src = '../../static/marker/day_2/annotation_final/'+ camName[i]+ '/begin/'+frame_string+'.png'; // change 00..0 by a frame variable
+    imgArray[i].src = '../../static/marker/day_2/annotation_final/'+ camName[i]+ '/begin/'+frame_string+'.png'; // change 00..0 by a frame variable
     // imgArray[i].src = '../../static/gtm_hit/dset/rayon4/frames/'+ camName[i]+"/"+frame_str+'.png'; // change 00..0 by a frame variable
     
     //imgArray[i].src = '../../static/gtm_hit/dset/invision/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg'; // change 00..0 by a frame variable

@@ -22,8 +22,8 @@ class CameraParams:
     dist:np.ndarray = None
     view_id:Union[int, str] = None
 
-    def __repr__(self):
-        return f"Calibration(view_id={self.view_id})\nK:\n{self.K}\nR:\n{self.R}\nT:\n{self.T}\ndist:\n{self.dist}"
+    # def __repr__(self):
+    #     return f"Calibration(view_id={str(self.view_id)})\nK:\n{str(self.K)}\nR:\n{str(self.R)}\nT:\n{str(self.T)}\ndist:\n{str(self.dist)}"
 
     def get_R_vec(self):
         return cv.Rodrigues(self.R)[0] if self.R is not None else None
@@ -62,8 +62,8 @@ def load_scout_calib(params_dir:Path, cameras:List[str]):
 
     for camera_name in cameras:
         camera_parameters = CameraParams(camera_name)
-        camera_parameters.read_from_json(params_dir / f"{camera_name}.json")
+        camera_parameters.read_from_json(params_dir / f"{camera_name}_0.json")
         camera_parameters.set_view_id(camera_parameters)
         cam_params[camera_name] = camera_parameters
-        print("Loaded camera parameters for camera ", camera_name,".")
+        print("Loaded camera parameters for camera", camera_name, "with", camera_parameters)
     return cam_params

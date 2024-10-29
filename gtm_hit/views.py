@@ -229,7 +229,7 @@ def click(request):
         y = int(float(request.POST['y']))
         obj = request_to_dict(request)
         cam = request.POST['canv']
-        cam = int(re.findall('\d+', cam)[0]) - 1
+        cam = int(re.findall(r'\d+', cam)[0]) - 1
         #
         worker_id = request.POST['workerID']
         dataset_name = request.POST['datasetName']

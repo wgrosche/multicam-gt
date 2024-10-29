@@ -5,7 +5,7 @@ import django.db.models.deletion
 
 def create_dataset(apps, schema_editor):
     Dataset = apps.get_model('gtm_hit', 'Dataset')
-    new_dataset = Dataset(name='invision', description='INVISION1 dataset')
+    new_dataset = Dataset(name='scout', description='SCOUT1 dataset')
     new_dataset.save()
 
 class Migration(migrations.Migration):

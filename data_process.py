@@ -1,6 +1,7 @@
 # from gtm_hit.misc.invision_preprocess import preprocess_invision_data
 
 from gtm_hit.misc.scout_preprocess import preprocess_scout_data
+from pathlib import Path
 # import argparse
 # parser = argparse.ArgumentParser(description="Save invision data to the annotation tool DB.")
 # parser.add_argument('-i', "--input_path", default="gtm_hit/labels/json_output", help="Input path to the invision JSON data.")
@@ -30,14 +31,9 @@ class Args:
         self.range_end=range_end
 
 args = Args()
-
-preprocess_scout_data(args.input_path, worker_id=args.worker_id,dataset_name=args.dataset_name,range_start=args.range_start,range_end=args.range_end)
-
-from pathlib import Path
-
-frames_path = Path("cams")
-calibration_path = Path("cam_calib")
-tracks_path = Path("tracks.pkl")
+args.frames_path=Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/")
+args.calibration_path=Path("/cvlabdata2/home/grosche/dev/calibration/calibrations")
+args.tracks_path=Path("/cvlabdata2/home/grosche/dev/calibration/merged_tracks.pkl")
 
 preprocess_scout_data(
     frames_path=args.frames_path,

@@ -202,6 +202,8 @@ def preprocess_scout_data(frames_path: Path, calibration_path: Path,
     with open(tracks_path, 'rb') as f:
         tracks_data = pickle.load(f)
 
+    
+
     # Create worker and dataset
     worker, _ = Worker.objects.get_or_create(workerID=worker_id)
     dataset, _ = Dataset.objects.get_or_create(name=dataset_name)
@@ -212,7 +214,7 @@ def preprocess_scout_data(frames_path: Path, calibration_path: Path,
             if frame_idx < len(positions):
                 position = positions[frame_idx, :]
 
-                # Create annotation data similar to invision format
+                # Create annotation data similar to scout format
                 annotation_data = {
                     "Xw": position[0],
                     "Yw": position[1],

@@ -7,6 +7,8 @@ from ipdb import set_trace
 import re
 from gtm_hit.misc.geometry import Calibration
 from django.conf import settings
+
+from pathlib import Path
 def request_to_dict(request):
     #set_trace()
     retdict = {}
@@ -136,12 +138,26 @@ def read_calibs(calib_filepath, camera_names):
 
         return calibs 
     
+# def get_frame_size(dset, cams, start_frame):
+#     sizes = list()
+#     for cam in cams:
+#         frame_path = "./gtm_hit/static/gtm_hit/dset/"+dset+"/frames/" + cam + "/" +str(start_frame).zfill(8) + ".jpg" 
+#         img = Image.open(frame_path)
+#         sizes.append(img.width)
+#         sizes.append(img.height)
+
+#     return sizes
+
 def get_frame_size(dset, cams, start_frame):
     sizes = list()
     for cam in cams:
-        frame_path = "./gtm_hit/static/gtm_hit/dset/"+dset+"/frames/" + cam + "/" +str(start_frame).zfill(8) + ".jpg" 
-        img = Image.open(frame_path)
-        sizes.append(img.width)
-        sizes.append(img.height)
-
+        frame_pattern = f"{cam}_*_*_*_*_{start_frame}.jpg"
+        frame_path = Path("./gtm_hit/static/gtm_hit/dset") / dset / "frames" / cam
+        matching_frames = list(frame_path.glob(frame_pattern))
+        
+        if matching_frames:
+            img = Image.open(matching_frames[0])
+            sizes.append(img.width)
+            sizes.append(img.height)
+    
     return sizes

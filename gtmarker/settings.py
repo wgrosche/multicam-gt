@@ -13,14 +13,13 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 import os
 from pathlib import Path
 import numpy as np
+import shutil
 from gtm_hit.misc.wildtrack_calib import load_calibrations
 from gtm_hit.misc.utils import read_calibs, get_frame_size
-from gtm_hit.misc.invision_calib import load_invision_calib
 from gtm_hit.misc.scout_calib import load_scout_calib
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
@@ -37,7 +36,7 @@ ALLOWED_HOSTS = ['10.90.43.13', 'pedestriantag.epfl.ch','localhost','127.0.0.1',
 # Application definition
 
 INSTALLED_APPS = [
-    'marker.apps.MarkerConfig',
+    # 'marker.apps.MarkerConfig',
     'gtm_hit.apps.Gtm_hitConfig',
     #'gtm_hit',
     'home',
@@ -169,6 +168,7 @@ USE_TZ = True
 
 print(BASE_DIR) 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 #STATICFILES_DIRS = (os.path.join(BASE_DIR, 'gtm_hit'),)
 
@@ -250,18 +250,27 @@ UNLABELED = list(range(0,NBFRAMES,INCREMENT))
 # CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)
 # NB_CAMS = len(CAMS)
 
+# need to: establish symlinked folders for get frame size etc
+DSETNAME = "SCOUT"
+DSETPATH = Path("./gtm_hit/static/gtm_hit/dset/") / DSETNAME
+SYMLINK_DEST_FRAMES = DSETPATH / "frames"
+# SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
+CALIBPATH = DSETPATH / "calibrations"
+# CALIB_SRC = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/calibrations/calibrations")
+
+
 HEIGHT = 1.8
 RADIUS = 0.5 #person radius
 
 STEPL = 0.02
 MOVE_STEP = 0.02 #same as stepl vidis ovoDA
 SIZE_CHANGE_STEP=0.03
-DSETNAME = "SCOUT"
-CAMS = ["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
+
+CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIBPATH.iterdir()]#["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
 FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 #CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)
 NB_CAMS = len(CAMS)
-CALIBS= load_scout_calib("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations", cameras=CAMS)
+CALIBS= load_scout_calib(CALIBPATH, cameras=CAMS)
 ROTATION_THETA = np.pi/24
 UNDISTORTED_FRAMES=True
 

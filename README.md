@@ -18,28 +18,28 @@ Define the DATABASES variable in the settings.py file to point to your database.
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'invision',
-        'USER': 'invision',
+        'NAME': 'scout',
+        'USER': 'scout',
         'PASSWORD': '',
         'HOST': 'localhost',
         'PORT': '',
-    }h
+    }
 }
 ```
-You can load the INVISION data into the database by running the following command:
+You can load the SCOUT data into the database by running the following command:
 ```bash
 python manage.py shell < data_process.py
 ```
-By default, the worker name will be 'INVISION'. You can change it by editing the data_process.py file.
+By default, the worker name will be 'SCOUT'. You can change it by editing the data_process.py file.
 You can then run the following commands to run the application:
 ```bash
 conda env create -n ENVNAME --file ENV.yml
 pip install -r requirements.txt
-initdb -D invision   
-chmod -R 700 invision
-pg_ctl -D invision -l logfile start
-createuser invision
-createdb --owner=invision invision
+initdb -D scout   
+chmod -R 700 scout
+pg_ctl -D scout -l logfile start
+createuser scout
+createdb --owner=scout scout
 
 python manage.py migrate
 python manage.py runserver 0.0.0.0:4444

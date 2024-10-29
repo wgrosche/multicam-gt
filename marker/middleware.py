@@ -49,3 +49,5 @@ class RequireLoginMiddleware(MiddlewareMixin):
 
         # Explicitly return None for all non-matching requests
         return None
+    def __call__(self, request):
+        return self.get_response(request)
