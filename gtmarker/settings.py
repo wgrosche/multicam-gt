@@ -31,12 +31,12 @@ SECRET_KEY = '%z1g%^3%nf-k3sf$i^qra_d*0m4745c57f&(su(2=&nuwt#=z1'
 DEBUG = True
 
 #ALLOWED_HOSTS = ['127.0.0.1']
-ALLOWED_HOSTS = ['10.90.43.13', 'pedestriantag.epfl.ch','localhost','127.0.0.1', '0.0.0.0',"192.168.100.23"]
+ALLOWED_HOSTS = ['10.90.43.13', 'pedestriantag.epfl.ch','localhost','127.0.0.1', '0.0.0.0',"192.168.100.23", "iccvlabsrv15.iccluster.epfl.ch"]
 
 # Application definition
 
 INSTALLED_APPS = [
-    # 'marker.apps.MarkerConfig',
+    'marker.apps.MarkerConfig',
     'gtm_hit.apps.Gtm_hitConfig',
     #'gtm_hit',
     'home',
@@ -272,6 +272,6 @@ FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 NB_CAMS = len(CAMS)
 CALIBS= load_scout_calib(CALIBPATH, cameras=CAMS)
 ROTATION_THETA = np.pi/24
-UNDISTORTED_FRAMES=True
+UNDISTORTED_FRAMES=False
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

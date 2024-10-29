@@ -86,7 +86,7 @@ window.onload = function () {
 
     if (useUndistorted=="True") undistort_frames_path="undistorted_"
     // imgArray[i].src = '../../static/gtm_hit/dset/'+dset_name+'/frames/'+ camName[i]+ '/'+frame_str+'.png'; // change 00..0 by a frame variable
-    imgArray[i].src = '/static/gtm_hit/dset/13apr/'+undistort_frames_path+'frames/' + camName[i] + '/' + frame_str + '.jpg'; // change 00..0 by a frame variable
+    imgArray[i].src = '/static/gtm_hit/dset/scout/'+undistort_frames_path+'frames/' + camName[i] + '/' + frame_str + '.jpg'; // change 00..0 by a frame variable
     //imgArray[i].src = '../../static/gtm_hit/frames/'+ camName[i]+frame_str+'.png'; // change 00..0 by a frame variable
 
   }
@@ -97,7 +97,7 @@ window.onload = function () {
     var ctx = c.getContext('2d');
     ctx.drawImage(this, 0, 0);
     }
-  topview.src = '/static/gtm_hit/dset/13apr/NewarkPennTopView2.tif'
+  topview.src = '/static/gtm_hit/dset/scout/NewarkPennTopView2.tif'
 
   $(document).bind('keydown', "backspace", backSpace);
 
@@ -1577,7 +1577,7 @@ async function load_frame(frame_string) {
     
     //imgArray[i].src = '../../static/gtm_hit/dset/invision/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg'; // change 00..0 by a frame variable
     //var imgSrc = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg';
-    var imgSrc = '/static/gtm_hit/dset/13apr/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg';
+    var imgSrc = '/static/gtm_hit/dset/scout/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg';
     const loadedImg = await loadImage(imgSrc);
     if (loadedImg !== null) {
       imgArray[i].src = imgSrc;

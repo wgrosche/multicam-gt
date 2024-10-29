@@ -17,7 +17,7 @@ class Args:
                  tracks_path="",
                  input_path="gtm_hit/static/gtm_hit/labels/json_output",
                  worker_id="SYNC17APR0908",
-                 dataset_name="13apr", 
+                 dataset_name="scout", 
                  range_start=3150,
                  range_end=5000):
         

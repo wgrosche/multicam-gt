@@ -61,6 +61,10 @@ def load_tracks(PICKLEPATH, DSETPATH):
         TRACKDIR.mkdir()
     shutil.copy2(PICKLEPATH, TRACKDIR)
 
+def undistort_frames(DSETPATH):
+    from gtm_hit.misc.geometry import undistort_frames
+    undistort_frames(DSETPATH)
+
 
 def load_mesh(MESH_SRC, DSETPATH):
     MESHDIR = DSETPATH / 'mesh'
@@ -78,6 +82,8 @@ def main():
     logger.info("Copying calibration files...")
     copy_calibrations(args.CALIB_SRC, DSETPATH)
     load_tracks(args.TRACKS_SRC, DSETPATH)
+
+    undistort_frames(DSETPATH)
     
     
     
