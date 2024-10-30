@@ -168,7 +168,7 @@ USE_TZ = True
 
 print(BASE_DIR) 
 STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 #STATICFILES_DIRS = (os.path.join(BASE_DIR, 'gtm_hit'),)
 
@@ -261,6 +261,7 @@ CALIBPATH = DSETPATH / "calibrations"
 
 HEIGHT = 1.8
 RADIUS = 0.5 #person radius
+
 
 STEPL = 0.02
 MOVE_STEP = 0.02 #same as stepl vidis ovoDA

@@ -15,12 +15,33 @@ from collections import namedtuple
 Calibration = namedtuple('Calibration', ['K', 'R', 'T', 'dist', 'view_id'])
 
 @dataclass
+class Extrinsics:
+    R:np.ndarray = None
+    T:np.ndarray = None
+    def get_R_vec(self):
+        return cv.Rodrigues(self.R)[0] if self.R is not None else None
+    
+
+@dataclass
+class Intrinsics:
+    distCoeffs:np.ndarray = None
+    cameraMatrix:np.ndarray = None
+    newCameraMatrix:np.ndarray = None
+    def get_R_vec(self):
+        return cv.Rodrigues(self.R)[0] if self.R is not None else None
+        
+@dataclass
 class CameraParams:
     K:np.ndarray = None
     R:np.ndarray = None
     T:np.ndarray = None
     dist:np.ndarray = None
     view_id:Union[int, str] = None
+    extrinsics:Extrinsics = None
+    intrinsics:Intrinsics = None
+    
+
+    
 
     # def __repr__(self):
     #     return f"Calibration(view_id={str(self.view_id)})\nK:\n{str(self.K)}\nR:\n{str(self.R)}\nT:\n{str(self.T)}\ndist:\n{str(self.dist)}"
@@ -33,10 +54,13 @@ class CameraParams:
             calib_dict = json.load(f)
 
         self.K =  np.array(calib_dict.get("K", None))
+        self.newCameraMatrix =  np.array(calib_dict.get("newCameraMatrix", None))
         self.R =  np.array(calib_dict.get("R", None))
         self.T =  np.array(calib_dict.get("T", None))
         self.dist =  np.array(calib_dict.get("dist", None))
         self.view_id = calib_dict.get("view_id", str(filename.with_suffix("").name))
+        self.extrinsics = Extrinsics(self.R, self.T)
+        self.intrinsics = Intrinsics(self.dist, self.K, self.newCameraMatrix)
 
     def as_calib(self):
         return Calibration(self.K, self.R, self.T, self.dist, self.view_id)
@@ -65,5 +89,5 @@ def load_scout_calib(params_dir:Path, cameras:List[str]):
         camera_parameters.read_from_json(params_dir / f"{camera_name}_0.json")
         camera_parameters.set_view_id(camera_parameters)
         cam_params[camera_name] = camera_parameters
-        print("Loaded camera parameters for camera", camera_name, "with", camera_parameters)
+        # print("Loaded camera parameters for camera", camera_name, "with", camera_parameters)
     return cam_params

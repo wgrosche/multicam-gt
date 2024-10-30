@@ -16,8 +16,8 @@ class Args:
                  calibration_path="",
                  tracks_path="",
                  input_path="gtm_hit/static/gtm_hit/labels/json_output",
-                 worker_id="SYNC17APR0908",
-                 dataset_name="scout", 
+                 worker_id="WILKE",
+                 dataset_name="SCOUT", 
                  range_start=3150,
                  range_end=5000):
         

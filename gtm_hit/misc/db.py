@@ -27,12 +27,14 @@ def find_closest_annotations_to(person,frame, bidirectional=True):
     return last_annotation, next_annotation
 
 def save_2d_views(annotation):
+    # print('annotation type: ', type(annotation))
+    # print('annotation: ', annotation)
     for i in range(settings.NB_CAMS):
         try:
             view, _ = View.objects.get_or_create(view_id=i)
             try:
                 cuboid = geometry.get_cuboid2d_from_annotation(
-                    annotation, settings.CALIBS[i], settings.UNDISTORTED_FRAMES)
+                    annotation, settings.CALIBS[settings.CAMS[i]], settings.UNDISTORTED_FRAMES)
                 p1, p2 = geometry.get_bounding_box(cuboid)
             except ValueError:
                 cuboid = None
@@ -57,7 +59,7 @@ def save_2d_views(annotation):
                 annotation2dview.set_cuboid_points_2d(cuboid)
             annotation2dview.save()
         except Exception as e:
-            print(e)
+            print('Exception', e)
             return False
 
 def interpolate_between_annotations(annotation1, annotation2):

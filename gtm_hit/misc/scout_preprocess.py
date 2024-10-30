@@ -198,6 +198,8 @@ def process_tracked_location(tdet,worker,frame_id,dataset):
 
 def preprocess_scout_data(frames_path: Path, calibration_path: Path, 
                           tracks_path: Path, worker_id: str, dataset_name: str, range_start: int = 0, range_end: int = 5000):
+    
+    print('what the hell')
     # Load tracks data
     with open(tracks_path, 'rb') as f:
         tracks_data = pickle.load(f)
@@ -208,58 +210,121 @@ def preprocess_scout_data(frames_path: Path, calibration_path: Path,
     worker, _ = Worker.objects.get_or_create(workerID=worker_id)
     dataset, _ = Dataset.objects.get_or_create(name=dataset_name)
 
-    # Process each timestep
-    for frame_idx in range(range_start, range_end, settings.INCREMENT):
-        for person_id, positions in tracks_data.items():
-            if frame_idx < len(positions):
-                position = positions[frame_idx, :]
+    # # Process each timestep
+    # for frame_idx in range(range_start, range_end, settings.INCREMENT):
+    #     for person_id, positions in tracks_data.items():
+    #         if frame_idx < len(positions):
+    #             position = positions[frame_idx, :]
+    #             if np.all(position) == 0:
+    #                 # print('skipping frame: ', frame_idx)
+    #                 continue
+    #             # Create annotation data similar to scout format
+    #             annotation_data = {
+    #                 "Xw": position[0],
+    #                 "Yw": position[1],
+    #                 "Zw": position[2] if position.shape[0] > 2 else 0,
+    #                 "object_size": [1.7, 0.6, 0.6],  # Default human size in meters
+    #                 "personID": person_id,
+    #                 "rotation_theta": 0,  # Default rotation if not available
+    #                 "rectangleID": uuid.uuid4().__str__().split("-")[-1]
+    #             }
 
-                # Create annotation data similar to scout format
-                annotation_data = {
-                    "Xw": position[0],
-                    "Yw": position[1],
-                    "Zw": position[2] if position.shape[0] > 2 else 0,
-                    "object_size": [1.7, 0.6, 0.6],  # Default human size in meters
-                    "personID": person_id,
-                    "rotation_theta": 0,  # Default rotation if not available
-                    "rectangleID": uuid.uuid4().__str__().split("-")[-1]
+    #             # Create frame and person objects
+    #             frame, _ = MultiViewFrame.objects.get_or_create(
+    #                 frame_id=frame_idx, 
+    #                 worker=worker,
+    #                 undistorted=settings.UNDISTORTED_FRAMES,
+    #                 dataset=dataset
+    #             )
+
+    #             person, _ = Person.objects.get_or_create(
+    #                 person_id=person_id,
+    #                 worker=worker,
+    #                 dataset=dataset
+    #             )
+
+    #             # Create or update annotation
+    #             annotation = Annotation.objects.get_or_create(
+    #                 person=person,
+    #                 frame=frame,
+    #                 defaults={
+    #                     "rectangle_id": annotation_data['rectangleID'],
+    #                     "rotation_theta": annotation_data['rotation_theta'],
+    #                     "Xw": annotation_data['Xw'],
+    #                     "Yw": annotation_data['Yw'],
+    #                     "Zw": annotation_data['Zw'],
+    #                     "object_size_x": annotation_data['object_size'][0],
+    #                     "object_size_y": annotation_data['object_size'][1],
+    #                     "object_size_z": annotation_data['object_size'][2],
+    #                     "creation_method": f"imported_scout_tracks"
+    #                 }
+    #             )
+    #             print("Annotation", annotation_data)
+
+    #             try:
+    #                 save_2d_views(annotation[0])
+    #             except Exception as e:
+    #                 print(f"Error saving 2D views for person {person_id} at frame {frame_idx}: {e}")
+
+        # print(f"Processed frame {frame_idx}")
+
+        # Process each person first
+    for person_id, positions in tracks_data.items():
+        # Create person object once per person
+        person, _ = Person.objects.get_or_create(
+            person_id=person_id,
+            worker=worker,
+            dataset=dataset
+        )
+        
+        # Then process each frame for this person
+        for frame_idx in range(range_start, range_end, settings.INCREMENT):
+            if frame_idx >= len(positions):
+                continue
+                
+            position = positions[frame_idx, :]
+            if np.all(position) == 0:
+                continue
+                
+            annotation_data = {
+                "Xw": position[0],
+                "Yw": position[1],
+                "Zw": position[2] if position.shape[0] > 2 else 0,
+                "object_size": [1.7, 0.6, 0.6],
+                "personID": person_id,
+                "rotation_theta": 0,
+                "rectangleID": uuid.uuid4().__str__().split("-")[-1]
+            }
+
+            frame, _ = MultiViewFrame.objects.get_or_create(
+                frame_id=frame_idx,
+                worker=worker,
+                undistorted=settings.UNDISTORTED_FRAMES,
+                dataset=dataset
+            )
+
+            annotation = Annotation.objects.get_or_create(
+                person=person,
+                frame=frame,
+                defaults={
+                    "rectangle_id": annotation_data['rectangleID'],
+                    "rotation_theta": annotation_data['rotation_theta'],
+                    "Xw": annotation_data['Xw'],
+                    "Yw": annotation_data['Yw'],
+                    "Zw": annotation_data['Zw'],
+                    "object_size_x": annotation_data['object_size'][0],
+                    "object_size_y": annotation_data['object_size'][1],
+                    "object_size_z": annotation_data['object_size'][2],
+                    "creation_method": f"imported_scout_tracks"
                 }
+            )
+            
+            print("Annotation", annotation_data)
+            try:
+                save_2d_views(annotation[0])
+            except Exception as e:
+                print(f"Error saving 2D views for person {person_id} at frame {frame_idx}: {e}")
+                
+        print(f"Processed person {person_id}")
 
-                # Create frame and person objects
-                frame, _ = MultiViewFrame.objects.get_or_create(
-                    frame_id=frame_idx, 
-                    worker=worker,
-                    undistorted=settings.UNDISTORTED_FRAMES,
-                    dataset=dataset
-                )
-
-                person, _ = Person.objects.get_or_create(
-                    person_id=person_id,
-                    worker=worker,
-                    dataset=dataset
-                )
-
-                # Create or update annotation
-                annotation = Annotation.objects.get_or_create(
-                    person=person,
-                    frame=frame,
-                    defaults={
-                        "rectangle_id": annotation_data['rectangleID'],
-                        "rotation_theta": annotation_data['rotation_theta'],
-                        "Xw": annotation_data['Xw'],
-                        "Yw": annotation_data['Yw'],
-                        "Zw": annotation_data['Zw'],
-                        "object_size_x": annotation_data['object_size'][0],
-                        "object_size_y": annotation_data['object_size'][1],
-                        "object_size_z": annotation_data['object_size'][2],
-                        "creation_method": f"imported_scout_tracks"
-                    }
-                )
-
-                try:
-                    save_2d_views(annotation)
-                except Exception as e:
-                    print(f"Error saving 2D views for person {person_id} at frame {frame_idx}: {e}")
-
-        print(f"Processed frame {frame_idx}")
         cls()

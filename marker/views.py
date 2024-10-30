@@ -22,7 +22,7 @@ def index(request):
     context = RequestContext(request).flatten()
     return render(request, 'marker/index.html',context)
 
-def framenb(request,frame_number):
+def framenb(request, frame_number):
     context = RequestContext(request).flatten()
     files = list_files()
     return render(request, 'marker/frame.html',{'frame_number': frame_number,'cams': settings.CAMS, 'files':files,**context})
@@ -43,9 +43,12 @@ def list_files():
     files = files + os.listdir(marker_p)
     return files
 
+
 def click(request):
     #set_trace()
+    print('clicked')
     if is_ajax(request):
+        print('clicked')
         # try:
         x = int(float(request.POST['x']))
         y = int(float(request.POST['y']))
@@ -54,11 +57,13 @@ def click(request):
         if 0 <= cam < settings.NB_CAMS:
             feet2d_h = np.array([[x], [y], [1]])             
             world_point = reproject_to_world_ground(feet2d_h, settings.CALIBS[cam].K, settings.CALIBS[cam].R, settings.CALIBS[cam].T)
-            rectangles = get_rect_calib(world_point)
+            print(world_point)
+            rectangles = {}#get_rect_calib(world_point)
             rect_json = json.dumps(rectangles)
-            return HttpResponse(rect_json,content_type="application/json")
+            return HttpResponse(rect_json, content_type="application/json")
 
         return HttpResponse("OK")
+    
     
 # def click(request):
 #     if is_ajax(request):
@@ -85,6 +90,7 @@ def click(request):
 #         except KeyError:
 #             return HttpResponse("Error")
 #     return HttpResponse("No")
+
 
 def move(request):
     if is_ajax(request):
@@ -181,7 +187,7 @@ def load_previous(request):
             return HttpResponse("Error")
     return HttpResponse("Error")
 
-def read_save(frameID,fullpath=False):
+def read_save(frameID, fullpath=False):
     if(fullpath):
         if frameID[0].isdecimal():
             filename = "marker/labels/" + frameID

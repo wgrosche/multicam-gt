@@ -6,7 +6,7 @@ var tracklet;
 var toggleTrackletClick = true;
 
 var imgArray = [];
-var arrArray = [];
+// var arrArray = [];
 var validation = {};
 var identities = {};
 var personID = 0;
@@ -52,28 +52,33 @@ window.onload = function () {
     load();
   }
   camName = cams.substring(2, cams.length - 2).split("', '");
+  frameStrs = frame_strs;
   for (var i = 0; i < nb_cams; i++) {
     boxes[i] = {};
 
-    arrArray[i] = new Image();
-    arrArray[i].id = ("arrows" + i);
-    arrArray[i].src = '/static/gtm_hit/images/arrows' + i + '_3D.png';
+    // arrArray[i] = new Image();
+    // arrArray[i].id = ("arrows" + i);
+    // arrArray[i].src = '/static/gtm_hit/images/arrows' + i + '_3D.png';
 
     imgArray[i] = new Image();
     imgArray[i].id = (i + 1);
     imgArray[i].onload = function () {
       var c = document.getElementById("canv" + this.id);
+      if (!c) {
+        console.error("Canvas with ID canv" + this.id + " not found.");
+        return;
+    }
       var ctx = c.getContext('2d');
 
       ctx.drawImage(this, 0, 0);
-      if (toggle_orientation)
-        drawArrows(ctx, this.id - 1);
+      // if (toggle_orientation)
+      //   drawArrows(ctx, this.id - 1);
       c.addEventListener('contextmenu', mainClick, false);
 
       c.addEventListener("mousedown", onMouseDown);
       c.addEventListener("mousemove", onMouseMove);
       c.addEventListener("mouseup", onMouseUp);
-      c.addEventListener("click", drawDot);
+      // c.addEventListener("click", drawDot);
       loadcount++;
       if (loadcount == nb_cams) {
         $("#loader").hide();
@@ -85,9 +90,10 @@ window.onload = function () {
     $("#loader").show();
 
     if (useUndistorted=="True") undistort_frames_path="undistorted_"
-    // imgArray[i].src = '../../static/gtm_hit/dset/'+dset_name+'/frames/'+ camName[i]+ '/'+frame_str+'.png'; // change 00..0 by a frame variable
-    imgArray[i].src = '/static/gtm_hit/dset/scout/'+undistort_frames_path+'frames/' + camName[i] + '/' + frame_str + '.jpg'; // change 00..0 by a frame variable
-    //imgArray[i].src = '../../static/gtm_hit/frames/'+ camName[i]+frame_str+'.png'; // change 00..0 by a frame variable
+    
+    
+    imgArray[i].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
+    console.log('js: /static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]])
 
   }
   var topview = new Image();
@@ -146,12 +152,16 @@ window.onload = function () {
 };
 
 function onMouseDown(event) {
+  let tracklet = [];
   mouseDown = true;
   const { offsetX, offsetY } = event;
   var mousex = offsetX * frame_size[0] / this.clientWidth;
   var mousey = offsetY * frame_size[1] / this.clientHeight;
   // Get the canvas index from the canvas id
   const canvasIndex = parseInt(event.target.id.slice(4)) - 1;
+  console.log('Mouse coordinates:', {mousex, mousey});
+  console.log('Canvas index:', canvasIndex);
+
   // Check if any bounding box is selected
   let threshold = 10;
   for (const [personID, rectID] of Object.entries(rectsID)) {
@@ -181,9 +191,10 @@ function onMouseDown(event) {
       mousey <= box.y2 + threshold
     ) {
       chosen_rect = rectsID.indexOf(rectID);
+      console.log('Selected box:', {rectID, pid, box});
       update();
       getTracklet();
-      displayCrops(frame_str, pid,canvasIndex); //display crops --timeview.js
+      displayCrops(frame_str, pid, canvasIndex); //display crops --timeview.js
       timeview_canv_idx = canvasIndex;
       break;
     }
@@ -201,9 +212,9 @@ function onMouseDown(event) {
         mousey >= y - threshold &&
         mousey <= y + threshold
       ) {
-        if (dataList[i][0] < frame_str) changeFrame("prev",frame_str-dataList[i][0])
+        if (dataList[i][0] < frame_str) changeFrame("prev", frame_str-dataList[i][0])
         else
-        changeFrame("next",dataList[i][0]-frame_str)
+        changeFrame("next", dataList[i][0]-frame_str)
       }
     }
   }
@@ -514,11 +525,11 @@ function tab() {
 }
 
 function keyNextFrame() {
-  changeFrame('next',parseInt(frame_inc))
+  changeFrame('next', parseInt(frame_inc))
 }
 
 function keyPrevFrame() {
-  changeFrame('prev',parseInt(frame_inc))
+  changeFrame('prev', parseInt(frame_inc))
 }
 function space() {
   if (rectsID.length <= 1)
@@ -736,24 +747,23 @@ function updateSize(height, size, ind) {
 function save(e) {
   if (e) e.preventDefault();
   var dims = [];
-  var k = 0;
   for (var i = 0; i < rectsID.length; i++) {
-    var rid = rectsID[i];
-    var pid = identities[rid];
-    let box = boxes[0][pid];
-    box["personID"] = pid;
-    dims.push(box);
+      var rid = rectsID[i];
+      var pid = identities[rid];
+      let box = boxes[0][pid];
+      box["personID"] = pid;
+      dims.push(box);
   }
   $.ajax({
-    method: "POST",
-    url: 'save',
-    data: {
-      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
-      data: JSON.stringify(dims),
-      ID: frame_str,
-      workerID: workerID,
-      datasetName: dset_name
-    },
+      method: "POST",
+      url: 'save',
+      data: {
+          csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+          data: JSON.stringify(dims),
+          ID: frame_str,
+          workerID: workerID,
+          datasetName: dset_name
+      },
     success: function (msg) {
       console.log(msg);
       unsavedChanges = false;
@@ -967,48 +977,50 @@ function clean() {
 function changeFrame(order, increment) {
   if(boxesLoaded) saveCurrentlySelected();
   if (nblabeled >= to_label) {
-    return true;
+      return true;
   }
   boxesLoaded=false;
   $.ajax({
-    method: "POST",
-    url: 'changeframe',
-    data: {
-      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
-      order: order,
-      frameID: frame_str,
-      incr: increment,
-      workerID: workerID,
-      datasetName: dset_name
-    },
-    dataType: "json",
-    success: function (msg) {
-      frame_str = msg['frame'];
-      nblabeled = msg['nblabeled'];
-      if (nblabeled >= to_label) {
-        var button = document.getElementById("changeF");
-        button.href = "/gtm_hit/" + dset_name + "/"+ workerID + "/processFrame";
-        button.text = "Finish";
+      method: "POST",
+      url: 'changeframe',
+      data: {
+          csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+          order: order,
+          frameID: frame_str,
+          incr: increment,
+          workerID: workerID,
+          datasetName: dset_name
+      },
+      dataType: "json",
+      success: function (msg) {
+          frame_str = msg['frame'];
+          nblabeled = msg['nblabeled'];
+          frameStrs = msg['frame_strs']
+          if (nblabeled >= to_label) {
+              var button = document.getElementById("changeF");
+              button.href = "/gtm_hit/" + dset_name + "/"+ workerID + "/processFrame";
+              button.text = "Finish";
+          }
+          loadcount = 0;
+          $("#loader").show();
+          fstr = parseInt(frame_str);
+          $("#frameID").html("Frame ID: " + fstr.toString() + "&nbsp;&nbsp;");
+          
+          if (useUndistorted=="True") undistort_frames_path="undistorted_"
+          for (var i = 0; i < nb_cams; i++) {
+              imgArray[i].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
+              console.log(imgArray[i].src)
+          }
+      },
+      complete: function (msg) {
+          prev_chosen_identity= identities[rectsID[chosen_rect]];
+          clean()
+          load();
+          showCopyBtn()
       }
-      loadcount = 0;
-      $("#loader").show();
-      fstr = parseInt(frame_str);
-      $("#frameID").html("Frame ID: " + fstr.toString() + "&nbsp;&nbsp;");
-      for (var i = 0; i < nb_cams; i++)
-        imgArray[i].src = '/static/gtm_hit/dset/' + dset_name + '/'+undistort_frames_path+'frames/' + camName[i] + '/' + frame_str + '.jpg'; // change 00..0 by a frame variable
-      //imgArray[i].src = '../../static/gtm_hit/frames/'+ camName[i]+frame_str+'.png'; // change 00..0 by a frame variable
-
-    },
-
-    complete: function (msg) {
-      prev_chosen_identity= identities[rectsID[chosen_rect]];
-      clean()
-      load();
-      showCopyBtn()
-    }
   });
-
 }
+
 
 function next() {
   changeFrame('next', 1);
@@ -1032,34 +1044,6 @@ function validate() {
   validation[idPers] = true;
   return false;
 }
-
-// function changeID() {
-//   var newID = parseInt($("#pID").val());
-//   if (rectsID.length > 0 && newID >= 0) {
-//     var rid = rectsID[chosen_rect];
-//     var pid = identities[rid];
-//     var match = false;
-//     for (key in identities) {
-//       if (identities[key] == newID)
-//         match = true;
-//     }
-//     if (!match) {
-//       validation[newID] = validation[pid];
-//       delete validation[pid];
-//       identities[rid] = newID;
-//       for (key in boxes) {
-//         if (pid in boxes[key]) {
-//           var args = boxes[key][pid];
-//           boxes[key][newID] = args;
-//           delete boxes[key][pid];
-//         }
-//       }
-//       $("#pID").val(newID);
-//     } else {
-//       $("#pID").val(pid);
-//     }
-//   }
-// }
 
 function changeID(opt) {
   const propagateElement = document.getElementById('propagate');
@@ -1215,20 +1199,20 @@ function update() {
 }
 
 
-function drawDot(event) {
-  const { offsetX, offsetY } = event;
-  var x = offsetX * frame_size[0] / this.clientWidth;
-  var y = offsetY * frame_size[1] / this.clientHeight;
-  const dotRadius = 5;
-  var c = event.currentTarget
-  var ctx = c.getContext("2d");
-  ctx.beginPath();
-  ctx.arc(x, y, 2, 0, 2 * Math.PI);
-  ctx.fillStyle = "black";
-  ctx.fill();
-  ctx.closePath();
+// function drawDot(event) {
+//   const { offsetX, offsetY } = event;
+//   var x = offsetX * frame_size[0] / this.clientWidth;
+//   var y = offsetY * frame_size[1] / this.clientHeight;
+//   const dotRadius = 5;
+//   var c = event.currentTarget
+//   var ctx = c.getContext("2d");
+//   ctx.beginPath();
+//   ctx.arc(x, y, 2, 0, 2 * Math.PI);
+//   ctx.fillStyle = "black";
+//   ctx.fill();
+//   ctx.closePath();
 
-}
+// }
 
 function drawLine(ctx, v1, v2) {
   ctx.beginPath();
@@ -1289,8 +1273,8 @@ function drawRect() {
     //check if image is loaded
     if (!imgArray[i].complete || imgArray[i].naturalWidth === 0) continue;
     ctx.drawImage(imgArray[i], 0, 0);
-    if (toggle_orientation)
-      drawArrows(ctx, i);
+    // if (toggle_orientation)
+    //   drawArrows(ctx, i);
   }
   var heightR = 0;
   var widthR = 0;
@@ -1398,9 +1382,9 @@ function drawGround() {
   }
 }
 
-function drawArrows(ctx, idx) {
-  ctx.drawImage(arrArray[idx], 0, 0);
-}
+// function drawArrows(ctx, idx) {
+//   ctx.drawImage(arrArray[idx], 0, 0);
+// }
 
 function zoomControl() {
   if (rectsID.length > 0) {
@@ -1567,21 +1551,19 @@ function load_file(f) {
 async function load_frame(frame_string) {
   loadcount = 0;
   $("#loader").show();
-  fstr = frame_string;
-  fstr = fstr.replace(/^0*/, "");
-  frame_str = frame_string;
-  $("#frameID").html("Frame ID: " + fstr + "&nbsp;&nbsp;");
-  for (var i = 0; i < cameras; i++)
-    imgArray[i].src = '../../static/marker/day_2/annotation_final/'+ camName[i]+ '/begin/'+frame_string+'.png'; // change 00..0 by a frame variable
-    // imgArray[i].src = '../../static/gtm_hit/dset/rayon4/frames/'+ camName[i]+"/"+frame_str+'.png'; // change 00..0 by a frame variable
-    
-    //imgArray[i].src = '../../static/gtm_hit/dset/invision/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg'; // change 00..0 by a frame variable
-    //var imgSrc = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg';
-    var imgSrc = '/static/gtm_hit/dset/scout/'+undistort_frames_path+'frames/' + camName[i] + "/" + frame_str + '.jpg';
-    const loadedImg = await loadImage(imgSrc);
-    if (loadedImg !== null) {
-      imgArray[i].src = imgSrc;
-    }
+  frame_str = frame_string.replace(/^0*/, "");
+  $("#frameID").html("Frame ID: " + frame_str + "&nbsp;&nbsp;");
+  
+  if (useUndistorted=="True") undistort_frames_path="undistorted_"
+  var frameStrs = JSON.parse('{{ frame_strs|safe }}');
+  
+  for (var i = 0; i < nb_cams; i++) {
+      var imgSrc = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
+      const loadedImg = await loadImage(imgSrc);
+      if (loadedImg !== null) {
+          imgArray[i].src = imgSrc;
+      }
+  }
   clean();
   update();
 }

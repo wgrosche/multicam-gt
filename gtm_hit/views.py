@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseRedirect, HttpResponse, HttpResponseNotFound
+from django.http import HttpResponseRedirect, HttpResponse, HttpResponseNotFound, FileResponse, Http404
 from django.core import serializers
 from django.urls import reverse
 from django.views import generic
@@ -22,6 +22,7 @@ import random as rand
 from threading import Thread
 from ipdb import set_trace
 import random
+import glob
 import numpy as np
 from gtm_hit.misc import geometry
 from gtm_hit.misc.db import *
@@ -30,6 +31,7 @@ from gtm_hit.misc.utils import convert_rect_to_dict, request_to_dict, process_ac
 from pprint import pprint
 import uuid
 from gtm_hit.misc.invision.create_video import create_video as create_video_invision
+
 
 def requestID(request):
     
@@ -56,7 +58,6 @@ def processInit(request, dataset_name, workerID):
     except Worker.DoesNotExist:
         return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
-
 def index(request, workerID,dataset_name):
     
     context = RequestContext(request).flatten()
@@ -69,7 +70,6 @@ def index(request, workerID,dataset_name):
     except Worker.DoesNotExist:
         
         return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
-
 
 def processIndex(request, workerID,dataset_name):
     
@@ -84,8 +84,7 @@ def processIndex(request, workerID,dataset_name):
         return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
     return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
-
-def dispatch(request, dataset_name,workerID):
+def dispatch(request, dataset_name, workerID):
     
     context = RequestContext(request)
     try:
@@ -112,28 +111,32 @@ def dispatch(request, dataset_name,workerID):
     dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
 
     urlpath = "/gtm_hit/"+dataset_name+"/"+workerID+"/"
-    #urlpath = ""
+
     state = w.state
+
     if state == 0:
         return redirect(urlpath+'index')
-        # return render(request, 'gtm_hit/frame.html',{'frame_number': frame_number, 'workerID' : workerID},context)
     elif state == 1:
         return redirect(urlpath+'frame')
-#        return render(request, 'gtm_hit/finish.html',{'workerID' : workerID, 'validation_code' : validation_code},context)
     elif state == 2:
         return redirect(urlpath+'finish')
-#        return render(request, 'gtm_hit/finish.html',{'workerID' : workerID, 'validation_code' : validation_code},context)
     elif state == 3:
         return redirect(urlpath+'tuto')
     elif state == -1:
         return redirect(urlpath+'processInit')
-        # return render(request, 'gtm_hit/index.html',{'workerID' : workerID},context)
-    else:
-        return redirect(urlpath+'index')
-        # return render(request, 'gtm_hit/index.html',{'workerID' : workerID},context)
-
-def frame(request, dataset_name,workerID):
     
+    return redirect(urlpath+'index')
+
+# def serve_frame(request, camera_name, frame_number):
+#     frames_path = os.path.join(settings.STATIC_ROOT, 'gtm_hit/dset/scout/frames', camera_name)
+#     pattern = f"{frames_path}/*_{frame_number}.jpg"
+#     matching_files = glob.glob(pattern)
+    
+#     if matching_files:
+#         return FileResponse(open(matching_files[0], 'rb'))
+#     raise Http404(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
+
+def frame(request, dataset_name, workerID):
     context = RequestContext(request).flatten()
     try:
         w = Worker.objects.get(pk=workerID)
@@ -144,15 +147,69 @@ def frame(request, dataset_name,workerID):
             w.save()
         frame_number = w.frameNB
         nblabeled = w.frame_labeled
-
         try:
             dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
         except Dataset.DoesNotExist:
             return HttpResponseNotFound("Dataset not found")
 
-        return render(request, 'gtm_hit/frame.html', {'dset_name': dataset.name, 'frame_number': frame_number, 'frame_inc': settings.INCREMENT, 'workerID': workerID, 'cams': settings.CAMS, 'frame_size': settings.FRAME_SIZES, 'nb_cams': settings.NB_CAMS, 'nblabeled': nblabeled, **context, "undistort": settings.UNDISTORTED_FRAMES})
+        frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+dataset_name+'/frames')
+        
+
+        # Create a dictionary of frame strings for each camera
+        frame_strs = {}
+        for cam in settings.CAMS:
+            pattern = f"{frames_path}/{cam}/*_{frame_number}.jpg"
+            matching_files = glob.glob(pattern)
+            # print(matching_files)
+            if matching_files:
+                frame_strs[cam] = matching_files[0].split('/')[-1]
+        print(frame_strs)
+        return render(request, 'gtm_hit/frame.html', {
+            'dset_name': dataset.name, 
+            'frame_number': frame_number,
+            'frame_strs': json.dumps(frame_strs),  # Pass as JSON string
+            'frame_inc': settings.INCREMENT,
+            'workerID': workerID,
+            'cams': settings.CAMS,
+            'frame_size': settings.FRAME_SIZES,
+            'nb_cams': settings.NB_CAMS,
+            'nblabeled': nblabeled,
+            **context,
+            "undistort": settings.UNDISTORTED_FRAMES
+        })
+
     except Worker.DoesNotExist:
         return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
+
+
+# def frame(request, dataset_name, workerID):
+#     context = RequestContext(request).flatten()
+#     try:
+#         w = Worker.objects.get(pk=workerID)
+#         if w.state != 1:
+#             return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
+#         if w.frameNB < 0:
+#             w.frameNB = settings.STARTFRAME
+#             w.save()
+#         frame_number = w.frameNB
+#         nblabeled = w.frame_labeled
+
+#         try:
+#             dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
+#         except Dataset.DoesNotExist:
+#             return HttpResponseNotFound("Dataset not found")
+#         frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+dataset_name+'/frames')
+        
+#         #/static/gtm_hit/dset/${dset_name}/frames/${camName[i]}/${frame_str}
+#         pattern = f"{frames_path}/*/*_{frame_number}.jpg"
+#         print(pattern)
+#         matching_files = glob.glob(pattern)
+#         print('matching: ', matching_files)
+#         frame_str = matching_files[0].split('/')[-1]
+        
+#         return render(request, 'gtm_hit/frame.html', {'dset_name': dataset.name, 'frame_number': frame_number, 'frame_str' : frame_str,  'frame_inc': settings.INCREMENT, 'workerID': workerID, 'cams': settings.CAMS, 'frame_size': settings.FRAME_SIZES, 'nb_cams': settings.NB_CAMS, 'nblabeled': nblabeled, **context, "undistort": settings.UNDISTORTED_FRAMES})
+#     except Worker.DoesNotExist:
+#         return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
 def processFrame(request, workerID,dataset_name):
     
@@ -221,9 +278,12 @@ def get_cuboids_2d(world_point, obj,new=False):
 
     return rectangles
 
-
 def click(request):
     if is_ajax(request):
+        print("Click endpoint hit")
+        print("POST data:", request.POST)
+        print("World point:", world_point)
+
         # try:
         x = int(float(request.POST['x']))
         y = int(float(request.POST['y']))
@@ -317,62 +377,18 @@ def action(request):
 
 def save(request):
     return save_db(request)
-    # 
-    if is_ajax(request):
-        try:
-            # 
-            data = json.loads(request.POST['data'])
-            frameID = request.POST['ID']
-            wid = request.POST['workerID']
-            # annotations = []
-            # cols = ["rectID","personID","modified","Xw","Yw","Zw"]#,"a1","b1","c1","d1","a2","b2","c2","d2","a3","b3","c3","d3","a4","b4","c4","d4","a5","b5","c5","d5","a6","b6","c6","d6","a7","b7","c7","d7"]
-            # for i in range(settings.NB_CAMS):
-            #     cols += [f"a{i+1}", f"b{i+1}", f"c{i+1}", f"d{i+1}"]
-            # annotations.append(cols)
-            # for r in data:
-            #     row = data[r]
-            #     row.insert(0,r)
-            #     annotations.append(row)
-            # 
-            if not os.path.exists("./gtm_hit/labels/"+settings.DSETNAME+"/" + wid + "/"):
-                os.makedirs("./gtm_hit/labels/" +
-                            settings.DSETNAME+"/" + wid + "/")
-            with open("./gtm_hit/labels/"+settings.DSETNAME+"/" + wid + "/" + wid + "_" + frameID + '.json', 'w') as outFile:
-                # create dir if not exist
-                json.dump(data, outFile, sort_keys=True,
-                          indent=4, separators=(',', ': '))
-
-            if not os.path.exists("./gtm_hit/static/gtm_hit/dset/"+settings.DSETNAME+"/labels/" + wid + "/"):
-                os.makedirs("./gtm_hit/static/gtm_hit/dset/" +
-                            settings.DSETNAME+"/labels/" + wid + "/")
-            with open("./gtm_hit/static/gtm_hit/dset/"+settings.DSETNAME+"/labels/" + wid + "/" + wid + "_" + frameID + '.json', 'w') as outFile:
-                json.dump(data, outFile, sort_keys=True,
-                          indent=4, separators=(',', ': '))
-            return HttpResponse("Saved")
-        except KeyError:
-            return HttpResponse("Error")
-    else:
-        return("Error")
 
 
 def load(request):
     return load_db(request)
-    if is_ajax(request):
-        try:
-            frameID = request.POST['ID']
-            wid = request.POST['workerID']
-            rect_json = read_save(frameID, wid)
-            return HttpResponse(rect_json, content_type="application/json")
-        except (FileNotFoundError, KeyError):
-            return HttpResponse("Error")
-    return HttpResponse("Error")
-
 
 def load_previous(request):
     if is_ajax(request):
         try:
 
             frameID = request.POST['ID']
+            if not frameID:
+                return HttpResponse("No frame ID provided")
             wid = request.POST['workerID']
             current_frame = int(frameID)
             closest = float('inf')
@@ -402,12 +418,9 @@ def read_save(frameID, workerID):
         annotations = json.load(loadFile)
     return json.dumps(annotations)
 
-
 def changeframe(request):
     context = RequestContext(request)
-    #
     if is_ajax(request):
-        frame = 0
         try:
             wID = request.POST['workerID']
             order = request.POST['order']
@@ -415,36 +428,45 @@ def changeframe(request):
             increment = request.POST['incr']
 
             worker = Worker.objects.get(pk=wID)
-
-            #   
-            #worker.increaseFrame(1)
-            
             timelist = worker.getTimeList()
             timelist.append(timezone.now().isoformat())
             worker.setTimeList(timelist)
-            #validation_code = generate_code()
-            # return render(request, 'gtm_hit/finish.html',{'workerID' : wID, 'validation_code': validation_code},context)
+            print("Frame Number: ", frame_number)
             if order == "next":
                 inc = int(increment)
             elif order == "prev" and (int(frame_number) - int(increment)) >= 0:
                 inc = -int(increment)
             else:
-                return HttpResponse("Requested frame not existing")
-            frame = int(frame_number) + inc
-            worker.frame_labeled = frame
+                return HttpResponse(f"Requested frame: {frame_number} doesn't exist")
+            
+
+            new_frame_number = int(frame_number) + inc
+            print("new_frame_number: ", new_frame_number)
+            # Get frame strings for each camera
+            frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames')
+            frame_strs = {}
+            for cam in settings.CAMS:
+                pattern = f"{frames_path}/{cam}/*_{new_frame_number}.jpg"
+                matching_files = glob.glob(pattern)
+                if matching_files:
+                    frame_strs[cam] = matching_files[0].split('/')[-1]
+            # print(frame_strs)
+            response = {
+                'frame': str(new_frame_number),
+                'nblabeled': worker.frame_labeled,
+                'frame_strs': frame_strs
+            }
+
+            worker.frameNB = new_frame_number
+            worker.frame_labeled = new_frame_number
             worker.save()
-            frame = "0" * (8 - len(str(frame))) + str(frame)
-            response = {}
-            response['frame'] = frame
-            response['nblabeled'] = worker.frame_labeled
-            worker.frameNB = frame
-            worker.save()
+
             return HttpResponse(json.dumps(response))
+
         except KeyError:
             return HttpResponse("Error")
     else:
         return HttpResponse("Error")
-
 
 def get_rect(closest):
     rects = []
@@ -634,15 +656,25 @@ def save_db(request):
 
 
 def load_db(request):
-    #
+    print("Loading Database")
     if is_ajax(request):
         try:
-            frame_id = int(request.POST['ID'])
+            print("Over here")
+            frame_id =request.POST['ID']
+            if not frame_id:
+                return HttpResponse("No frame ID provided")
+            frame_id = int(frame_id)
+            
             worker_id = request.POST['workerID']
             dataset_name = request.POST['datasetName']
 
-            frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES,dataset__name=dataset_name)
+            print('this is frame:', frame_id)
+            print('this is worker:', worker_id)
+            print('this is dataset:', dataset_name)
+            frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES, dataset__name=dataset_name)
             # 
+            
+            print('this is frame:')
             retjson = []
             camviews = View.objects.all()
             for camview in camviews:
@@ -723,6 +755,7 @@ def person_action(request):
     return HttpResponse("Error")
 
 def tracklet(request):
+    print('retrieving tracklet')
     
     if is_ajax(request):
         try:
@@ -846,3 +879,13 @@ def create_video(request):
         except KeyError:
             return HttpResponse("Error")
         
+
+
+def serve_frame(request, camera_name, frame_number):
+    frames_path = os.path.join(settings.STATIC_ROOT, 'gtm_hit/dset/scout/frames', camera_name)
+    pattern = f"{frames_path}/*_{frame_number}.jpg"
+    matching_files = glob.glob(pattern)
+    
+    if matching_files:
+        return FileResponse(open(matching_files[0], 'rb'))
+    raise Http404(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")

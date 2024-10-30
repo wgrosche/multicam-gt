@@ -18,6 +18,7 @@
   <script type="text/javascript">
     var frame_number = "{{frame_number}}";
     var workerID = "{{workerID}}";
+    var frame_strs =  {{ frame_strs|safe }};
     var frame_str = Array(9 - frame_number.toString().length).join('0') + frame_number;
     var cams = "{{cams|safe}}";
     var nb_cams = "{{nb_cams}}"
@@ -28,7 +29,53 @@
     var useUndistorted = "{{undistort}}";
     frame_size = frame_size.substring(1, frame_size.length - 1).split(",");
   </script>
+    <link rel="stylesheet" href="{% static 'gtm_hit/framestyle.css' %}">
+  
 </head>
+
+
+
+<script type="text/javascript">
+  document.addEventListener("DOMContentLoaded", function () {
+    const container = document.getElementById('cameraContainer');
+
+    for (let i = 1; i <= nb_cams; i++) {
+      const canvas = document.createElement('canvas');
+      canvas.id = `canv${i}`;
+      canvas.width = 1920;
+      canvas.height = 1080;
+      canvas.dataset.toggle = "tooltip";
+      canvas.title = `Camera ${i}`;
+      canvas.className = "img";
+      canvas.style.padding = "0";
+      container.appendChild(canvas);
+    }
+  });
+</script>
+
+
+
+<!-- <script>
+  const nb_cams = 10; // Change this to your desired number of cameras
+  const container = document.getElementById('cameraContainer');
+
+  for (let i = 1; i <= nb_cams; i++) {
+    const canvas = document.createElement('canvas');
+    canvas.id = `canv${i}`;
+    canvas.width = 1920;
+    canvas.height = 1080;
+    canvas.dataset.toggle = "tooltip";
+    canvas.title = `Camera ${i}`;
+    canvas.className = "img col-sm-4";
+    canvas.style.padding = "0";
+    
+    const li = document.createElement('li');
+    li.appendChild(canvas);
+    
+    container.appendChild(li);
+  }
+</script> -->
+
 
 <body>
   {% include "includes_hit/navbar.html" %}
@@ -93,7 +140,7 @@
             </div>
             <a href="#" id="copyBtn" class="btn btn-primary" onclick="copyPrevOrNext()">Copy Prev/Next</a>
             <div class="pull-right">
-              <a href="#" id="changeF" class="btn btn-primary" onclick="changeFrame('prev',parseInt(frame_str)-3150)">0</a>
+              <a href="#" id="changeF" class="btn btn-primary" onclick="changeFrame('prev',parseInt(frame_number)-3150)">0</a>
               <a href="#" id="changeF" class="btn btn-primary" onclick="changeFrame('prev',frame_inc*10)">&lt;&lt;</a>
               <a href="#" id="changeF" class="btn btn-primary" onclick="changeFrame('prev',frame_inc)">&lt;</a>
 
@@ -109,36 +156,9 @@
   </div>
 
   </ul>
-  <div class="row col-sm-12">
+  <div id="cameraContainer" class="canvas-grid">
+  </div>
 
-    <ul class="row" id="ul1">
-      <canvas id='canv1' width="1920" height="1080" data-toggle="tooltip" title="Camera 1" class="img col-sm-4"
-        style="padding: 0;"></canvas>
-      <canvas id='canv2' width="1920" height="1080" data-toggle="tooltip" title="Camera 2" class="img col-sm-4"
-        style="padding: 0;"></canvas>
-      <canvas id='canv3' width="1920" height="1080" data-toggle="tooltip" title="Camera 3" class="img col-sm-4"
-        style="padding: 0;"></canvas>
-    </ul>
-    <ul class="row" id="ul2">
-      <canvas id='canv4' width="1920" height="1080" data-toggle="tooltip" title="Camera 4" class="img col-sm-4"
-        style="padding: 0;"></canvas>
-      <canvas id='canv5' width="1920" height="1080" data-toggle="tooltip" title="Camera 5" class="img col-sm-4"
-        style="padding: 0;"></canvas>
-      <canvas id='canv6' width="1920" height="1080" data-toggle="tooltip" title="Camera 6" class="img col-sm-4"
-        style="padding: 0;"></canvas>
-    </ul>
-  </div>
-  <div class="row col-sm-12">
-    <ul class="row" id="ul3">
-      <canvas id='canv7' width="1920" height="1080" data-toggle="tooltip" title="Camera 7" style="padding: 0;"
-        class="img col-sm-4"></canvas>
-        <canvas id='canv8' width="1920" height="1080" data-toggle="tooltip" title="Camera 8" style="padding: 0;"
-        class="img col-sm-4"></canvas>
-        <canvas id='topview' width="1920" height="1080" data-toggle="tooltip" title="Topview" style="padding: 0;"
-        class="img col-sm-4"></canvas>
-      <div class="col-sm-4">{% include "includes_hit/controller.html" %}  </div>
-    </ul>
-  </div>
   </div>
   <script>
     for (let i = 1; i < (nb_cams + 1); i++) {
