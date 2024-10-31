@@ -6,6 +6,7 @@ from gtm_hit.models import Annotation, Annotation2DView, MultiViewFrame, Person,
 from django.core.exceptions import ObjectDoesNotExist
 from ipdb import set_trace
 from django.db.models import Count
+from tqdm import tqdm
 
 def find_closest_annotations_to(person,frame, bidirectional=True):
     try:
@@ -25,6 +26,44 @@ def find_closest_annotations_to(person,frame, bidirectional=True):
         raise ValueError(f"No next annotation found for person {person.person_id} after frame {frame.frame_id}.")
 
     return last_annotation, next_annotation
+
+
+def save_2d_views_bulk(annotations):
+    views = {view.view_id: view for view in View.objects.all()}
+    annotation2dviews_to_create = []
+    
+    for annotation in tqdm(annotations, total = len(annotations), desc='Saving 2D Views...'):
+        for i in range(settings.NB_CAMS):
+            try:
+                cuboid = geometry.get_cuboid2d_from_annotation(
+                    annotation, settings.CALIBS[settings.CAMS[i]], settings.UNDISTORTED_FRAMES)
+                p1, p2 = geometry.get_bounding_box(cuboid)
+            except ValueError:
+                cuboid = None
+                p1 = [-1, -1]
+                p2 = [-1, -1]
+
+            annotation2dview = Annotation2DView(
+                view=views[i],
+                annotation=annotation,
+                x1=p1[0],
+                y1=p1[1],
+                x2=p2[0],
+                y2=p2[1]
+            )
+            
+            if cuboid is not None:
+                annotation2dview.set_cuboid_points_2d(cuboid)
+                
+            annotation2dviews_to_create.append(annotation2dview)
+    
+    Annotation2DView.objects.bulk_create(
+        annotation2dviews_to_create,
+        update_conflicts=True,
+        unique_fields=['view', 'annotation'],
+        update_fields=['x1', 'y1', 'x2', 'y2'] + Annotation2DView.CUBOID_POINT_FIELDS
+    )
+
 
 def save_2d_views(annotation):
     # print('annotation type: ', type(annotation))

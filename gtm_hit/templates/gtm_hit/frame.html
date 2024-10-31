@@ -53,30 +53,6 @@
   });
 </script>
 
-
-
-<!-- <script>
-  const nb_cams = 10; // Change this to your desired number of cameras
-  const container = document.getElementById('cameraContainer');
-
-  for (let i = 1; i <= nb_cams; i++) {
-    const canvas = document.createElement('canvas');
-    canvas.id = `canv${i}`;
-    canvas.width = 1920;
-    canvas.height = 1080;
-    canvas.dataset.toggle = "tooltip";
-    canvas.title = `Camera ${i}`;
-    canvas.className = "img col-sm-4";
-    canvas.style.padding = "0";
-    
-    const li = document.createElement('li');
-    li.appendChild(canvas);
-    
-    container.appendChild(li);
-  }
-</script> -->
-
-
 <body>
   {% include "includes_hit/navbar.html" %}
 
@@ -84,31 +60,6 @@
   
   <div class="container-fluid">
     </div>
-    <!-- <ul class="row" id="my-row">
-      <div class="col-sm-12">
-        <div class="btn-group" role="group">
-        <button class="btn btn-success col-sm-2" onclick="save();">Save labels</button>
-        <button class="btn btn-info col-sm-2" onclick="load();">Load labels</button>
-        <button type="button" class="btn btn-warning dropdown-toggle" data-toggle="dropdown" aria-haspopup="true"
-          aria-expanded="false">
-          Load other labels<span class="caret"></span>
-        </button>
-        <button class="btn btn-danger col-sm-2" onclick="clean();">Clear all</button>
-      </div>
-        <ul class="dropdown-menu">
-          <li><a href="#" onclick="load_prev();">Load previous labels</a></li>
-          <li><a href="#" data-toggle="modal" data-target="#loadModal">Other saved file</a></li>
-           <li><a onclick="load_frame();">Other saved file</a></li>
-        </ul>
-
-        
-        <p id="unsaved" class="col-sm-1 pull-right" style="color:grey;">Unsaved changes</p>
-        <ul class="pull-right">
-          <a href="#" id="changeF" class="btn btn-primary" onclick="changeFrame('prev',frame_inc)">Prev frame</a>
-          <strong id="frameID">Frame ID: {{frame_number}}&nbsp;&nbsp;</strong>
-          <a href="#" id="changeF" class="btn btn-primary" onclick="changeFrame('next',frame_inc)">Next frame</a>
-        </ul>
-      </div> -->
       <div style="margin-bottom:10px;">
         <div class="row pb-2" id="my-row">
           <div class="col-sm-12">

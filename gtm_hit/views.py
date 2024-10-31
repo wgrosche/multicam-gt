@@ -127,14 +127,6 @@ def dispatch(request, dataset_name, workerID):
     
     return redirect(urlpath+'index')
 
-# def serve_frame(request, camera_name, frame_number):
-#     frames_path = os.path.join(settings.STATIC_ROOT, 'gtm_hit/dset/scout/frames', camera_name)
-#     pattern = f"{frames_path}/*_{frame_number}.jpg"
-#     matching_files = glob.glob(pattern)
-    
-#     if matching_files:
-#         return FileResponse(open(matching_files[0], 'rb'))
-#     raise Http404(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
 
 def frame(request, dataset_name, workerID):
     context = RequestContext(request).flatten()
@@ -152,7 +144,7 @@ def frame(request, dataset_name, workerID):
         except Dataset.DoesNotExist:
             return HttpResponseNotFound("Dataset not found")
 
-        frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+dataset_name+'/frames')
+        frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/', dataset_name, '/frames')
         
 
         # Create a dictionary of frame strings for each camera
