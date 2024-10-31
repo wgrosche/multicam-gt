@@ -251,6 +251,7 @@ def is_ajax(request):
 
 def get_cuboids_2d(world_point, obj,new=False):
     rectangles = list()
+    print(world_point)
     rect_id = str(int(world_point[0])) + "_" + str(int(world_point[1])
                                                    ) + "_" + uuid.uuid1().__str__().split("-")[0]
     # 
@@ -264,7 +265,7 @@ def get_cuboids_2d(world_point, obj,new=False):
         # 
         try:
             cuboid = geometry.get_cuboid_from_ground_world(
-                world_point, settings.CALIBS[cam_id], *object_size, obj.get("rotation_theta", 0))
+                world_point, settings.CALIBS[settings.CAMS[cam_id]], *object_size, obj.get("rotation_theta", 0))
             p1, p2 = geometry.get_bounding_box(cuboid)
         except ValueError:
             cuboid = []
@@ -282,7 +283,6 @@ def click(request):
     if is_ajax(request):
         print("Click endpoint hit")
         print("POST data:", request.POST)
-        print("World point:", world_point)
 
         # try:
         x = int(float(request.POST['x']))
@@ -293,16 +293,21 @@ def click(request):
         #
         worker_id = request.POST['workerID']
         dataset_name = request.POST['datasetName']
+        # print(f"Cam: {cam}")
         if 0 <= cam < settings.NB_CAMS:
-            feet2d_h = np.array([[x], [y], [1]])
-            # 
-            world_point = geometry.reproject_to_world_ground(
-                feet2d_h, settings.CALIBS[cam], undistort=settings.UNDISTORTED_FRAMES)
+            feet2d_h = np.array([[x], [y]])#, [1]])
+            # print("2d: ", feet2d_h, "cam: ", cam, "calib: ", settings.CALIBS[settings.CAMS[cam]])
+            world_point = geometry.project_2d_points_to_mesh(
+                feet2d_h, settings.CALIBS[settings.CAMS[cam]], settings.MESH)#undistort=settings.UNDISTORTED_FRAMES)
             if "person_id" not in obj:
                 obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset_name=dataset_name)
-            rectangles = get_cuboids_2d(world_point, obj)
 
+            # print("World point:", world_point)
+            rectangles = get_cuboids_2d(world_point[0], obj)
+            print("Rectangles:", rectangles)
             rect_json = json.dumps(rectangles)
+            
+            
             #
             return HttpResponse(rect_json, content_type="application/json")
 
@@ -351,11 +356,8 @@ def move(request):
 
 
 def action(request):
-    # 
-    #
     if is_ajax(request):
         try:
-
             obj = json.loads(request.POST["data"])
 
             obj = process_action(obj)
@@ -659,7 +661,6 @@ def load_db(request):
     print("Loading Database")
     if is_ajax(request):
         try:
-            print("Over here")
             frame_id =request.POST['ID']
             if not frame_id:
                 return HttpResponse("No frame ID provided")
@@ -673,8 +674,6 @@ def load_db(request):
             print('this is dataset:', dataset_name)
             frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES, dataset__name=dataset_name)
             # 
-            
-            print('this is frame:')
             retjson = []
             camviews = View.objects.all()
             for camview in camviews:
@@ -685,21 +684,21 @@ def load_db(request):
             #a2l = list(Annotation2DView.objects.filter(annotation__frame=frame, view=View.objects.get(view_id=0)).values())
             return HttpResponse(json.dumps(retjson), content_type="application/json")
 
-            # Read the serialized views from the JSON file and deserialize them
-            labels_directory = os.path.join(
-                './gtm_hit/static/gtm_hit/dset/', settings.DSETNAME, 'labels', worker_id)
-            with open(os.path.join(labels_directory, f'{worker_id}_{frame_id}.json'), 'r') as rect_json:
-                # Deserialize the views from the serialized data
-                views = serializers.deserialize('json', rect_json)
+            # # Read the serialized views from the JSON file and deserialize them
+            # labels_directory = os.path.join(
+            #     './gtm_hit/static/gtm_hit/dset/', settings.DSETNAME, 'labels', worker_id)
+            # with open(os.path.join(labels_directory, f'{worker_id}_{frame_id}.json'), 'r') as rect_json:
+            #     # Deserialize the views from the serialized data
+            #     views = serializers.deserialize('json', rect_json)
 
-            # Iterate through each view and prefetch the related annotation and annotation2dview objects
-            for view in views:
-                view.object = view.object.prefetch_related(
-                    'annotation_set__twod_views').select_related('frame')
+            # # Iterate through each view and prefetch the related annotation and annotation2dview objects
+            # for view in views:
+            #     view.object = view.object.prefetch_related(
+            #         'annotation_set__twod_views').select_related('frame')
 
-            # Serialize the views and send them as a response
-            serialized_views = serializers.serialize('json', views)
-            return HttpResponse(serialized_views, content_type="application/json")
+            # # Serialize the views and send them as a response
+            # serialized_views = serializers.serialize('json', views)
+            # return HttpResponse(serialized_views, content_type="application/json")
 
         except (Person.DoesNotExist, MultiViewFrame.DoesNotExist, FileNotFoundError, KeyError):
             return HttpResponse("Error")

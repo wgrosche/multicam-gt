@@ -14,6 +14,7 @@ import os.path as osp
 from pathlib import Path
 from typing import Optional
 import pickle
+from tqdm import tqdm
 
 def cls():
     os.system('cls' if os.name=='nt' else 'clear')
@@ -197,134 +198,189 @@ def process_tracked_location(tdet,worker,frame_id,dataset):
     print("Saved annotation for person", person.person_id, "in frame", frame.frame_id)
 
 def preprocess_scout_data(frames_path: Path, calibration_path: Path, 
-                          tracks_path: Path, worker_id: str, dataset_name: str, range_start: int = 0, range_end: int = 5000):
+                          tracks_path: Path, worker_id: str, dataset_name: str, range_start: int = 0, range_end: int = 12000):
     
-    print('what the hell')
     # Load tracks data
     with open(tracks_path, 'rb') as f:
         tracks_data = pickle.load(f)
 
-    
-
     # Create worker and dataset
     worker, _ = Worker.objects.get_or_create(workerID=worker_id)
     dataset, _ = Dataset.objects.get_or_create(name=dataset_name)
-
-    # # Process each timestep
-    # for frame_idx in range(range_start, range_end, settings.INCREMENT):
-    #     for person_id, positions in tracks_data.items():
-    #         if frame_idx < len(positions):
-    #             position = positions[frame_idx, :]
-    #             if np.all(position) == 0:
-    #                 # print('skipping frame: ', frame_idx)
-    #                 continue
-    #             # Create annotation data similar to scout format
-    #             annotation_data = {
-    #                 "Xw": position[0],
-    #                 "Yw": position[1],
-    #                 "Zw": position[2] if position.shape[0] > 2 else 0,
-    #                 "object_size": [1.7, 0.6, 0.6],  # Default human size in meters
-    #                 "personID": person_id,
-    #                 "rotation_theta": 0,  # Default rotation if not available
-    #                 "rectangleID": uuid.uuid4().__str__().split("-")[-1]
-    #             }
-
-    #             # Create frame and person objects
-    #             frame, _ = MultiViewFrame.objects.get_or_create(
-    #                 frame_id=frame_idx, 
-    #                 worker=worker,
-    #                 undistorted=settings.UNDISTORTED_FRAMES,
-    #                 dataset=dataset
-    #             )
-
-    #             person, _ = Person.objects.get_or_create(
-    #                 person_id=person_id,
-    #                 worker=worker,
-    #                 dataset=dataset
-    #             )
-
-    #             # Create or update annotation
-    #             annotation = Annotation.objects.get_or_create(
-    #                 person=person,
-    #                 frame=frame,
-    #                 defaults={
-    #                     "rectangle_id": annotation_data['rectangleID'],
-    #                     "rotation_theta": annotation_data['rotation_theta'],
-    #                     "Xw": annotation_data['Xw'],
-    #                     "Yw": annotation_data['Yw'],
-    #                     "Zw": annotation_data['Zw'],
-    #                     "object_size_x": annotation_data['object_size'][0],
-    #                     "object_size_y": annotation_data['object_size'][1],
-    #                     "object_size_z": annotation_data['object_size'][2],
-    #                     "creation_method": f"imported_scout_tracks"
-    #                 }
-    #             )
-    #             print("Annotation", annotation_data)
-
-    #             try:
-    #                 save_2d_views(annotation[0])
-    #             except Exception as e:
-    #                 print(f"Error saving 2D views for person {person_id} at frame {frame_idx}: {e}")
-
-        # print(f"Processed frame {frame_idx}")
-
-        # Process each person first
-    for person_id, positions in tracks_data.items():
-        # Create person object once per person
-        person, _ = Person.objects.get_or_create(
-            person_id=person_id,
-            worker=worker,
+    print("Creating People...")
+    people_to_create = [Person(person_id=person_id, 
+                               worker=worker, 
+                               dataset=dataset) for person_id in tracks_data.keys()]
+    print("Bulking People...")
+    Person.objects.bulk_create(people_to_create, 
+                               update_conflicts=True, 
+                               update_fields=['person_id', 'worker', 'dataset'], 
+                               unique_fields=['person_id', 'worker', 'dataset'])
+    print("Creating Frames...")
+    frames_to_create = [MultiViewFrame(frame_id=frame_idx, 
+            worker=worker, 
+            undistorted=settings.UNDISTORTED_FRAMES, 
             dataset=dataset
-        )
+            ) for frame_idx in range(range_start, range_end)]
+    print("Bulking Frames...")
+    MultiViewFrame.objects.bulk_create(frames_to_create, ignore_conflicts=True)
+    print("Fetching Frames...")
+    # Prefetch all frames once
+    frames_dict = {frame.frame_id: frame for frame in 
+                MultiViewFrame.objects.filter(
+                    worker=worker, 
+                    dataset=dataset,
+                    frame_id__in=list(range(range_start, range_end))
+                )}
+    print("Fetching People...")
+    # Get all persons at once
+    people = {p.person_id: p for p in Person.objects.filter(worker=worker, dataset=dataset)}
+
+    # Create all annotations in one go
+    all_annotations = []
+    for person_id, positions in tqdm(tracks_data.items(), total=len(tracks_data), desc='Creating annotations'):
+        positions = np.array(positions)[range_start:range_end, :]
+        person = people[person_id]
         
-        # Then process each frame for this person
-        for frame_idx in range(range_start, range_end, settings.INCREMENT):
-            if frame_idx >= len(positions):
-                continue
-                
-            position = positions[frame_idx, :]
-            if np.all(position) == 0:
-                continue
-                
-            annotation_data = {
-                "Xw": position[0],
-                "Yw": position[1],
-                "Zw": position[2] if position.shape[0] > 2 else 0,
-                "object_size": [1.7, 0.6, 0.6],
-                "personID": person_id,
-                "rotation_theta": 0,
-                "rectangleID": uuid.uuid4().__str__().split("-")[-1]
-            }
-
-            frame, _ = MultiViewFrame.objects.get_or_create(
-                frame_id=frame_idx,
-                worker=worker,
-                undistorted=settings.UNDISTORTED_FRAMES,
-                dataset=dataset
-            )
-
-            annotation = Annotation.objects.get_or_create(
+        all_annotations.extend([
+            Annotation(
                 person=person,
-                frame=frame,
-                defaults={
-                    "rectangle_id": annotation_data['rectangleID'],
-                    "rotation_theta": annotation_data['rotation_theta'],
-                    "Xw": annotation_data['Xw'],
-                    "Yw": annotation_data['Yw'],
-                    "Zw": annotation_data['Zw'],
-                    "object_size_x": annotation_data['object_size'][0],
-                    "object_size_y": annotation_data['object_size'][1],
-                    "object_size_z": annotation_data['object_size'][2],
-                    "creation_method": f"imported_scout_tracks"
-                }
-            )
-            
-            print("Annotation", annotation_data)
-            try:
-                save_2d_views(annotation[0])
-            except Exception as e:
-                print(f"Error saving 2D views for person {person_id} at frame {frame_idx}: {e}")
-                
-        print(f"Processed person {person_id}")
+                frame=frames_dict[frame_idx],
+                rectangle_id=uuid.uuid4().__str__().split("-")[-1],
+                rotation_theta=0,
+                Xw=position[0],
+                Yw=position[1],
+                Zw=position[2] if position.shape[0] > 2 else 0,
+                object_size_x=1.7,
+                object_size_y=0.6,
+                object_size_z=0.6,
+                creation_method="imported_scout_tracks"
+            ) for frame_idx, position in enumerate(positions) if np.all(position != 0)
+        ])
+    print("Bulking annotations...")
+    # Bulk create all annotations at once
+    Annotation.objects.bulk_create(
+        all_annotations,
+        update_conflicts=True,
+        unique_fields=['frame', 'person'],
+        update_fields=['rectangle_id', 'rotation_theta', 'Xw', 'Yw', 'Zw', 
+                    'object_size_x', 'object_size_y', 'object_size_z', 'creation_method']
+    )
+    print("Fetching Annotations...")
+    # Process all 2D views at once
+    all_annotations = Annotation.objects.filter(
+        person__in=people.values(),
+        frame__in=frames_dict.values()
+    ).select_related('frame', 'person')
+    print("Saving 2D views...")
+    for annotation in all_annotations:
+        try:
+            save_2d_views(annotation)
+        except Exception as e:
+            print(f"Error saving 2D views for person {annotation.person.person_id} at frame {annotation.frame.frame_id}: {e}")
 
-        cls()
+        # cls()
+
+# def preprocess_scout_data(frames_path: Path, calibration_path: Path, 
+#                           tracks_path: Path, worker_id: str, dataset_name: str, range_start: int = 0, range_end: int = 5000):
+    
+#     with open(tracks_path, 'rb') as f:
+#         tracks_data = pickle.load(f)
+
+#     worker, _ = Worker.objects.get_or_create(workerID=worker_id)
+#     dataset, _ = Dataset.objects.get_or_create(name=dataset_name)
+
+#     frames_to_create = []
+#     frame_map = {}  # To store frame_id -> MultiViewFrame mapping
+#     annotations_to_create = []
+#     batch_size = 1000
+
+#     for person_id, positions in tracks_data.items():
+#         person, _ = Person.objects.get_or_create(
+#             person_id=person_id,
+#             worker=worker,
+#             dataset=dataset
+#         )
+        
+#         for frame_idx in range(range_start, range_end, settings.INCREMENT):
+#             if frame_idx >= len(positions):
+#                 continue
+                
+#             position = positions[frame_idx, :]
+#             if np.all(position) == 0:
+#                 continue
+
+#             frame = MultiViewFrame(
+#                 frame_id=frame_idx,
+#                 worker=worker,
+#                 undistorted=settings.UNDISTORTED_FRAMES,
+#                 dataset=dataset
+#             )
+#             frames_to_create.append(frame)
+#             frame_map[frame_idx] = frame
+
+#             if len(frames_to_create) >= batch_size:
+#                 # Save frames first
+#                 MultiViewFrame.objects.bulk_create(frames_to_create, ignore_conflicts=True)
+                
+#                 # Create annotations with saved frames
+#                 for frame in frames_to_create:
+#                     annotation = Annotation(
+#                         person=person,
+#                         frame=frame,
+#                         rectangle_id=uuid.uuid4().__str__().split("-")[-1],
+#                         rotation_theta=0,
+#                         Xw=position[0],
+#                         Yw=position[1],
+#                         Zw=position[2] if position.shape[0] > 2 else 0,
+#                         object_size_x=1.7,
+#                         object_size_y=0.6,
+#                         object_size_z=0.6,
+#                         creation_method="imported_scout_tracks"
+#                     )
+#                     annotations_to_create.append(annotation)
+                
+#                 # Save annotations
+#                 Annotation.objects.bulk_create(annotations_to_create, ignore_conflicts=True)
+                
+#                 # Process 2D views
+#                 for annotation in annotations_to_create:
+#                     try:
+#                         save_2d_views(annotation)
+#                     except Exception as e:
+#                         print(f"Error saving 2D views for person {person_id} at frame {frame_idx}: {e}")
+                
+#                 frames_to_create = []
+#                 annotations_to_create = []
+#                 frame_map = {}
+
+#         print(f"Processed person {person_id}")
+#         cls()
+
+#     # Process remaining items
+#     if frames_to_create:
+#         MultiViewFrame.objects.bulk_create(frames_to_create, ignore_conflicts=True)
+        
+#         for frame in frames_to_create:
+#             annotation = Annotation(
+#                 person=person,
+#                 frame=frame,
+#                 rectangle_id=uuid.uuid4().__str__().split("-")[-1],
+#                 rotation_theta=0,
+#                 Xw=position[0],
+#                 Yw=position[1],
+#                 Zw=position[2] if position.shape[0] > 2 else 0,
+#                 object_size_x=1.7,
+#                 object_size_y=0.6,
+#                 object_size_z=0.6,
+#                 creation_method="imported_scout_tracks"
+#             )
+#             annotations_to_create.append(annotation)
+        
+#         Annotation.objects.bulk_create(annotations_to_create, ignore_conflicts=True)
+        
+#         for annotation in annotations_to_create:
+#             try:
+#                 save_2d_views(annotation)
+#             except Exception as e:
+#                 print(f"Error saving 2D views for person {person_id} at frame {frame_idx}: {e}")

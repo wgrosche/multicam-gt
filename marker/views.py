@@ -15,7 +15,7 @@ import os
 import zipfile
 from io import BytesIO
 import numpy as np
-from gtm_hit.misc.geometry import reproject_to_world_ground
+from gtm_hit.misc.geometry import project_2d_points_to_mesh#reproject_to_world_ground
 
 
 def index(request):
@@ -56,7 +56,9 @@ def click(request):
         cam = int(re.findall(r'\d+',cam)[0]) - 1
         if 0 <= cam < settings.NB_CAMS:
             feet2d_h = np.array([[x], [y], [1]])             
-            world_point = reproject_to_world_ground(feet2d_h, settings.CALIBS[cam].K, settings.CALIBS[cam].R, settings.CALIBS[cam].T)
+            world_point = project_2d_points_to_mesh(
+                feet2d_h, settings.CALIBS[cam], settings.MESH)
+            # reproject_to_world_ground(feet2d_h, settings.CALIBS[cam].K, settings.CALIBS[cam].R, settings.CALIBS[cam].T)
             print(world_point)
             rectangles = {}#get_rect_calib(world_point)
             rect_json = json.dumps(rectangles)

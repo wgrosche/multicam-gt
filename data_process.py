@@ -18,8 +18,8 @@ class Args:
                  input_path="gtm_hit/static/gtm_hit/labels/json_output",
                  worker_id="WILKE",
                  dataset_name="SCOUT", 
-                 range_start=3150,
-                 range_end=5000):
+                 range_start=0,
+                 range_end=12000):
         
         self.frames_path=frames_path,
         self.calibration_path=calibration_path,
