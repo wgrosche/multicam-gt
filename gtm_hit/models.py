@@ -52,7 +52,6 @@ class Person(models.Model):
         return f"pID:{self.person_id} wID:{self.worker.workerID} ds:{self.dataset.name}"
     def __repr__(self):
         return f"pID:{self.person_id} wID:{self.worker.workerID} ds:{self.dataset.name}"
-
     
 class MultiViewFrame(models.Model):
     frame_id = models.IntegerField(verbose_name="MultiView ID")

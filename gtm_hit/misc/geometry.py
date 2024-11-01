@@ -133,10 +133,13 @@ def project_world_to_camera(world_point, K1, R1, T1):
     """
     Project 3D point world coordinate to image plane (pixel coordinate)
     """
-    point1 = ((R1 @ world_point) + T1)
-    if (np.min(point1[2]) < 0):
-        # print("Projection of world point located behind the camera plane")
-        return None, None
+    print(world_point)
+    point1 = ((R1 @ world_point.reshape(3, 1)) + T1).reshape(3, 1)
+    print(K1)
+    print(point1)
+    # if (np.min(point1[2]) < 0):
+    #     # print("Projection of world point located behind the camera plane")
+    #     return None, None
     point1 = K1 @ point1
     point1 = point1 / point1[2]
 
@@ -181,8 +184,18 @@ def get_cuboid2d_from_annotation(annotation, calib, undistort=False):
     length = annotation.object_size_z
     theta = annotation.rotation_theta
     world_point = annotation.world_point
-
-    # return None if world point is not in fov or too far from camera
+    # print("Processing cuboid: ", world_point, height, width, length, theta)
+    # check that world point is visible
+    # if world_point is None:
+    #     # print("world point is None")
+    #     return None
+    
+    # # check that world point is in fov
+    # if not check_visibility(world_point, calib):
+    #     # print("world point is not in fov")
+    #     return None
+    
+    # print("adding cuboid: ", world_point, height, width, length, theta)
 
 
     cuboid_points2d = get_cuboid_from_ground_world(world_point, calib, height, width, length, theta)
@@ -213,6 +226,47 @@ def get_cuboid2d_from_annotation(annotation, calib, undistort=False):
 #     points2d = [tuple(p) for p in points2d]
 #     return points2d
 
+
+def check_visibility(point3d, calib:CameraParams):
+    """
+    Checks if a 3D point is visible in the camera frame.
+    """
+    point3d = np.array(point3d).reshape(-1, 3)
+    mesh = settings.MESH
+    camera_position = (-calib.R.T @ calib.T).flatten()
+    ray_to_point = point3d - camera_position
+    # ray_origins, ray_directions = get_ray_directions(point3d, calib)
+    ray_direction = ray_to_point / np.linalg.norm(ray_to_point)
+
+    # check behind camera
+    if np.dot(ray_to_point, calib.R[2]) < 0:
+        return False
+    
+    # Check if there’s an intersection between the ray and the mesh
+    if mesh is not None:
+        # Cast the ray
+        print('origins', camera_position + 0.01 * ray_direction)
+        print('directions', ray_direction)
+        locations, _, _ = mesh.ray.intersects_location(
+            ray_origins=np.array(camera_position + 0.01 * ray_direction),
+            ray_directions=np.array(ray_direction)
+        )
+
+        # Check if any intersection occurs before the point3d
+        if len(locations) > 0:
+            # Calculate the distance to the point and to the nearest intersection
+            distance_to_point = np.linalg.norm(ray_to_point)
+            distance_to_intersection = np.min(
+                [np.linalg.norm(location - camera_position) for location in locations]
+            )
+            
+            # If there's an intersection closer than the point, return True
+            if distance_to_intersection < distance_to_point:
+                return False
+            
+    # If no intersection occurs before the point, return True
+    return True
+
 def get_projected_points(points3d, 
                          calib:CameraParams, 
                          undistort=False):
@@ -221,41 +275,14 @@ def get_projected_points(points3d,
     """
     undistort = settings.UNDISTORTED_FRAMES
     points3d = np.array(points3d).reshape(-1, 3)
-    mesh = settings.MESH
-
-    # Get camera position and ray directions
-    camera_position = (-calib.R.T @ calib.T).flatten()
-    ray_directions = get_ray_directions(points3d, calib)
-    
-    # Check visibility
-    visible_mask = np.ones(len(points3d), dtype=bool)
-    
-    # Filter points behind camera
-    for i, point in enumerate(points3d):
-        ray_to_point = point - camera_position
-        if np.dot(ray_to_point, calib.R[2]) < 0:  # Check if point is behind camera
-            visible_mask[i] = False
-            continue
-            
-        # Check for mesh intersection
-        if mesh is not None:
-            ray_direction = ray_to_point / np.linalg.norm(ray_to_point)
-            ray_origin = camera_position + 0.01 * ray_direction  
-            intersections = mesh.ray.intersects_location(ray_origin[None], ray_direction[None])
-            if len(intersections[0]) > 0:
-                # Compare distance to intersection vs distance to target point
-                intersection_dist = np.linalg.norm(intersections[0][0] - ray_origin)
-                point_dist = np.linalg.norm(ray_to_point)
-                if intersection_dist < point_dist:
-                    visible_mask[i] = False
-
+    print(points3d)
     # Project visible points
     if undistort:
-        points2d = project_world_to_camera(points3d[visible_mask], calib.newCameraMatrix, calib.R, calib.T)
+        points2d = [project_world_to_camera(point3d, calib.newCameraMatrix, calib.R, calib.T) for point3d in points3d]
     else:
-        points2d = project_world_to_camera(points3d[visible_mask], calib.K, calib.R, calib.T)
-    if points2d == (None, None):
-        raise ValueError("Could not project points to image plane.")
+        points2d = [project_world_to_camera(point3d, calib.K, calib.R, calib.T) for point3d in points3d]
+    # if points2d == (None, None):
+    #     raise ValueError("Could not project points to image plane.")
     points2d = np.squeeze(points2d)
     points2d = [tuple(p) for p in points2d]
     return points2d

@@ -34,14 +34,22 @@ def save_2d_views_bulk(annotations):
     
     for annotation in tqdm(annotations, total = len(annotations), desc='Saving 2D Views...'):
         for i in range(settings.NB_CAMS):
-            try:
-                cuboid = geometry.get_cuboid2d_from_annotation(
+            cuboid = geometry.get_cuboid2d_from_annotation(
                     annotation, settings.CALIBS[settings.CAMS[i]], settings.UNDISTORTED_FRAMES)
-                p1, p2 = geometry.get_bounding_box(cuboid)
-            except ValueError:
-                cuboid = None
+            if cuboid is None:
                 p1 = [-1, -1]
                 p2 = [-1, -1]
+            else:
+                p1, p2 = geometry.get_bounding_box(cuboid)
+            # try:
+            #     cuboid = geometry.get_cuboid2d_from_annotation(
+            #         annotation, settings.CALIBS[settings.CAMS[i]], settings.UNDISTORTED_FRAMES)
+            #     p1, p2 = geometry.get_bounding_box(cuboid)
+            # except ValueError:
+            #     print(f"Error computing 2D view for annotation {annotation}.")
+            #     cuboid = None
+            #     p1 = [-1, -1]
+            #     p2 = [-1, -1]
 
             annotation2dview = Annotation2DView(
                 view=views[i],
