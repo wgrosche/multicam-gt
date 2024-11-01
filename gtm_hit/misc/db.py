@@ -56,12 +56,12 @@ def save_2d_views_bulk(annotations):
                 annotation2dview.set_cuboid_points_2d(cuboid)
                 
             annotation2dviews_to_create.append(annotation2dview)
-    
+    print(f"Saving 2D Views for {len(annotation2dviews_to_create)} annotations...")
     Annotation2DView.objects.bulk_create(
         annotation2dviews_to_create,
         update_conflicts=True,
         unique_fields=['view', 'annotation'],
-        update_fields=['x1', 'y1', 'x2', 'y2'] + Annotation2DView.CUBOID_POINT_FIELDS
+        update_fields=['x1', 'y1', 'x2', 'y2']
     )
 
 

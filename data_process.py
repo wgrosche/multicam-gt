@@ -16,10 +16,10 @@ class Args:
                  calibration_path="",
                  tracks_path="",
                  input_path="gtm_hit/static/gtm_hit/labels/json_output",
-                 worker_id="WILKE",
+                 worker_id="TESTING",
                  dataset_name="SCOUT", 
                  range_start=0,
-                 range_end=12000):
+                 range_end=100):
         
         self.frames_path=frames_path,
         self.calibration_path=calibration_path,
@@ -40,5 +40,7 @@ preprocess_scout_data(
     calibration_path=args.calibration_path,
     tracks_path=args.tracks_path,
     worker_id=args.worker_id,
-    dataset_name=args.dataset_name
+    dataset_name=args.dataset_name,
+    range_start=args.range_start,
+    range_end=args.range_end
 )

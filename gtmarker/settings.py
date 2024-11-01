@@ -257,7 +257,7 @@ SYMLINK_DEST_FRAMES = DSETPATH / "frames"
 # SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
 CALIBPATH = DSETPATH / "calibrations"
 # CALIB_SRC = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/calibrations/calibrations")
-
+NUM_FRAMES = 12000
 
 HEIGHT = 1.8
 RADIUS = 0.5 #person radius

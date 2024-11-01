@@ -4,7 +4,7 @@ from collections import namedtuple
 from enum import IntEnum
 from django.conf import settings
 from ipdb import set_trace
-import point_cloud_utils as pcu
+# import point_cloud_utils as pcu
 import trimesh
 from .scout_calib import CameraParams
 
@@ -239,18 +239,23 @@ def get_projected_points(points3d,
             
         # Check for mesh intersection
         if mesh is not None:
-            ray_origin = camera_position
             ray_direction = ray_to_point / np.linalg.norm(ray_to_point)
-            intersects = mesh.ray.intersects_any(ray_origin, ray_direction)
-            if intersects:
-                visible_mask[i] = False
+            ray_origin = camera_position + 0.01 * ray_direction  
+            intersections = mesh.ray.intersects_location(ray_origin[None], ray_direction[None])
+            if len(intersections[0]) > 0:
+                # Compare distance to intersection vs distance to target point
+                intersection_dist = np.linalg.norm(intersections[0][0] - ray_origin)
+                point_dist = np.linalg.norm(ray_to_point)
+                if intersection_dist < point_dist:
+                    visible_mask[i] = False
 
     # Project visible points
     if undistort:
         points2d = project_world_to_camera(points3d[visible_mask], calib.newCameraMatrix, calib.R, calib.T)
     else:
         points2d = project_world_to_camera(points3d[visible_mask], calib.K, calib.R, calib.T)
-
+    if points2d == (None, None):
+        raise ValueError("Could not project points to image plane.")
     points2d = np.squeeze(points2d)
     points2d = [tuple(p) for p in points2d]
     return points2d

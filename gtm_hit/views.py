@@ -30,7 +30,7 @@ from gtm_hit.misc.serializer import *
 from gtm_hit.misc.utils import convert_rect_to_dict, request_to_dict, process_action
 from pprint import pprint
 import uuid
-from gtm_hit.misc.invision.create_video import create_video as create_video_invision
+# from gtm_hit.misc.invision.create_video import create_video as create_video_invision
 
 
 def requestID(request):
@@ -146,7 +146,6 @@ def frame(request, dataset_name, workerID):
 
         frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/', dataset_name, '/frames')
         
-
         # Create a dictionary of frame strings for each camera
         frame_strs = {}
         for cam in settings.CAMS:
@@ -428,13 +427,14 @@ def changeframe(request):
             print("Frame Number: ", frame_number)
             if order == "next":
                 inc = int(increment)
-            elif order == "prev" and (int(frame_number) - int(increment)) >= 0:
+            elif order == "prev":
                 inc = -int(increment)
             else:
                 return HttpResponse(f"Requested frame: {frame_number} doesn't exist")
             
 
-            new_frame_number = int(frame_number) + inc
+            new_frame_number = min(max(int(frame_number) + inc, 0), settings.NUM_FRAMES - 1)
+
             print("new_frame_number: ", new_frame_number)
             # Get frame strings for each camera
             frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames')
@@ -673,6 +673,7 @@ def load_db(request):
                 a2l = serialize_annotation2dviews(
                     Annotation2DView.objects.filter(annotation__frame=frame, view=camview))
                 retjson.append(a2l)
+            print(a2l)
             #a2l = list(Annotation2DView.objects.filter(annotation__frame=frame, view=View.objects.get(view_id=0)).values())
             return HttpResponse(json.dumps(retjson), content_type="application/json")
 
@@ -813,6 +814,7 @@ def cp_prev_or_next_annotation(request):
                 HttpResponse("Error", status=500)
         except KeyError:
             return HttpResponse("Error",status=500)
+        
 def timeview(request):
     
     if is_ajax(request):
@@ -825,9 +827,9 @@ def timeview(request):
             dataset_name=request.POST['datasetName']
             # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
 
-            FRAMES_NO = 35
-            frame_id_start = 3150 #max(1, frame_id - FRAMES_NO)
-            frame_id_end =  4425 #frame_id + FRAMES_NO
+            FRAMES_NO = settings.NUM_FRAMES
+            frame_id_start = max(1, frame_id - FRAMES_NO)
+            frame_id_end =  frame_id + FRAMES_NO
             
             # Filter the Annotation2DView objects using the calculated frame range and the Person object
             annotation2dviews = Annotation2DView.objects.filter(
@@ -861,14 +863,16 @@ def reset_ac_flag(request):
             return HttpResponse("Error")
 
 def create_video(request):
-    if is_ajax(request):
-        try:
-            dataset_name = request.POST['datasetName']
-            worker_id = request.POST['workerID']
-            create_video_invision(f"{worker_id}.mp4",15,dataset_name,worker_id)
-            return HttpResponse(json.dumps({"message":"ok"}), content_type="application/json")
-        except KeyError:
-            return HttpResponse("Error")
+    print("This Functionality is removed for testing purposes")
+    return HttpResponse("This Functionality is removed for testing purposes")
+#     if is_ajax(request):
+#         try:
+#             dataset_name = request.POST['datasetName']
+#             worker_id = request.POST['workerID']
+#             create_video_invision(f"{worker_id}.mp4",15,dataset_name,worker_id)
+#             return HttpResponse(json.dumps({"message":"ok"}), content_type="application/json")
+#         except KeyError:
+#             return HttpResponse("Error")
         
 
 

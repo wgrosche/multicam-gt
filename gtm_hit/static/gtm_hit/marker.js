@@ -16,6 +16,7 @@ var loadcount = 0;
 var zoomOn = false;
 var toggle_cuboid = true;
 var toggle_unselected = true;
+var frame_str = '0';
 
 var undistort_frames_path ='';
 var zoomratio = [];
@@ -38,6 +39,7 @@ var boxesLoaded = true;
 window.onload = function () {
   toggle_ground = false;
   toggle_orientation = false;
+  
 
   var d = document.getElementById("changeF");
   if (d != null) {
@@ -52,6 +54,7 @@ window.onload = function () {
     load();
   }
   camName = cams.substring(2, cams.length - 2).split("', '");
+  
   frameStrs = frame_strs;
   for (var i = 0; i < nb_cams; i++) {
     boxes[i] = {};
@@ -1282,9 +1285,19 @@ function drawRect() {
   for (key in boxes) {
     for (var r = 0; r < rectsID.length; r++) {
       var field = boxes[key][identities[rectsID[r]]];
+      // console.log({
+      //     key: key,
+      //     rectId: rectsID[r],
+      //     identity: identities[rectsID[r]],
+      //     field: field
+      // });
+
+      
       if (field.y1 != -1 && field.y2 != -1 && field.x1 != -1) {
         var c = document.getElementById("canv" + (field.cameraID + 1));
+        console.log("Canvas element:", c);
         var ctx = c.getContext("2d");
+        console.log("Canvas context:", ctx);
         
         //show only selected 
         if (!(r == chosen_rect) && !toggle_unselected) continue;
@@ -1566,4 +1579,26 @@ async function load_frame(frame_string) {
   }
   clean();
   update();
+}
+
+function fetchFrameStrings() {
+  $.ajax({
+      method: "POST",
+      url: 'frame',
+      data: {
+          csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+          ID: frame_str,
+          workerID: workerID,
+          datasetName: dset_name
+      },
+      dataType: "json",
+      success: function (msg) {
+          frameStrs = msg['frame_strs'];
+          // Now load the images with the received frame strings
+          for (var i = 0; i < nb_cams; i++) {
+              if (useUndistorted=="True") undistort_frames_path="undistorted_"
+              imgArray[i].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
+          }
+      }
+  });
 }

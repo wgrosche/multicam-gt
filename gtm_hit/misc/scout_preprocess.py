@@ -198,12 +198,27 @@ def process_tracked_location(tdet,worker,frame_id,dataset):
     print("Saved annotation for person", person.person_id, "in frame", frame.frame_id)
 
 def preprocess_scout_data(frames_path: Path, calibration_path: Path, 
-                          tracks_path: Path, worker_id: str, dataset_name: str, range_start: int = 0, range_end: int = 12000):
+                          tracks_path: Path, worker_id: str, dataset_name: str, range_start: int = 0, range_end: int = 12000, testing:bool = True):
     
     # Load tracks data
     with open(tracks_path, 'rb') as f:
         tracks_data = pickle.load(f)
 
+    if testing:
+        print("Loading only 100 frames for testing...")
+        range_start = 0
+        range_end = 500
+        new_tracks = {}
+        i = 0
+        for k, v in tracks_data.items():
+            if np.all(v[range_start:range_end]) == 0:
+                continue
+            new_tracks[k] = v[range_start:range_end]
+            i += 1
+            # if new_tracks
+            if i >= 100:
+                break
+        tracks_data = new_tracks
     # Create worker and dataset
     worker, _ = Worker.objects.get_or_create(workerID=worker_id)
     dataset, _ = Dataset.objects.get_or_create(name=dataset_name)
@@ -240,6 +255,9 @@ def preprocess_scout_data(frames_path: Path, calibration_path: Path,
     all_annotations = []
     for person_id, positions in tqdm(tracks_data.items(), total=len(tracks_data), desc='Creating annotations'):
         positions = np.array(positions)[range_start:range_end, :]
+        if person_id not in people:
+            print(f"Person {person_id} not found in database")
+            continue
         person = people[person_id]
         
         all_annotations.extend([
@@ -273,6 +291,7 @@ def preprocess_scout_data(frames_path: Path, calibration_path: Path,
         frame__in=frames_dict.values()
     ).select_related('frame', 'person')
 
+
     save_2d_views_bulk(all_annotations)
     # for annotation in tqdm(all_annotations, total=len(all_annotations), desc='Saving 2D views'):
     #     try:
@@ -280,4 +299,4 @@ def preprocess_scout_data(frames_path: Path, calibration_path: Path,
     #     except Exception as e:
     #         print(f"Error saving 2D views for person {annotation.person.person_id} at frame {annotation.frame.frame_id}: {e}")
 
-        # cls()
+    #     cls()
