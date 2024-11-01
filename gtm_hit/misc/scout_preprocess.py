@@ -3,19 +3,17 @@ import uuid
 from gtm_hit.models import MultiViewFrame, Worker, Annotation, Person,Dataset
 from django.conf import settings
 from gtm_hit.misc.db import save_2d_views_bulk
-import os
-from ipdb import set_trace
-import os.path as osp
-
 from pathlib import Path
-from typing import Optional
 import pickle
 from tqdm import tqdm
 
-def preprocess_scout_data(frames_path: Path, calibration_path: Path, 
-                          tracks_path: Path, worker_id: str, dataset_name: str,
-                          range_start: int = 0, range_end: int = 12000, 
-                          testing:bool = True):
+def preprocess_scout_data(tracks_path: Path, 
+                          worker_id: str, 
+                          dataset_name: str,
+                          range_start: int = 0, 
+                          range_end: int = 12000, 
+                          testing:bool = True
+                          ):
     
     # Load tracks data
     with open(tracks_path, 'rb') as f:

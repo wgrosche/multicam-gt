@@ -1,5 +1,5 @@
 from django.db import models
-from django.core.validators import validate_comma_separated_integer_list
+# from django.core.validators import validate_comma_separated_integer_list
 from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
 
@@ -132,7 +132,6 @@ class Annotation2DView(models.Model):
 
     def __str__(self):
         return f"{'UN' if self.annotation.frame.undistorted else ''}DF{self.annotation.frame.frame_id} CAM{self.view.view_id+1} pID{self.annotation.person.person_id} rID{self.annotation.rectangle_id}"
-
 
 class SingleViewFrame(models.Model):
     frame_id = models.IntegerField(verbose_name="SingleView ID")

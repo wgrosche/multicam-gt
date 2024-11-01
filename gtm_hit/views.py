@@ -32,7 +32,6 @@ from pprint import pprint
 import uuid
 # from gtm_hit.misc.invision.create_video import create_video as create_video_invision
 
-
 def requestID(request):
     
     context = RequestContext(request).flatten()
@@ -127,9 +126,10 @@ def dispatch(request, dataset_name, workerID):
     
     return redirect(urlpath+'index')
 
-
 def frame(request, dataset_name, workerID):
     context = RequestContext(request).flatten()
+
+
     try:
         w = Worker.objects.get(pk=workerID)
         if w.state != 1:
@@ -146,6 +146,7 @@ def frame(request, dataset_name, workerID):
 
         frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/', dataset_name, '/frames')
         
+
         # Create a dictionary of frame strings for each camera
         frame_strs = {}
         for cam in settings.CAMS:
@@ -429,12 +430,14 @@ def changeframe(request):
                 inc = int(increment)
             elif order == "prev":
                 inc = -int(increment)
+            elif order == 'first':
+                inc = 0
             else:
                 return HttpResponse(f"Requested frame: {frame_number} doesn't exist")
             
-
             new_frame_number = min(max(int(frame_number) + inc, 0), settings.NUM_FRAMES - 1)
-
+            if order == 'first':
+                new_frame_number = 0
             print("new_frame_number: ", new_frame_number)
             # Get frame strings for each camera
             frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames')
@@ -480,6 +483,8 @@ def get_rect(closest):
         rdic['xMid'] = (a + c) // 2
         rects.append(rdic)
     return rects
+
+# i love you wilke
 
 
 def registerWorker(workerID):

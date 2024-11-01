@@ -12,17 +12,17 @@ from pathlib import Path
 #Note: undistortion and increment is determined by the settings file.
 class Args:
     def __init__(self,
-                 frames_path="",
-                 calibration_path="",
+                #  frames_path="",
+                #  calibration_path="",
                  tracks_path="",
-                 input_path="gtm_hit/static/gtm_hit/labels/json_output",
+                #  input_path="gtm_hit/static/gtm_hit/labels/json_output",
                  worker_id="MINTEST",
                  dataset_name="SCOUT", 
                  range_start=0,
                  range_end=100):
         
-        self.frames_path=frames_path,
-        self.calibration_path=calibration_path,
+        # self.frames_path=frames_path,
+        # self.calibration_path=calibration_path,
         self.tracks_path=tracks_path,
         # self.input_path = input_path
         self.worker_id = worker_id
@@ -31,13 +31,11 @@ class Args:
         self.range_end=range_end
 
 args = Args()
-args.frames_path=Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/")
-args.calibration_path=Path("/cvlabdata2/home/grosche/dev/calibration/calibrations")
+# args.frames_path=Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/")
+# args.calibration_path=Path("/cvlabdata2/home/grosche/dev/calibration/calibrations")
 args.tracks_path=Path("/cvlabdata2/home/grosche/dev/calibration/merged_tracks.pkl")
 
 preprocess_scout_data(
-    frames_path=args.frames_path,
-    calibration_path=args.calibration_path,
     tracks_path=args.tracks_path,
     worker_id=args.worker_id,
     dataset_name=args.dataset_name,

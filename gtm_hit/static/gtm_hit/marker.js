@@ -36,102 +36,224 @@ var boxesLoaded = true;
 
 // hashsets --> rect per camera ? rect -> id to coordinates?
 // store variables here? in db ? (reupload db?)
+// window.onload = function () {
+//   toggle_ground = false;
+//   toggle_orientation = false;
+//   // getFrameStrs();
+
+//   var d = document.getElementById("changeF");
+//   if (d != null) {
+//     d.className = d.className; // + " disabled";
+//     if (nblabeled >= to_label) {
+//       var button = document.getElementById("changeF");
+//       button.href = "/gtm_hit/"  + dset_name + "/"+ workerID + "/processFrame";
+//       button.text = "Finish";
+//     }
+//   }
+//   if (nblabeled > 0) {
+//     load();
+//   }
+//   camName = cams.substring(2, cams.length - 2).split("', '");
+  
+//   frameStrs = frame_strs;
+//   for (var i = 0; i < nb_cams; i++) {
+//     boxes[i] = {};
+
+//     // arrArray[i] = new Image();
+//     // arrArray[i].id = ("arrows" + i);
+//     // arrArray[i].src = '/static/gtm_hit/images/arrows' + i + '_3D.png';
+
+//     imgArray[i] = new Image();
+//     imgArray[i].id = (i + 1);
+//     imgArray[i].onload = function () {
+//       var c = document.getElementById("canv" + this.id);
+//       if (!c) {
+//         console.error("Canvas with ID canv" + this.id + " not found.");
+//         return;
+//     }
+//       var ctx = c.getContext('2d');
+
+//       ctx.drawImage(this, 0, 0);
+//       // if (toggle_orientation)
+//       //   drawArrows(ctx, this.id - 1);
+//       c.addEventListener('contextmenu', mainClick, false);
+
+//       c.addEventListener("mousedown", onMouseDown);
+//       c.addEventListener("mousemove", onMouseMove);
+//       c.addEventListener("mouseup", onMouseUp);
+//       c.addEventListener("click", drawDot);
+//       loadcount++;
+//       if (loadcount == nb_cams) {
+//         $("#loader").hide();
+//       }
+//       update();
+//     }
+
+//     loadcount = 0;
+//     $("#loader").show();
+
+//     if (useUndistorted=="True") undistort_frames_path="undistorted_"
+    
+    
+//     imgArray[i].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
+//     console.log('js: /static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]])
+
+//   }
+//   var topview = new Image();
+//   topview.id = "topviewimg";
+//   topview.onload = function () {
+//     var c = document.getElementById("topview" + this.id);
+//     var ctx = c.getContext('2d');
+//     ctx.drawImage(this, 0, 0);
+//     }
+//   topview.src = '/static/gtm_hit/dset/scout/NewarkPennTopView2.tif'
+
+//   $(document).bind('keydown', "backspace", backSpace);
+
+//   $(document).bind('keydown', "left", leftLarge);
+//   $(document).bind('keydown', "right", rightLarge);
+//   $(document).bind('keydown', "up", upLarge);
+//   $(document).bind('keydown', "down", downLarge);
+
+//   $(document).bind('keydown', "a", left);
+//   $(document).bind('keydown', "d", right);
+//   $(document).bind('keydown', "w", up);
+//   $(document).bind('keydown', "s", down);
+
+//   $(document).bind('keydown', "i", increaseHeight);
+//   $(document).bind('keydown', "k", decreaseHeight);
+//   $(document).bind('keydown', "o", increaseWidth);
+//   $(document).bind('keydown', "u", decreaseWidth);
+//   $(document).bind('keydown', "l", increaseLength);
+//   $(document).bind('keydown', "j", decreaseLength);
+
+
+//   $(document).bind('keydown', "e", rotateCW);
+//   $(document).bind('keydown', "q", rotateCCW);
+
+
+//   $(document).bind('keydown', "tab", tab);
+//   $(document).bind('keydown', "space", space);
+//   $(document).bind("keydown", "v", validate);
+//   $(document).bind("keydown", "z", zoomControl);
+//   $(document).bind("keydown", "g", toggleGround);
+//   $(document).bind("keydown", "c", toggleCuboid);
+//   $(document).bind("keydown", "h", toggleUnselected);
+
+//   $(document).bind("keydown", "n", keyPrevFrame);
+//   $(document).bind("keydown", "m", keyNextFrame);
+
+//   $(document).bind("keydown", "b", toggleOrientation);
+//   $(document).bind("keydown", "ctrl+s", save);
+
+
+//   $("#pID").bind("keydown", "return", changeID);
+//   $("#pID").val(-1);
+//   $("#pHeight").val(-1);
+//   $("#pWidth").val(-1);
+
+// };
+
 window.onload = function () {
   toggle_ground = false;
   toggle_orientation = false;
-  
 
-  var d = document.getElementById("changeF");
-  if (d != null) {
-    d.className = d.className; // + " disabled";
-    if (nblabeled >= to_label) {
-      var button = document.getElementById("changeF");
-      button.href = "/gtm_hit/"  + dset_name + "/"+ workerID + "/processFrame";
-      button.text = "Finish";
-    }
-  }
-  if (nblabeled > 0) {
-    load();
-  }
-  camName = cams.substring(2, cams.length - 2).split("', '");
-  
-  frameStrs = frame_strs;
-  for (var i = 0; i < nb_cams; i++) {
-    boxes[i] = {};
+  // Initial AJAX request to populate frameStrs before loading images
+  $.ajax({
+    method: "POST",
+    url: 'changeframe',
+    data: {
+      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+      order: 'first',
+      frameID: frame_str,
+      incr: 0,
+      workerID: workerID,
+      datasetName: dset_name
 
-    // arrArray[i] = new Image();
-    // arrArray[i].id = ("arrows" + i);
-    // arrArray[i].src = '/static/gtm_hit/images/arrows' + i + '_3D.png';
+    },
+    dataType: "json",
+    success: function (msg) {
+      frameStrs = msg['frame_strs'];
+      nblabeled = msg['nblabeled'];
 
-    imgArray[i] = new Image();
-    imgArray[i].id = (i + 1);
-    imgArray[i].onload = function () {
-      var c = document.getElementById("canv" + this.id);
-      if (!c) {
-        console.error("Canvas with ID canv" + this.id + " not found.");
-        return;
-    }
-      var ctx = c.getContext('2d');
-
-      ctx.drawImage(this, 0, 0);
-      // if (toggle_orientation)
-      //   drawArrows(ctx, this.id - 1);
-      c.addEventListener('contextmenu', mainClick, false);
-
-      c.addEventListener("mousedown", onMouseDown);
-      c.addEventListener("mousemove", onMouseMove);
-      c.addEventListener("mouseup", onMouseUp);
-      // c.addEventListener("click", drawDot);
-      loadcount++;
-      if (loadcount == nb_cams) {
-        $("#loader").hide();
+      if (nblabeled >= to_label) {
+        var button = document.getElementById("changeF");
+        button.href = "/gtm_hit/" + dset_name + "/" + workerID + "/processFrame";
+        button.text = "Finish";
       }
-      update();
+
+      if (nblabeled > 0) {
+        load();
+      }
+
+      // Proceed with image loading after frameStrs has been populated
+      camName = cams.substring(2, cams.length - 2).split("', '");
+      for (var i = 0; i < nb_cams; i++) {
+        boxes[i] = {};
+
+        imgArray[i] = new Image();
+        imgArray[i].id = (i + 1);
+        imgArray[i].onload = function () {
+          var c = document.getElementById("canv" + this.id);
+          if (!c) {
+            console.error("Canvas with ID canv" + this.id + " not found.");
+            return;
+          }
+          var ctx = c.getContext('2d');
+          ctx.drawImage(this, 0, 0);
+
+          c.addEventListener('contextmenu', mainClick, false);
+          c.addEventListener("mousedown", onMouseDown);
+          c.addEventListener("mousemove", onMouseMove);
+          c.addEventListener("mouseup", onMouseUp);
+          c.addEventListener("click", drawDot);
+
+          loadcount++;
+          if (loadcount == nb_cams) {
+            $("#loader").hide();
+          }
+          update();
+        };
+
+        loadcount = 0;
+        $("#loader").show();
+
+        if (useUndistorted == "True") undistort_frames_path = "undistorted_";
+
+        imgArray[i].src = '/static/gtm_hit/dset/' + dset_name + '/' + undistort_frames_path + 'frames/' + camName[i] + '/' + frameStrs[camName[i]];
+        console.log('js: /static/gtm_hit/dset/' + dset_name + '/' + undistort_frames_path + 'frames/' + camName[i] + '/' + frameStrs[camName[i]]);
+      }
+
+      // // Load the top view after initial setup
+      // var topview = new Image();
+      // topview.id = "topviewimg";
+      // topview.onload = function () {
+      //   var c = document.getElementById("topview" + this.id);
+      //   var ctx = c.getContext('2d');
+      //   ctx.drawImage(this, 0, 0);
+      // };
+      // topview.src = '/static/gtm_hit/dset/scout/NewarkPennTopView2.tif';
     }
+  });
 
-    loadcount = 0;
-    $("#loader").show();
-
-    if (useUndistorted=="True") undistort_frames_path="undistorted_"
-    
-    
-    imgArray[i].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
-    console.log('js: /static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]])
-
-  }
-  var topview = new Image();
-  topview.id = "topviewimg";
-  topview.onload = function () {
-    var c = document.getElementById("topview" + this.id);
-    var ctx = c.getContext('2d');
-    ctx.drawImage(this, 0, 0);
-    }
-  topview.src = '/static/gtm_hit/dset/scout/NewarkPennTopView2.tif'
-
+  // Additional key bindings
   $(document).bind('keydown', "backspace", backSpace);
-
   $(document).bind('keydown', "left", leftLarge);
   $(document).bind('keydown', "right", rightLarge);
   $(document).bind('keydown', "up", upLarge);
   $(document).bind('keydown', "down", downLarge);
-
   $(document).bind('keydown', "a", left);
   $(document).bind('keydown', "d", right);
   $(document).bind('keydown', "w", up);
   $(document).bind('keydown', "s", down);
-
   $(document).bind('keydown', "i", increaseHeight);
   $(document).bind('keydown', "k", decreaseHeight);
   $(document).bind('keydown', "o", increaseWidth);
   $(document).bind('keydown', "u", decreaseWidth);
   $(document).bind('keydown', "l", increaseLength);
   $(document).bind('keydown', "j", decreaseLength);
-
-
   $(document).bind('keydown', "e", rotateCW);
   $(document).bind('keydown', "q", rotateCCW);
-
-
   $(document).bind('keydown', "tab", tab);
   $(document).bind('keydown', "space", space);
   $(document).bind("keydown", "v", validate);
@@ -139,19 +261,15 @@ window.onload = function () {
   $(document).bind("keydown", "g", toggleGround);
   $(document).bind("keydown", "c", toggleCuboid);
   $(document).bind("keydown", "h", toggleUnselected);
-
   $(document).bind("keydown", "n", keyPrevFrame);
   $(document).bind("keydown", "m", keyNextFrame);
-
   $(document).bind("keydown", "b", toggleOrientation);
   $(document).bind("keydown", "ctrl+s", save);
-
 
   $("#pID").bind("keydown", "return", changeID);
   $("#pID").val(-1);
   $("#pHeight").val(-1);
   $("#pWidth").val(-1);
-
 };
 
 function onMouseDown(event) {
@@ -254,6 +372,33 @@ function onMouseMove(event) {
   };
   update();
 }
+
+function getFrameStrs() {
+  $.ajax({
+    method: "POST",
+    url: 'changeframe',
+    data: {
+        csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+        order: order,
+        frameID: frame_str,
+        incr: 0,
+        workerID: workerID,
+        datasetName: dset_name
+    },
+    dataType: "json",
+    success: function (msg) {
+        frame_str = msg['frame'];
+        nblabeled = msg['nblabeled'];
+        frame_strs = msg['frame_strs']
+        
+        
+        // if (useUndistorted=="True") undistort_frames_path="undistorted_"
+        // for (var i = 0; i < nb_cams; i++) {
+        //     imgArray[i].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
+        //     console.log(imgArray[i].src)
+        // }
+    }
+})}
 
 function onMouseUp() {
   if (!mouseDown || !selectedBox) return;
@@ -1202,20 +1347,20 @@ function update() {
 }
 
 
-// function drawDot(event) {
-//   const { offsetX, offsetY } = event;
-//   var x = offsetX * frame_size[0] / this.clientWidth;
-//   var y = offsetY * frame_size[1] / this.clientHeight;
-//   const dotRadius = 5;
-//   var c = event.currentTarget
-//   var ctx = c.getContext("2d");
-//   ctx.beginPath();
-//   ctx.arc(x, y, 2, 0, 2 * Math.PI);
-//   ctx.fillStyle = "black";
-//   ctx.fill();
-//   ctx.closePath();
+function drawDot(event) {
+  const { offsetX, offsetY } = event;
+  var x = offsetX * frame_size[0] / this.clientWidth;
+  var y = offsetY * frame_size[1] / this.clientHeight;
+  const dotRadius = 5;
+  var c = event.currentTarget
+  var ctx = c.getContext("2d");
+  ctx.beginPath();
+  ctx.arc(x, y, 2, 0, 2 * Math.PI);
+  ctx.fillStyle = "black";
+  ctx.fill();
+  ctx.closePath();
 
-// }
+}
 
 function drawLine(ctx, v1, v2) {
   ctx.beginPath();

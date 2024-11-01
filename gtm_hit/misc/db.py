@@ -8,10 +8,24 @@ from ipdb import set_trace
 from django.db.models import Count
 from tqdm import tqdm
 
-def find_closest_annotations_to(person,frame, bidirectional=True):
+def find_closest_annotations_to(person:Person, 
+                                frame:MultiViewFrame, 
+                                bidirectional:bool=True):
     try:
-        next_annotation = Annotation.objects.filter(person=person, frame__worker_id=frame.worker_id,frame__frame_id__gt=frame.frame_id,frame__undistorted=settings.UNDISTORTED_FRAMES).order_by('frame__frame_id').first()
-        last_annotation = Annotation.objects.filter(person=person, frame__worker_id=frame.worker_id,frame__frame_id__lte=frame.frame_id,frame__undistorted=settings.UNDISTORTED_FRAMES).order_by('frame__frame_id').last()
+        next_annotation = Annotation.objects.filter(
+            person=person, 
+            frame__worker_id=frame.worker_id,
+            frame__frame_id__gt=frame.frame_id,
+            frame__undistorted=settings.UNDISTORTED_FRAMES
+            ).order_by('frame__frame_id').first()
+        
+        last_annotation = Annotation.objects.filter(
+            person=person, 
+            frame__worker_id=frame.worker_id,
+            frame__frame_id__lte=frame.frame_id,
+            frame__undistorted=settings.UNDISTORTED_FRAMES
+            ).order_by('frame__frame_id').last()
+        
         if bidirectional:
             if last_annotation is None or next_annotation is None:
                 raise ObjectDoesNotExist
@@ -35,7 +49,10 @@ def save_2d_views_bulk(annotations):
     for annotation in tqdm(annotations, total = len(annotations), desc='Saving 2D Views...'):
         for i in range(settings.NB_CAMS):
             cuboid = geometry.get_cuboid2d_from_annotation(
-                    annotation, settings.CALIBS[settings.CAMS[i]], settings.UNDISTORTED_FRAMES)
+                    annotation, 
+                    settings.CALIBS[settings.CAMS[i]], 
+                    settings.UNDISTORTED_FRAMES
+                    )
             if cuboid is None:
                 p1 = [-1, -1]
                 p2 = [-1, -1]
@@ -62,7 +79,7 @@ def save_2d_views_bulk(annotations):
             
             if cuboid is not None:
                 annotation2dview.set_cuboid_points_2d(cuboid)
-                
+            
             annotation2dviews_to_create.append(annotation2dview)
     print(f"Saving 2D Views for {len(annotation2dviews_to_create)} annotations...")
     Annotation2DView.objects.bulk_create(
@@ -208,10 +225,10 @@ def change_annotation_id_propagate(old_id, new_id, frame, options):
             print(e)
             return False
 
-def get_annotation2dviews_for_frame_and_person(frame, person):
+def get_annotation2dviews_for_frame_and_person(frame:MultiViewFrame, person:Person):
     # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
-    frame_id_start = 3150 #max(1, frame.frame_id - 100)
-    frame_id_end = 4500 #frame.frame_id + 100
+    frame_id_start = max(1, frame.frame_id - 100)
+    frame_id_end = frame.frame_id + 100
 
     # Filter the Annotation2DView objects using the calculated frame range and the Person object
     annotation2dviews = Annotation2DView.objects.filter(
@@ -270,8 +287,13 @@ def copy_annotation_to_frame(annotation, current_frame):
     return True
 
 
-def remove_people_with_few_annotations(worker_id,dataset_name,less_than=3,only_uncomplete=True):
+def remove_people_with_few_annotations(worker_id:str, 
+                                       dataset_name:str, 
+                                       less_than:int=3, 
+                                       only_uncomplete:bool=True):
+    
     person_annotation_counts = Person.objects.annotate(annotation_count=Count('annotation'))
+
     persons_with_few_annotations = person_annotation_counts.filter(annotation_count__lte=less_than, worker_id=worker_id,dataset__name=dataset_name)
 
     if only_uncomplete:

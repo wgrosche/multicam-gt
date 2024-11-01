@@ -133,17 +133,30 @@ def project_world_to_camera(world_point, K1, R1, T1):
     """
     Project 3D point world coordinate to image plane (pixel coordinate)
     """
-    print(world_point)
     point1 = ((R1 @ world_point.reshape(3, 1)) + T1).reshape(3, 1)
-    print(K1)
-    print(point1)
-    # if (np.min(point1[2]) < 0):
-    #     # print("Projection of world point located behind the camera plane")
-    #     return None, None
     point1 = K1 @ point1
     point1 = point1 / point1[2]
 
     return point1[:2]
+
+def get_projected_points(points3d, 
+                         calib:CameraParams, 
+                         undistort=False):
+    """
+    Projects points into the image plane and filters non-visible points.
+    """
+    undistort = settings.UNDISTORTED_FRAMES
+    points3d = np.array(points3d).reshape(-1, 3)
+    # Project visible points
+    if undistort:
+        points2d = [project_world_to_camera(point3d, calib.newCameraMatrix, calib.R, calib.T) for point3d in points3d]
+    else:
+        points2d = [project_world_to_camera(point3d, calib.K, calib.R, calib.T) for point3d in points3d]
+    # if points2d == (None, None):
+    #     raise ValueError("Could not project points to image plane.")
+    points2d = np.squeeze(points2d)
+    points2d = [tuple(p) for p in points2d]
+    return points2d
 
 
 def get_cuboid_from_ground_world(world_point:np.ndarray, 
@@ -186,16 +199,14 @@ def get_cuboid2d_from_annotation(annotation, calib, undistort=False):
     world_point = annotation.world_point
     # print("Processing cuboid: ", world_point, height, width, length, theta)
     # check that world point is visible
-    # if world_point is None:
-    #     # print("world point is None")
-    #     return None
+    if world_point is None:
+        return None
     
-    # # check that world point is in fov
-    # if not check_visibility(world_point, calib):
-    #     # print("world point is not in fov")
-    #     return None
+    # check that world point is in fov
+    if not check_visibility(world_point, calib):
+        return None
     
-    # print("adding cuboid: ", world_point, height, width, length, theta)
+    print("adding cuboid at: ", world_point)
 
 
     cuboid_points2d = get_cuboid_from_ground_world(world_point, calib, height, width, length, theta)
@@ -244,9 +255,6 @@ def check_visibility(point3d, calib:CameraParams):
     
     # Check if there’s an intersection between the ray and the mesh
     if mesh is not None:
-        # Cast the ray
-        print('origins', camera_position + 0.01 * ray_direction)
-        print('directions', ray_direction)
         locations, _, _ = mesh.ray.intersects_location(
             ray_origins=np.array(camera_position + 0.01 * ray_direction),
             ray_directions=np.array(ray_direction)
@@ -267,25 +275,7 @@ def check_visibility(point3d, calib:CameraParams):
     # If no intersection occurs before the point, return True
     return True
 
-def get_projected_points(points3d, 
-                         calib:CameraParams, 
-                         undistort=False):
-    """
-    Projects points into the image plane and filters non-visible points.
-    """
-    undistort = settings.UNDISTORTED_FRAMES
-    points3d = np.array(points3d).reshape(-1, 3)
-    print(points3d)
-    # Project visible points
-    if undistort:
-        points2d = [project_world_to_camera(point3d, calib.newCameraMatrix, calib.R, calib.T) for point3d in points3d]
-    else:
-        points2d = [project_world_to_camera(point3d, calib.K, calib.R, calib.T) for point3d in points3d]
-    # if points2d == (None, None):
-    #     raise ValueError("Could not project points to image plane.")
-    points2d = np.squeeze(points2d)
-    points2d = [tuple(p) for p in points2d]
-    return points2d
+
 
 
 def get_bounding_box(points):
