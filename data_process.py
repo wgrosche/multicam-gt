@@ -17,7 +17,7 @@ class Args:
                 #  calibration_path="",
                  tracks_path="",
                 #  input_path="gtm_hit/static/gtm_hit/labels/json_output",
-                 worker_id="MINTEST",
+                 worker_id="OUTOFIDEAS",
                  dataset_name=settings.DSETNAME, 
                  range_start=0,
                  range_end=100):

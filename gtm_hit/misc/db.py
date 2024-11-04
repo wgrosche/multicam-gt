@@ -238,6 +238,8 @@ def get_annotation2dviews_for_frame_and_person(frame:MultiViewFrame, person:Pers
         annotation__person=person,
         annotation__frame__undistorted = settings.UNDISTORTED_FRAMES
     )
+
+
     #set_trace()
     camtrackviews = {}
     for annotation2dview in annotation2dviews:
@@ -253,6 +255,7 @@ def get_annotation2dviews_for_frame_and_person(frame:MultiViewFrame, person:Pers
     for view_id in camtrackviews:
         camtrackviews[view_id].sort()
     return camtrackviews
+
 
 def copy_annotation_to_frame(annotation, current_frame):
     new_annotation = Annotation.objects.create(

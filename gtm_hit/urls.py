@@ -7,7 +7,7 @@ urlpatterns = [
     url(r'^&MID=(?P<workerID>[A-Z0-9]+)$', views.index, name="index"),
     url(r'^$', views.requestID, name="requestID"),
     path('<str:dataset_name>/<str:workerID>/processInit/', views.processInit, name='processInit'),
-    # path('frames/<str:camera_name>/<str:frame_number>', views.serve_frame, name='serve_frame'),
+    url(r'^.*serve_frame$', views.serve_frame, name='serve_frame'),
     path('<str:dataset_name>/<str:workerID>/processIndex/', views.processIndex, name="processIndex"),
     #url(r'^(?P<workerID>[A-Z0-9]+)/processIndex$', views.processIndex, name="processIndex"),
     path('<str:dataset_name>/<str:workerID>/processTuto/', views.processTuto, name="processTuto"),

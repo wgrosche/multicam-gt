@@ -775,6 +775,7 @@ def tracklet(request):
         except KeyError:
             return HttpResponse("Error")
 
+
 def interpolate(request):
     if is_ajax(request):
         try:
@@ -826,6 +827,7 @@ def cp_prev_or_next_annotation(request):
 def timeview(request):
     
     if is_ajax(request):
+        print('retrieving timeview')
         try:
             #
             worker_id = request.POST['workerID']
@@ -833,11 +835,12 @@ def timeview(request):
             frame_id = int(float(request.POST['frameID']))
             view_id = int(float(request.POST['viewID']))
             dataset_name=request.POST['datasetName']
+            print('looking for frame: ', frame_id)
             # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
 
-            FRAMES_NO = settings.NUM_FRAMES
-            frame_id_start = max(1, frame_id - FRAMES_NO)
-            frame_id_end =  frame_id + FRAMES_NO
+            # FRAMES_NO = 
+            frame_id_start = max(1, frame_id - 10)
+            frame_id_end =  min(frame_id + 10, settings.NUM_FRAMES)
             
             # Filter the Annotation2DView objects using the calculated frame range and the Person object
             annotation2dviews = Annotation2DView.objects.filter(
@@ -851,6 +854,7 @@ def timeview(request):
             ).order_by('annotation__frame__frame_id')
             timeviews =  serialize_annotation2dviews(annotation2dviews)
             # 
+            # print("timeviews: ", timeviews)
             return HttpResponse(json.dumps(timeviews), content_type="application/json")
         except KeyError:
             return HttpResponse("Error")
@@ -881,14 +885,38 @@ def create_video(request):
 #             return HttpResponse(json.dumps({"message":"ok"}), content_type="application/json")
 #         except KeyError:
 #             return HttpResponse("Error")
+
+
+
+def serve_frame(request):
+    if is_ajax(request):
+        # try:
+        frame_number = int(float(request.POST['frame_number']))
+        camera_name = int(request.POST['camera_name'])
+        # print(camera_name)
+        camera_name = settings.CAMS[camera_name]
+        print("camera name", camera_name)
+        print("frame number: ", frame_number)
+        frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames', camera_name)
         
+        # os.path.join(settings.DSETPATH,'frames', camera_name)
+        pattern = f"{frames_path}/*_{frame_number}.jpg"
+        print(pattern)
+        matching_files = glob.glob(pattern)
+        print(matching_files)
+        if matching_files:
+            response = {
+            'frame_string': '/'+ os.path.join(*matching_files[0].split('/')[-7:])
+            }
+            print("Timeview: ", response)
 
-
-def serve_frame(request, camera_name, frame_number):
-    frames_path = os.path.join(settings.STATIC_ROOT, 'gtm_hit/dset/scout/frames', camera_name)
-    pattern = f"{frames_path}/*_{frame_number}.jpg"
-    matching_files = glob.glob(pattern)
-    
-    if matching_files:
-        return FileResponse(open(matching_files[0], 'rb'))
-    raise Http404(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
+            return HttpResponse(json.dumps(response))
+        
+        else:
+            print(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
+            return HttpResponse(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
+        # except:
+        #     print(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
+        #     raise Http404(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
+    print("Error")
+    return HttpResponse("Error")

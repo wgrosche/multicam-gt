@@ -168,7 +168,7 @@ USE_TZ = True
 
 print(BASE_DIR) 
 STATIC_URL = 'static/'
-# STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = os.path.join('gtm_hit/static')
 
 #STATICFILES_DIRS = (os.path.join(BASE_DIR, 'gtm_hit'),)
 

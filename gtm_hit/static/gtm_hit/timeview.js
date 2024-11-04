@@ -7,6 +7,7 @@ async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames
     //cropsContainer.style.display = "flex";
     const currentFrame = parseInt(frame);
     document.getElementById("crops-container").innerHTML = '<button id="close-button" style="position: absolute; top: 0; left: 0;" onclick="hideCrops()">X</button>';
+    console.log("This is where we are.")
     $.ajax({
         method: "POST",
         url: "timeview",
@@ -21,13 +22,21 @@ async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames
         dataType: "json",
         success: function (msg) {
         async function displaycrop(msg) {
+          // for (let i = 0; i < msg.length; i++) {
           for (let i = 0; i < msg.length; i++) {
             var box = msg[i];
             const cropFrame =box.frameID;
             if (cropFrame < 0) {
               continue;
             }
-            const cropImg = await loadImage(getFrameUrl(cropFrame, "cam"+(camid+1)));
+            // const frameUrl = getFrameUrl(cropFrame, camid);
+            // console.log("Frame url:" + frameUrl);
+            // const cropImg = await loadImage(frameUrl);
+            const frameUrl = await getFrameUrl(cropFrame, camid);
+            console.log("Frame url:" + frameUrl);
+            const cropImg = await loadImage(frameUrl);
+
+            
             if (cropImg !== null) {
               const canvas = createCroppedCanvas(cropImg, box, cropFrame, currentFrame);
               canvas.className = "crop-image";
@@ -97,13 +106,48 @@ async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames
     return canvas;
   }
   
-function getFrameUrl(frame, cameraID) {
-    const frameStr = String(frame).padStart(8, "0");
-    const camName = String(cameraID);
-    // const url = `/static/gtm_hit/dset/${dset_name}/${undistort_frames_path}frames/${camName}/${frameStr}.jpg`;
-    const url = `/static/gtm_hit/dset/${dset_name}/${undistort_frames_path}frames/${camName}/${frameStr}.jpg`;
+// function getFrameUrl(frame, cameraID) {
+//     const frameStr = String(frame).padStart(8, "0");
+//     const camName = String(cameraID);
+//     // const url = `/static/gtm_hit/dset/${dset_name}/${undistort_frames_path}frames/${camName}/${frameStr}.jpg`;
+//     const url = `/static/gtm_hit/dset/${dset_name}/${undistort_frames_path}frames/${camName}/${frameStr}.jpg`;
 
-    return url;
-  }
+//     return url;
+//   }
   
+// function getFrameUrl(frame_str, cameraID) {
+//   $.ajax({
+//     method: "POST",
+//     url: 'serve_frame',
+//     data: {
+//         csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+//         camera_name: cameraID,
+//         frame_number: frame_str,
+//     },
+//     dataType: "json",
+//     success: function (msg) {
+//         const frame_str = msg['frame_string'];
+//         return frame_str;
+    
+//     }})}
+    function getFrameUrl(frame_str, cameraID) {
+      return new Promise((resolve, reject) => {
+          $.ajax({
+              method: "POST",
+              url: 'serve_frame',
+              data: {
+                  csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+                  camera_name: cameraID,
+                  frame_number: frame_str,
+              },
+              dataType: "json",
+              success: function (msg) {
+                  resolve(msg['frame_string']);
+              },
+              error: function(xhr, status, error) {
+                  reject(error);
+              }
+          });
+      });
+  }
   

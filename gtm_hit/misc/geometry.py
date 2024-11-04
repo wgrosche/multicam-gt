@@ -203,10 +203,10 @@ def get_cuboid2d_from_annotation(annotation, calib, undistort=False):
         return None
     
     # check that world point is in fov
-    if not is_visible(world_point, calib):
+    if not is_visible(world_point, calib, check_mesh=False):
         return None
     
-    print("adding cuboid at: ", world_point)
+    # print("adding cuboid at: ", world_point)
 
 
     cuboid_points2d = get_cuboid_from_ground_world(world_point, calib, height, width, length, theta)
