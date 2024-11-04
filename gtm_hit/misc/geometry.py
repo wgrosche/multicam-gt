@@ -123,7 +123,7 @@ def move_with_mesh_intersection(ground_pix): #reproject to mesh
     mesh = settings.MESH
     
     # Use the nearest point function of trimesh
-    closest_point, distance, _ = mesh.nearest.on_surface([ground_pix])
+    closest_point, distance, _ = mesh.nearest.on_surface(ground_pix.reshape(-1, 3))
     
     # Return the closest point and distance
     return closest_point[0]#, distance[0]
@@ -203,7 +203,7 @@ def get_cuboid2d_from_annotation(annotation, calib, undistort=False):
         return None
     
     # check that world point is in fov
-    if not check_visibility(world_point, calib):
+    if not is_visible(world_point, calib):
         return None
     
     print("adding cuboid at: ", world_point)
@@ -238,7 +238,7 @@ def get_cuboid2d_from_annotation(annotation, calib, undistort=False):
 #     return points2d
 
 
-def check_visibility(point3d, calib:CameraParams):
+def is_visible(point3d, calib:CameraParams, check_mesh:bool = True) -> bool:
     """
     Checks if a 3D point is visible in the camera frame.
     """
@@ -254,9 +254,9 @@ def check_visibility(point3d, calib:CameraParams):
         return False
     
     # Check if there’s an intersection between the ray and the mesh
-    if mesh is not None:
+    if mesh is not None and check_mesh:
         locations, _, _ = mesh.ray.intersects_location(
-            ray_origins=np.array(camera_position + 0.01 * ray_direction),
+            ray_origins=np.array(camera_position + 0.1 * ray_direction),
             ray_directions=np.array(ray_direction)
         )
 

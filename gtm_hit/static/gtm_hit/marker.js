@@ -21,12 +21,12 @@ var frame_str = '0';
 var undistort_frames_path ='';
 var zoomratio = [];
 var rotation = [50, 230, 150, 75, 265, 340, 80];
-var bounds = [[0, 396, 1193, 180, 1883, 228, 1750, 1080], [0, 344, 1467, 77, 1920, 82, -1, -1],
-[97, 1080, 73, 273, 864, 202, 1920, 362], [0, 444, 1920, 261, -1, -1, -1, -1],
-[0, 435, 1920, 403, -1, -1, -1, -1], [0, 243, 29, 203, 656, 191, 1920, 442],
-[0, 244, 1920, 162, -1, -1, -1, -1]];
-var toggle_ground;
-var toggle_orientation;
+// var bounds = [[0, 396, 1193, 180, 1883, 228, 1750, 1080], [0, 344, 1467, 77, 1920, 82, -1, -1],
+// [97, 1080, 73, 273, 864, 202, 1920, 362], [0, 444, 1920, 261, -1, -1, -1, -1],
+// [0, 435, 1920, 403, -1, -1, -1, -1], [0, 243, 29, 203, 656, 191, 1920, 442],
+// [0, 244, 1920, 162, -1, -1, -1, -1]];
+// var toggle_ground;
+// var toggle_orientation;
 var to_label = 5000;
 
 let mouseDown = false;
@@ -155,8 +155,8 @@ var boxesLoaded = true;
 // };
 
 window.onload = function () {
-  toggle_ground = false;
-  toggle_orientation = false;
+  // toggle_ground = true;
+  // toggle_orientation = false;
 
   // Initial AJAX request to populate frameStrs before loading images
   $.ajax({
@@ -1328,8 +1328,8 @@ function update() {
   $("#pID").val(identities[rectsID[chosen_rect]]);
 
   drawRect();
-  if (toggle_ground)
-    drawGround();
+  // if (toggle_ground)
+  //   drawGround();
 
   var d = document.getElementById("changeF");
   if (d != null) {
@@ -1520,25 +1520,25 @@ function drawRect() {
 
 }
 
-function drawGround() {
-  for (var i = 0; i < nb_cams; i++) {
-    var c = document.getElementById("canv" + (i + 1));
-    var ctx = c.getContext("2d");
-    ctx.strokeStyle = "chartreuse";
-    ctx.lineWidth = "2";
-    ctx.beginPath();
+// function drawGround() {
+//   for (var i = 0; i < nb_cams; i++) {
+//     var c = document.getElementById("canv" + (i + 1));
+//     var ctx = c.getContext("2d");
+//     ctx.strokeStyle = "chartreuse";
+//     ctx.lineWidth = "2";
+//     ctx.beginPath();
 
-    ctx.moveTo(bounds[i][0], bounds[i][1]);
-    for (var j = 2; j < bounds[i].length; j = j + 2) {
-      if (bounds[i][j] >= 0) {
-        ctx.lineTo(bounds[i][j], bounds[i][j + 1]);
-      }
-    }
-    ctx.stroke();
-    ctx.closePath();
+//     ctx.moveTo(bounds[i][0], bounds[i][1]);
+//     for (var j = 2; j < bounds[i].length; j = j + 2) {
+//       if (bounds[i][j] >= 0) {
+//         ctx.lineTo(bounds[i][j], bounds[i][j + 1]);
+//       }
+//     }
+//     ctx.stroke();
+//     ctx.closePath();
 
-  }
-}
+//   }
+// }
 
 // function drawArrows(ctx, idx) {
 //   ctx.drawImage(arrArray[idx], 0, 0);
@@ -1666,84 +1666,84 @@ function checkRects() {
 }
 
 
-function load_file(f) {
-  var re = f.match(/_(.*)\./);
-  if (re == null)
-    var frame_string = f.split(".")[0];
-  else
-    var frame_string = f.match(/_(.*)\./).pop();
-  $.ajax({
-    method: "POST",
-    url: "loadfile",
-    data: {
-      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
-      ID: f
-    },
-    dataType: 'json',
-    success: function (msg) {
-      clean();
-      load_frame(frame_string);
-      var maxID = 0;
-      for (var i = 0; i < msg.length; i++) {
-        var rid = msg[i][0].rectangleID;
-        var indof = rectsID.indexOf(rid);
-        if (indof == -1) {
-          rectsID.push(rid);
-          saveRectLoad(msg[i]);
-          chosen_rect = rectsID.length - 1;
-          identities[rid] = msg[i][7];
-          var pid = msg[i][7];
-          if (pid > maxID)
-            maxID = pid;
+// function load_file(f) {
+//   var re = f.match(/_(.*)\./);
+//   if (re == null)
+//     var frame_string = f.split(".")[0];
+//   else
+//     var frame_string = f.match(/_(.*)\./).pop();
+//   $.ajax({
+//     method: "POST",
+//     url: "loadfile",
+//     data: {
+//       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+//       ID: f
+//     },
+//     dataType: 'json',
+//     success: function (msg) {
+//       clean();
+//       load_frame(frame_string);
+//       var maxID = 0;
+//       for (var i = 0; i < msg.length; i++) {
+//         var rid = msg[i][0].rectangleID;
+//         var indof = rectsID.indexOf(rid);
+//         if (indof == -1) {
+//           rectsID.push(rid);
+//           saveRectLoad(msg[i]);
+//           chosen_rect = rectsID.length - 1;
+//           identities[rid] = msg[i][7];
+//           var pid = msg[i][7];
+//           if (pid > maxID)
+//             maxID = pid;
 
-          validation[pid] = msg[i][8];
-        }
-        personID = maxID + 1;
-        update();
-      }
-    }
-  });
+//           validation[pid] = msg[i][8];
+//         }
+//         personID = maxID + 1;
+//         update();
+//       }
+//     }
+//   });
 
-}
+// }
 
-async function load_frame(frame_string) {
-  loadcount = 0;
-  $("#loader").show();
-  frame_str = frame_string.replace(/^0*/, "");
-  $("#frameID").html("Frame ID: " + frame_str + "&nbsp;&nbsp;");
+// async function load_frame(frame_string) {
+//   loadcount = 0;
+//   $("#loader").show();
+//   frame_str = frame_string.replace(/^0*/, "");
+//   $("#frameID").html("Frame ID: " + frame_str + "&nbsp;&nbsp;");
   
-  if (useUndistorted=="True") undistort_frames_path="undistorted_"
-  var frameStrs = JSON.parse('{{ frame_strs|safe }}');
+//   if (useUndistorted=="True") undistort_frames_path="undistorted_"
+//   var frameStrs = JSON.parse('{{ frame_strs|safe }}');
   
-  for (var i = 0; i < nb_cams; i++) {
-      var imgSrc = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
-      const loadedImg = await loadImage(imgSrc);
-      if (loadedImg !== null) {
-          imgArray[i].src = imgSrc;
-      }
-  }
-  clean();
-  update();
-}
+//   for (var i = 0; i < nb_cams; i++) {
+//       var imgSrc = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
+//       const loadedImg = await loadImage(imgSrc);
+//       if (loadedImg !== null) {
+//           imgArray[i].src = imgSrc;
+//       }
+//   }
+//   clean();
+//   update();
+// }
 
-function fetchFrameStrings() {
-  $.ajax({
-      method: "POST",
-      url: 'frame',
-      data: {
-          csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
-          ID: frame_str,
-          workerID: workerID,
-          datasetName: dset_name
-      },
-      dataType: "json",
-      success: function (msg) {
-          frameStrs = msg['frame_strs'];
-          // Now load the images with the received frame strings
-          for (var i = 0; i < nb_cams; i++) {
-              if (useUndistorted=="True") undistort_frames_path="undistorted_"
-              imgArray[i].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
-          }
-      }
-  });
-}
+// function fetchFrameStrings(frame_str) {
+//   $.ajax({
+//       method: "POST",
+//       url: 'frame',
+//       data: {
+//           csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+//           ID: frame_str,
+//           workerID: workerID,
+//           datasetName: dset_name
+//       },
+//       dataType: "json",
+//       success: function (msg) {
+//           frameStrs = msg['frame_strs'];
+//           // Now load the images with the received frame strings
+//           for (var i = 0; i < nb_cams; i++) {
+//               if (useUndistorted=="True") undistort_frames_path="undistorted_"
+//               imgArray[i].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
+//           }
+//       }
+//   });
+// }

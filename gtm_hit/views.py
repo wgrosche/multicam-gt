@@ -255,11 +255,14 @@ def get_cuboids_2d(world_point, obj,new=False):
 
     for cam_id in range(settings.NB_CAMS):
         # 
-        try:
+        # try:
+            # check if world point is in the camera FOV
+        if geometry.is_visible(world_point, settings.CALIBS[settings.CAMS[cam_id]], check_mesh=False):
             cuboid = geometry.get_cuboid_from_ground_world(
-                world_point, settings.CALIBS[settings.CAMS[cam_id]], *object_size, obj.get("rotation_theta", 0))
+            world_point, settings.CALIBS[settings.CAMS[cam_id]], *object_size, obj.get("rotation_theta", 0))
             p1, p2 = geometry.get_bounding_box(cuboid)
-        except ValueError:
+        # except ValueError:
+        else:
             cuboid = []
             p1 = [-1, -1]
             p2 = [-1, -1]
@@ -306,45 +309,45 @@ def click(request):
         return HttpResponse("OK")
 
 
-def move(request):
-    if is_ajax(request):
-        try:
-            obj = request_to_dict(request)
+# def move(request):
+#     if is_ajax(request):
+#         try:
+#             obj = request_to_dict(request)
 
-            Xw = obj["Xw"]
-            Yw = obj["Yw"]
-            Zw = obj["Zw"]
+#             Xw = obj["Xw"]
+#             Yw = obj["Yw"]
+#             Zw = obj["Zw"]
 
-            world_point = np.array([[Xw], [Yw], [Zw]])
-            if request.POST['data[dir]'] == "down":
-                world_point = world_point + \
-                    np.array([[0], [-settings.STEPL], [0]])
+#             world_point = np.array([[Xw], [Yw], [Zw]])
+#             if request.POST['data[dir]'] == "down":
+#                 world_point = world_point + \
+#                     np.array([[0], [-settings.STEPL], [0]])
 
-            elif request.POST['data[dir]'] == "up":
-                world_point = world_point + \
-                    np.array([[0], [settings.STEPL], [0]])
+#             elif request.POST['data[dir]'] == "up":
+#                 world_point = world_point + \
+#                     np.array([[0], [settings.STEPL], [0]])
 
-            elif request.POST['data[dir]'] == "right":
-                world_point = world_point + \
-                    np.array([[settings.STEPL], [0], [0]])
+#             elif request.POST['data[dir]'] == "right":
+#                 world_point = world_point + \
+#                     np.array([[settings.STEPL], [0], [0]])
 
-            elif request.POST['data[dir]'] == "left":
-                world_point = world_point + \
-                    np.array([[-settings.STEPL], [0], [0]])
+#             elif request.POST['data[dir]'] == "left":
+#                 world_point = world_point + \
+#                     np.array([[-settings.STEPL], [0], [0]])
 
-            else:
-                return HttpResponse("Error")
+#             else:
+#                 return HttpResponse("Error")
 
-            # 
-            next_rect = get_cuboids_2d(world_point, obj)
+#             # 
+#             next_rect = get_cuboids_2d(world_point, obj)
 
-            next_rect_json = json.dumps(next_rect)
-            # 
-            return HttpResponse(next_rect_json, content_type="application/json")
+#             next_rect_json = json.dumps(next_rect)
+#             # 
+#             return HttpResponse(next_rect_json, content_type="application/json")
 
-        except KeyError:
-            return HttpResponse("Error")
-    return HttpResponse("Error")
+#         except KeyError:
+#             return HttpResponse("Error")
+#     return HttpResponse("Error")
 
 
 def action(request):
@@ -357,7 +360,7 @@ def action(request):
             Yw = obj["Yw"]
             Zw = obj["Zw"]
 
-            world_point = np.array([[Xw], [Yw], [Zw]])
+            world_point = np.array([[Xw], [Yw], [Zw]]).reshape(-1, 3)
             world_point = geometry.move_with_mesh_intersection(world_point)
             next_rect = get_cuboids_2d(world_point, obj)
 

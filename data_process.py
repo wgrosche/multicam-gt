@@ -2,6 +2,7 @@
 
 from gtm_hit.misc.scout_preprocess import preprocess_scout_data
 from pathlib import Path
+from django.conf import settings
 # import argparse
 # parser = argparse.ArgumentParser(description="Save invision data to the annotation tool DB.")
 # parser.add_argument('-i', "--input_path", default="gtm_hit/labels/json_output", help="Input path to the invision JSON data.")
@@ -17,7 +18,7 @@ class Args:
                  tracks_path="",
                 #  input_path="gtm_hit/static/gtm_hit/labels/json_output",
                  worker_id="MINTEST",
-                 dataset_name="SCOUT", 
+                 dataset_name=settings.DSETNAME, 
                  range_start=0,
                  range_end=100):
         
