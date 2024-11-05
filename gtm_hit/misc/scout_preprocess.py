@@ -2,7 +2,7 @@ import numpy as np
 import uuid
 from gtm_hit.models import MultiViewFrame, Worker, Annotation, Person,Dataset
 from django.conf import settings
-from gtm_hit.misc.db import save_2d_views_bulk
+from gtm_hit.misc.db import save_2d_views_bulk, save_2d_views
 from pathlib import Path
 import pickle
 from tqdm import tqdm
@@ -106,5 +106,7 @@ def preprocess_scout_data(tracks_path: Path,
         frame__in=frames_dict.values()
     ).select_related('frame', 'person')
 
-
+    # for annotation in tqdm(all_annotations, total=len(all_annotations), desc='Saving 2D views'):
+    #     print(annotation)
+    #     save_2d_views(annotation)
     save_2d_views_bulk(all_annotations)

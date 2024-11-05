@@ -258,7 +258,8 @@ SYMLINK_DEST_FRAMES = DSETPATH / "frames"
 CALIBPATH = DSETPATH / "calibrations"
 # CALIB_SRC = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/calibrations/calibrations")
 NUM_FRAMES = 12000
-
+FRAME_START = 0
+FRAME_END = NUM_FRAMES
 HEIGHT = 1.8
 RADIUS = 0.5 #person radius
 
@@ -266,8 +267,8 @@ RADIUS = 0.5 #person radius
 STEPL = 0.02
 MOVE_STEP = 0.02 #same as stepl vidis ovoDA
 SIZE_CHANGE_STEP=0.03
-
-CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIBPATH.iterdir()][:5]#["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
+# NOTE: run data creation with full cameras before bed!
+CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIBPATH.iterdir()]#["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
 FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 #CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)
 NB_CAMS = len(CAMS)

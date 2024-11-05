@@ -42,15 +42,63 @@ def find_closest_annotations_to(person:Person,
     return last_annotation, next_annotation
 
 
-def save_2d_views_bulk(annotations):
+# def save_2d_views_bulk(annotations):
+#     views = {view.view_id: view for view in View.objects.all()}
+#     annotation2dviews_to_create = []
+    
+#     for annotation in tqdm(annotations, total = len(annotations), desc='Saving 2D Views...'):
+#         for i in range(settings.NB_CAMS):
+#             cuboid = geometry.get_cuboid2d_from_annotation(
+#                     annotation, 
+#                     settings.CALIBS[settings.CAMS[i]], 
+#                     settings.UNDISTORTED_FRAMES
+#                     )
+#             if cuboid is None:
+                
+#                 p1 = [-1, -1]
+#                 p2 = [-1, -1]
+#             else:
+#                 print(f"Cuboid for annotation {annotation} is {cuboid}")
+#                 p1, p2 = geometry.get_bounding_box(cuboid)
+#             # try:
+#             #     cuboid = geometry.get_cuboid2d_from_annotation(
+#             #         annotation, settings.CALIBS[settings.CAMS[i]], settings.UNDISTORTED_FRAMES)
+#             #     p1, p2 = geometry.get_bounding_box(cuboid)
+#             # except ValueError:
+#             #     print(f"Error computing 2D view for annotation {annotation}.")
+#             #     cuboid = None
+#             #     p1 = [-1, -1]
+#             #     p2 = [-1, -1]
+
+#             annotation2dview = Annotation2DView(
+#                 view=views[i],
+#                 annotation=annotation,
+#                 x1=p1[0],
+#                 y1=p1[1],
+#                 x2=p2[0],
+#                 y2=p2[1]
+#             )
+            
+#             if cuboid is not None:
+#                 annotation2dview.set_cuboid_points_2d(cuboid)
+            
+#             annotation2dviews_to_create.append(annotation2dview)
+#     print(f"Saving 2D Views for {len(annotation2dviews_to_create)} annotations...")
+#     Annotation2DView.objects.bulk_create(
+#         annotation2dviews_to_create,
+#         update_conflicts=True,
+#         unique_fields=['view', 'annotation'],
+#         update_fields=['x1', 'y1', 'x2', 'y2']
+#     )
+def save_2d_views_bulk(annotations, batch_size=1000):
     views = {view.view_id: view for view in View.objects.all()}
     annotation2dviews_to_create = []
     
-    for annotation in tqdm(annotations, total = len(annotations), desc='Saving 2D Views...'):
-        for i in range(settings.NB_CAMS):
+    for i, annotation in enumerate(tqdm(annotations, total=len(annotations), desc='Saving 2D Views...')):
+        for cam_idx in range(settings.NB_CAMS):
             cuboid = geometry.get_cuboid2d_from_annotation(
                     annotation, 
-                    settings.CALIBS[settings.CAMS[i]], 
+                    settings.CALIBS[settings.CAMS[cam_idx]], 
                     settings.UNDISTORTED_FRAMES
                     )
             if cuboid is None:
@@ -58,18 +106,9 @@ def save_2d_views_bulk(annotations):
                 p2 = [-1, -1]
             else:
                 p1, p2 = geometry.get_bounding_box(cuboid)
-            # try:
-            #     cuboid = geometry.get_cuboid2d_from_annotation(
-            #         annotation, settings.CALIBS[settings.CAMS[i]], settings.UNDISTORTED_FRAMES)
-            #     p1, p2 = geometry.get_bounding_box(cuboid)
-            # except ValueError:
-            #     print(f"Error computing 2D view for annotation {annotation}.")
-            #     cuboid = None
-            #     p1 = [-1, -1]
-            #     p2 = [-1, -1]
 
             annotation2dview = Annotation2DView(
-                view=views[i],
+                view=views[cam_idx],
                 annotation=annotation,
                 x1=p1[0],
                 y1=p1[1],
@@ -81,13 +120,27 @@ def save_2d_views_bulk(annotations):
                 annotation2dview.set_cuboid_points_2d(cuboid)
             
             annotation2dviews_to_create.append(annotation2dview)
-    print(f"Saving 2D Views for {len(annotation2dviews_to_create)} annotations...")
-    Annotation2DView.objects.bulk_create(
-        annotation2dviews_to_create,
-        update_conflicts=True,
-        unique_fields=['view', 'annotation'],
-        update_fields=['x1', 'y1', 'x2', 'y2']
-    )
+
+        # Bulk create when batch size is reached
+        if len(annotation2dviews_to_create) >= batch_size:
+            print(f"Saving batch of {len(annotation2dviews_to_create)} 2D Views...")
+            Annotation2DView.objects.bulk_create(
+                annotation2dviews_to_create,
+                update_conflicts=True,
+                unique_fields=['view', 'annotation'],
+                update_fields=['x1', 'y1', 'x2', 'y2']
+            )
+            annotation2dviews_to_create = []
+
+    # Save any remaining annotations
+    if annotation2dviews_to_create:
+        print(f"Saving final batch of {len(annotation2dviews_to_create)} 2D Views...")
+        Annotation2DView.objects.bulk_create(
+            annotation2dviews_to_create,
+            update_conflicts=True,
+            unique_fields=['view', 'annotation'],
+            update_fields=['x1', 'y1', 'x2', 'y2']
+        )
 
 
 def save_2d_views(annotation):
@@ -100,7 +153,7 @@ def save_2d_views(annotation):
                 cuboid = geometry.get_cuboid2d_from_annotation(
                     annotation, settings.CALIBS[settings.CAMS[i]], settings.UNDISTORTED_FRAMES)
                 p1, p2 = geometry.get_bounding_box(cuboid)
-            except ValueError:
+            except:
                 cuboid = None
                 p1 = [-1, -1]
                 p2 = [-1, -1]

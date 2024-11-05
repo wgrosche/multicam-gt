@@ -6,22 +6,28 @@
 
 <head>
   <meta charset="utf-8">
-  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@1.12.2/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.6/dist/js/bootstrap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery-ui@1.11.4/jquery-ui.min.js"></script>
+
+  <!-- <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" />
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
   <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
-  <script src="http://code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+  <script src="http://code.jquery.com/ui/1.11.4/jquery-ui.js"></script> -->
   <script src="{% static 'gtm_hit/jquery.hotkeys.js' %}"></script>
-  <script src="{% static 'gtm_hit/marker.js' %}"></script>
-  <script src="{% static 'gtm_hit/timeview.js' %}"></script>
 
   <!-- <link rel="stylesheet" type="text/css" href="{% static 'gtm_hit/frame.css' %}" /> -->
 
   <script type="text/javascript">
+    console.log("Cameras:", {{ cams|safe }});
     var frame_number = "{{frame_number}}";
     var workerID = "{{workerID}}";
     var frame_strs =  {{ frame_strs|safe }};
+    var cameraPaths = {{ cams|safe }};
     var frame_str = Array(9 - frame_number.toString().length).join('0') + frame_number;
-    var cams = "{{cams|safe}}";
+    // var cams = "{{cams|safe}}";
     var nb_cams = "{{nb_cams}}"
     var nblabeled = "{{nblabeled}}";
     var frame_inc = "{{frame_inc}}";
@@ -29,18 +35,64 @@
     var frame_size = "{{frame_size}}";
     var useUndistorted = "{{undistort}}";
     frame_size = frame_size.substring(1, frame_size.length - 1).split(",");
+    console.log("cameraPaths:", cameraPaths);
   </script>
-    <link rel="stylesheet" href="{% static 'gtm_hit/framestyle.css' %}">
+  <!-- <script type="text/javascript">
+  console.log("cameraPaths:", cameraPaths);
+  </script> -->
+  <script src="{% static 'gtm_hit/marker.js' %}?v=2"></script>
+
+  <script src="{% static 'gtm_hit/timeview.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'gtm_hit/framestyle.css' %}">
   
 </head>
-
-
 
 <script type="text/javascript">
   document.addEventListener("DOMContentLoaded", function () {
     const container = document.getElementById('cameraContainer');
+    cameraPaths.forEach((camName, index) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'camera-wrapper';
+      
+      const label = document.createElement('div');
+      label.className = 'camera-label';
+      label.textContent = camName;
+      
+      const canvas = document.createElement('canvas');
+      canvas.id = `canv${camName}`;
+      canvas.width = 1920;
+      canvas.height = 1080;
+      canvas.dataset.toggle = "tooltip";
+      canvas.title = `Camera ${camName}`;
+      canvas.className = "img";
+      canvas.style.padding = "0";
+      
+      wrapper.appendChild(label);
+      wrapper.appendChild(canvas);
+      container.appendChild(wrapper);
+    });
+  });
+</script>
 
-    for (let i = 1; i <= nb_cams; i++) {
+
+<!-- <script type="text/javascript">
+  document.addEventListener("DOMContentLoaded", function () {
+    const container = document.getElementById('cameraContainer');
+    cameraPaths.forEach((camName, index) => {
+
+      const canvas = document.createElement('canvas');
+      canvas.id = `canv${camName}`;
+      canvas.width = 1920;
+      canvas.height = 1080;
+      canvas.dataset.toggle = "tooltip";
+      canvas.title = `Camera ${camName}`;
+      canvas.className = "img";
+      canvas.style.padding = "0";
+      container.appendChild(canvas);
+    });
+  });
+</script> -->
+    <!-- for (let i = 1; i <= cameraPaths.length; i++) {
       const canvas = document.createElement('canvas');
       canvas.id = `canv${i}`;
       canvas.width = 1920;
@@ -52,7 +104,8 @@
       container.appendChild(canvas);
     }
   });
-</script>
+</script> -->
+
 
 <body>
   {% include "includes_hit/navbar.html" %}
@@ -86,10 +139,21 @@
 
 
               </ul>
+              
               <!-- <button class="btn toggle-infos-btn" onclick="toggleInfos()">Show Infos</button> -->
               
               <button class="btn toggle-menu-btn" onclick="toggleMenu()">Show Menu</button>
+
               
+              
+            </div>
+            <div class="btn-group" role="group">
+              <button type="button" class="btn dropdown-toggle" data-toggle="dropdown">
+                  Manage Cameras <span class="caret"></span>
+              </button>
+              <ul class="dropdown-menu" id="cameraMenu">
+                  <!-- Camera menu items -->
+              </ul>
             </div>
             <a href="#" id="copyBtn" class="btn btn-primary" onclick="copyPrevOrNext()">Copy Prev/Next</a>
             <div class="pull-right">
@@ -113,12 +177,7 @@
   </div>
 
   </div>
-  <script>
-    for (let i = 1; i < (nb_cams + 1); i++) {
-      document.getElementById('canv' + i).width = frame_size[(i - 1) * 2];
-      document.getElementById('canv' + i).height = frame_size[(i - 1) * 2 + 1];
-    }
-  </script>
+  
   <div id="loader">
     <strong class="pull-left" style="color:grey;margin-top:5px;margin-left:10px;">Loading ... please wait until
       this text disappear</strong>

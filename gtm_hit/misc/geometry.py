@@ -199,7 +199,8 @@ def get_cuboid2d_from_annotation(annotation, calib, undistort=False):
     world_point = annotation.world_point
     # print("Processing cuboid: ", world_point, height, width, length, theta)
     # check that world point is visible
-    if world_point is None:
+    if world_point is None or np.any(np.isnan(world_point)):
+        # print("world point is None")
         return None
     
     # check that world point is in fov

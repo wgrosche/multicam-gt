@@ -129,7 +129,6 @@ def dispatch(request, dataset_name, workerID):
 def frame(request, dataset_name, workerID):
     context = RequestContext(request).flatten()
 
-
     try:
         w = Worker.objects.get(pk=workerID)
         if w.state != 1:
@@ -155,7 +154,10 @@ def frame(request, dataset_name, workerID):
             # print(matching_files)
             if matching_files:
                 frame_strs[cam] = matching_files[0].split('/')[-1]
-        print(frame_strs)
+        # print(frame_strs)
+        # context['cams'] = json.dumps(settings.CAMS)
+        # print(context['cams'])
+
         return render(request, 'gtm_hit/frame.html', {
             'dset_name': dataset.name, 
             'frame_number': frame_number,
@@ -276,24 +278,26 @@ def get_cuboids_2d(world_point, obj,new=False):
 
 def click(request):
     if is_ajax(request):
-        print("Click endpoint hit")
-        print("POST data:", request.POST)
+        # print("Click endpoint hit")
+        # print("POST data:", request.POST)
 
         # try:
         x = int(float(request.POST['x']))
         y = int(float(request.POST['y']))
         obj = request_to_dict(request)
-        cam = request.POST['canv']
-        cam = int(re.findall(r'\d+', cam)[0]) - 1
+        cam = request.POST['canv'].replace("canv", "")
+        # cam = int(re.findall(r'\d+', cam)[0]) - 1
         #
         worker_id = request.POST['workerID']
         dataset_name = request.POST['datasetName']
         # print(f"Cam: {cam}")
-        if 0 <= cam < settings.NB_CAMS:
+        if cam in settings.CAMS:
+
+        # if 0 <= cam < settings.NB_CAMS:
             feet2d_h = np.array([[x], [y]])#, [1]])
             # print("2d: ", feet2d_h, "cam: ", cam, "calib: ", settings.CALIBS[settings.CAMS[cam]])
             world_point = geometry.project_2d_points_to_mesh(
-                feet2d_h, settings.CALIBS[settings.CAMS[cam]], settings.MESH)#undistort=settings.UNDISTORTED_FRAMES)
+                feet2d_h, settings.CALIBS[cam], settings.MESH)#undistort=settings.UNDISTORTED_FRAMES)
             if "person_id" not in obj:
                 obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset_name=dataset_name)
 
@@ -362,6 +366,8 @@ def action(request):
 
             world_point = np.array([[Xw], [Yw], [Zw]]).reshape(-1, 3)
             world_point = geometry.move_with_mesh_intersection(world_point)
+            if world_point is None:
+                return HttpResponse("Error")
             next_rect = get_cuboids_2d(world_point, obj)
 
             next_rect_json = json.dumps(next_rect)
@@ -428,7 +434,7 @@ def changeframe(request):
             timelist = worker.getTimeList()
             timelist.append(timezone.now().isoformat())
             worker.setTimeList(timelist)
-            print("Frame Number: ", frame_number)
+            # print("Frame Number: ", frame_number)
             if order == "next":
                 inc = int(increment)
             elif order == "prev":
@@ -441,7 +447,7 @@ def changeframe(request):
             new_frame_number = min(max(int(frame_number) + inc, 0), settings.NUM_FRAMES - 1)
             if order == 'first':
                 new_frame_number = 0
-            print("new_frame_number: ", new_frame_number)
+            # print("new_frame_number: ", new_frame_number)
             # Get frame strings for each camera
             frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames')
             frame_strs = {}
@@ -486,9 +492,6 @@ def get_rect(closest):
         rdic['xMid'] = (a + c) // 2
         rects.append(rdic)
     return rects
-
-# i love you wilke
-
 
 def registerWorker(workerID):
     w = Worker()
@@ -669,9 +672,9 @@ def load_db(request):
             worker_id = request.POST['workerID']
             dataset_name = request.POST['datasetName']
 
-            print('this is frame:', frame_id)
-            print('this is worker:', worker_id)
-            print('this is dataset:', dataset_name)
+            # print('this is frame:', frame_id)
+            # print('this is worker:', worker_id)
+            # print('this is dataset:', dataset_name)
             frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES, dataset__name=dataset_name)
             # 
             retjson = []
@@ -681,7 +684,7 @@ def load_db(request):
                 a2l = serialize_annotation2dviews(
                     Annotation2DView.objects.filter(annotation__frame=frame, view=camview))
                 retjson.append(a2l)
-            print(a2l)
+            # print(a2l)
             #a2l = list(Annotation2DView.objects.filter(annotation__frame=frame, view=View.objects.get(view_id=0)).values())
             return HttpResponse(json.dumps(retjson), content_type="application/json")
 
@@ -778,6 +781,7 @@ def tracklet(request):
 
 def interpolate(request):
     if is_ajax(request):
+        # print(request.POST)
         try:
             #
             person_id = int(float(request.POST['personID']))
@@ -901,14 +905,14 @@ def serve_frame(request):
         
         # os.path.join(settings.DSETPATH,'frames', camera_name)
         pattern = f"{frames_path}/*_{frame_number}.jpg"
-        print(pattern)
+        # print(pattern)
         matching_files = glob.glob(pattern)
-        print(matching_files)
+        # print(matching_files)
         if matching_files:
             response = {
             'frame_string': '/'+ os.path.join(*matching_files[0].split('/')[-7:])
             }
-            print("Timeview: ", response)
+            # print("Timeview: ", response)
 
             return HttpResponse(json.dumps(response))
         
@@ -918,5 +922,82 @@ def serve_frame(request):
         # except:
         #     print(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
         #     raise Http404(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
-    print("Error")
+    # print("Error")
     return HttpResponse("Error")
+
+
+from django.http import JsonResponse
+import json
+
+def merge(request):
+    if is_ajax(request):
+        try:
+            # Parse request data
+            person_id1 = int(float(request.POST['personID1']))
+            person_id2 = int(float(request.POST['personID2']))
+            dataset_name = request.POST['datasetName']
+            worker_id = request.POST['workerID']
+            
+            # Generate new person ID for the merged track
+            merged_person_id = max(Person.objects.all().values_list('person_id', flat=True)) + 1
+            print(f"Merging trajectories for persons {person_id1} and {person_id2} into trajectory {merged_person_id}")
+
+            # Retrieve Annotation2DView and Annotation objects
+            annotation_2d_1 = Annotation2DView.objects.filter(person_id=person_id1)
+            annotation_2d_2 = Annotation2DView.objects.filter(person_id=person_id2)
+            annotation_1 = Annotation.objects.filter(person_id=person_id1)
+            annotation_2 = Annotation.objects.filter(person_id=person_id2)
+
+            # Step 1: Create new Annotation objects with averaged positions
+            merged_annotations = []
+            for frame_number in range(settings.FRAME_START, settings.FRAME_END + 1):
+                frame_ann_1 = annotation_1.filter(frame_number=frame_number).first()
+                frame_ann_2 = annotation_2.filter(frame_number=frame_number).first()
+                
+                if frame_ann_1 and frame_ann_2:
+                    # Average the positions for frames where both IDs are present
+                    avg_x = (frame_ann_1.x + frame_ann_2.x) / 2
+                    avg_y = (frame_ann_1.y + frame_ann_2.y) / 2
+                elif frame_ann_1:
+                    # If only person_id1 exists for the frame, use its position
+                    avg_x, avg_y = frame_ann_1.x, frame_ann_1.y
+                elif frame_ann_2:
+                    # If only person_id2 exists for the frame, use its position
+                    avg_x, avg_y = frame_ann_2.x, frame_ann_2.y
+                else:
+                    continue  # Skip if neither has an annotation for this frame
+
+                # Create a new Annotation for the merged person ID
+                merged_annotation = Annotation(
+                    person_id=merged_person_id,
+                    frame_number=frame_number,
+                    x=avg_x,
+                    y=avg_y,
+                    dataset_name=dataset_name,
+                    worker_id=worker_id
+                )
+                merged_annotations.append(merged_annotation)
+            
+            # Bulk create the new merged Annotations
+            Annotation.objects.bulk_create(merged_annotations)
+
+            # Step 2: Delete old Annotation2DView objects for the two IDs
+            annotation_2d_1.delete()
+            annotation_2d_2.delete()
+
+            # Step 3: Create new Annotation2DView objects for the merged track
+            for annotation in merged_annotations:
+                save_2d_views(annotation)
+
+            # Step 4: Delete old Annotation objects for the two IDs
+            annotation_1.delete()
+            annotation_2.delete()
+
+            # Respond with success
+            return JsonResponse({"message": "ok"})
+        
+        except Exception as e:
+            print("Exception:", e)
+            return JsonResponse({"message": "Error", "error": str(e)}, status=500)
+    return JsonResponse({"message": "Error"}, status=400)
+

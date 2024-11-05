@@ -17,6 +17,10 @@ var zoomOn = false;
 var toggle_cuboid = true;
 var toggle_unselected = true;
 var frame_str = '0';
+// var cameraPaths = [];
+// var activeCameras = [];
+// var workerID = 0;
+// var dset_name = '';
 
 var undistort_frames_path ='';
 var zoomratio = [];
@@ -33,6 +37,98 @@ let mouseDown = false;
 let selectedBox = null;
 var unsavedChanges = false;
 var boxesLoaded = true;
+
+// let activeCameras = Array.from({length: cameraPaths.length}, (_, i) => i + 1); // Initially all cameras active
+
+
+
+function initializeCameraMenu() {
+    const menu = document.getElementById('cameraMenu');
+    
+    const header = document.createElement('li');
+    header.className = 'dropdown-header';
+    header.textContent = 'Toggle Cameras';
+    menu.appendChild(header);
+    
+    const divider = document.createElement('li');
+    divider.className = 'divider';
+    menu.appendChild(divider);
+    
+    cameraPaths.forEach((camName, index) => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = '#';
+        a.innerHTML = `<input type="checkbox" id="checkbox${camName}" checked> ${camName}`;
+        a.onclick = (e) => {
+            e.preventDefault();
+            toggleCamera(camName);
+        };
+        li.appendChild(a);
+        menu.appendChild(li);
+    });
+}
+function toggleCamera(camName) {
+  const checkbox = document.getElementById(`checkbox${camName}`);
+  const wrapper = document.getElementById(`canv${camName}`).parentElement;
+  
+  if (checkbox && wrapper) {
+      if (checkbox.checked) {
+          checkbox.checked = false;
+          wrapper.style.display = 'none';
+          activeCameras = activeCameras.filter(id => id !== camName);
+      } else {
+          checkbox.checked = true;
+          wrapper.style.display = 'block';
+          activeCameras.push(camName);
+      }
+      updateCameraGrid();
+  }
+}
+
+
+
+// function toggleCamera(camName) {
+//     const checkbox = document.getElementById(`checkbox${camName}`);
+//     const canvas = document.getElementById(`canv${camName}`);
+    
+//     if (checkbox && canvas) {
+//       if (checkbox.checked) {
+//           // Remove camera
+//           checkbox.checked = false;
+//           canvas.style.display = 'none';
+//           activeCameras = activeCameras.filter(id => id !== camName);
+//       } else {
+//           // Add camera back
+//           checkbox.checked = true;
+//           canvas.style.display = 'block';
+//           activeCameras.push(camName);
+//       }
+    
+//     updateCameraGrid();
+//     }
+// }
+
+function updateCameraGrid() {
+    const container = document.getElementById('cameraContainer');
+    const numActive = activeCameras.length;
+    
+    // Update grid layout based on number of active cameras
+    container.style.gridTemplateColumns = `repeat(${Math.ceil(Math.sqrt(numActive))}, 1fr)`;
+}
+
+// function updateCameraOrder() {
+//     activeCameras = Array.from(document.getElementById('cameraContainer').children)
+//         .map(canvas => parseInt(canvas.id.replace('canv', '')))
+//         .filter(id => document.getElementById(`cam${id}`).checked);
+// }
+
+$(document).ready(function() {
+  activeCameras = Array.from({length: cameraPaths.length}, (_, i) => i + 1);
+  console.log(cameraPaths)
+  initializeCameraMenu();
+  updateCameraGrid();
+});
+
 
 // hashsets --> rect per camera ? rect -> id to coordinates?
 // store variables here? in db ? (reupload db?)
@@ -187,13 +283,13 @@ window.onload = function () {
       }
 
       // Proceed with image loading after frameStrs has been populated
-      camName = cams.substring(2, cams.length - 2).split("', '");
-      for (var i = 0; i < nb_cams; i++) {
-        boxes[i] = {};
+      // camName = cameraPaths.substring(2, cameraPaths.length - 2).split("', '");
 
-        imgArray[i] = new Image();
-        imgArray[i].id = (i + 1);
-        imgArray[i].onload = function () {
+      cameraPaths.forEach((camName, index) => {
+        boxes[index] = {};
+        imgArray[index] = new Image();
+        imgArray[index].id = camName;
+        imgArray[index].onload = function () {
           var c = document.getElementById("canv" + this.id);
           if (!c) {
             console.error("Canvas with ID canv" + this.id + " not found.");
@@ -201,6 +297,7 @@ window.onload = function () {
           }
           var ctx = c.getContext('2d');
           ctx.drawImage(this, 0, 0);
+      
 
           c.addEventListener('contextmenu', mainClick, false);
           c.addEventListener("mousedown", onMouseDown);
@@ -220,9 +317,9 @@ window.onload = function () {
 
         if (useUndistorted == "True") undistort_frames_path = "undistorted_";
 
-        imgArray[i].src = '/static/gtm_hit/dset/' + dset_name + '/' + undistort_frames_path + 'frames/' + camName[i] + '/' + frameStrs[camName[i]];
-        console.log('js: /static/gtm_hit/dset/' + dset_name + '/' + undistort_frames_path + 'frames/' + camName[i] + '/' + frameStrs[camName[i]]);
-      }
+        imgArray[index].src = '/static/gtm_hit/dset/' + dset_name + '/' + undistort_frames_path + 'frames/' + camName + '/' + frameStrs[camName];
+        console.log('js: /static/gtm_hit/dset/' + dset_name + '/' + undistort_frames_path + 'frames/' + camName + '/' + frameStrs[camName]);
+      })
 
       // // Load the top view after initial setup
       // var topview = new Image();
@@ -278,8 +375,9 @@ function onMouseDown(event) {
   const { offsetX, offsetY } = event;
   var mousex = offsetX * frame_size[0] / this.clientWidth;
   var mousey = offsetY * frame_size[1] / this.clientHeight;
+  console.log('Clicked on: ', event.target.id)
   // Get the canvas index from the canvas id
-  const canvasIndex = parseInt(event.target.id.slice(4)) - 1;
+  const canvasIndex = cameraPaths.indexOf(event.target.id.replace('canv', '',)); //parseInt(event.target.id.slice(4)) - 1;
   console.log('Mouse coordinates:', {mousex, mousey});
   console.log('Canvas index:', canvasIndex);
 
@@ -346,7 +444,8 @@ function onMouseMove(event) {
   const { offsetX, offsetY } = event;
   var mousex = offsetX * frame_size[0] / this.clientWidth;
   var mousey = offsetY * frame_size[1] / this.clientHeight;
-  const { rectID, canvasIndex } = selectedBox;
+  const { rectID, _ } = selectedBox;
+  const canvasIndex = cameraPaths.indexOf(event.target.id.replace('canv', '',));
   const pid = identities[rectID];
   const box = boxes[canvasIndex][pid];
   let base_point = box.cuboid[8];
@@ -462,7 +561,7 @@ function mainClick(e) {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
       x: xCorr,
       y: yCorr,
-      canv: this.id,
+      canv: this.id.replace('canv', ''),
       workerID: workerID,
       datasetName: dset_name
     },
@@ -504,7 +603,7 @@ function getTracklet(e) {
     success: function (msg) {
       tracklet = msg;
       for (var i = 0; i < nb_cams; i++) {
-        var c = document.getElementById("canv" + (i + 1));
+        var c = document.getElementById("canv" + cameraPaths[i]);
         var ctx = c.getContext("2d");
         ctx.strokeStyle = "chartreuse";
         ctx.lineWidth = "2";
@@ -756,6 +855,27 @@ function decreaseLength() {
   return sendAction({ "changeSize": { "length": "decrease" } });
 }
 
+function mergeIDs() {
+  const personID1 = document.getElementById("personID1").value;
+  const personID2 = document.getElementById("personID2").value;
+
+  $.ajax({
+    method: "POST",
+    url: 'merge',
+    data: {
+        csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+        personID1: personID1,
+        personID2: personID2,
+        workerID: workerID,
+        datasetName: dset_name
+    },
+  success: function (msg) {
+    console.log(msg);
+    unsavedChanges = false;
+    $("#unsaved").html("All changes saved.");
+  }
+});
+}
 // function changeSize(changeWidth, changeHeight, increase) {
 //   var ind = getIndx();
 //   var pid = identities[rectsID[chosen_rect]];
@@ -1155,10 +1275,13 @@ function changeFrame(order, increment) {
           $("#frameID").html("Frame ID: " + fstr.toString() + "&nbsp;&nbsp;");
           
           if (useUndistorted=="True") undistort_frames_path="undistorted_"
-          for (var i = 0; i < nb_cams; i++) {
-              imgArray[i].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
-              console.log(imgArray[i].src)
-          }
+          cameraPaths.forEach((camName, index) =>{
+            imgArray[index].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName + '/' + frameStrs[camName];
+          })
+          // for (var i = 0; i < nb_cams; i++) {
+          //     imgArray[i].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
+          //     console.log(imgArray[i].src)
+          // }
       },
       complete: function (msg) {
           prev_chosen_identity= identities[rectsID[chosen_rect]];
@@ -1363,6 +1486,8 @@ function drawDot(event) {
 }
 
 function drawLine(ctx, v1, v2) {
+  // console.log('vertices', v1, v2)
+  if (!v1?.[0] || !v1?.[1] || !v2?.[0] || !v2?.[1]) return;
   ctx.beginPath();
   ctx.strokeStyle = "pink";
   ctx.lineWidth = "2";
@@ -1414,35 +1539,42 @@ function removePersonFromAll() {
 
 
 function drawRect() {
-  for (var i = 0; i < nb_cams; i++) {
-    var c = document.getElementById("canv" + (i + 1));
-    var ctx = c.getContext("2d");
+
+  cameraPaths.forEach((camName, index) => {
+    var c = document.getElementById("canv" + camName);
+    if (!c) {
+        console.error("Canvas with ID canv" + camName + " not found.");
+        return;
+    }
+    var ctx = c.getContext('2d');
     ctx.clearRect(0, 0, c.width, c.height);
-    //check if image is loaded
-    if (!imgArray[i].complete || imgArray[i].naturalWidth === 0) continue;
-    ctx.drawImage(imgArray[i], 0, 0);
-    // if (toggle_orientation)
-    //   drawArrows(ctx, i);
-  }
+    
+    // Skip this iteration if image isn't loaded by returning early
+    if (!imgArray[index].complete || imgArray[index].naturalWidth === 0) {
+        return;
+    }
+    
+    ctx.drawImage(imgArray[index], 0, 0);
+  });
+
   var heightR = 0;
   var widthR = 0;
   var sumH = 0;
+  // console.log(boxes)
   for (key in boxes) {
     for (var r = 0; r < rectsID.length; r++) {
       var field = boxes[key][identities[rectsID[r]]];
-      // console.log({
-      //     key: key,
-      //     rectId: rectsID[r],
-      //     identity: identities[rectsID[r]],
-      //     field: field
-      // });
+      console.log({
+          key: boxes[key],
+          // rectId: rectsID[r],
+          identity: identities[rectsID[r]],
+          field: field
+      });
 
       
       if (field.y1 != -1 && field.y2 != -1 && field.x1 != -1) {
-        var c = document.getElementById("canv" + (field.cameraID + 1));
-        console.log("Canvas element:", c);
+        var c = document.getElementById("canv" + (cameraPaths[field.cameraID]));
         var ctx = c.getContext("2d");
-        console.log("Canvas context:", ctx);
         
         //show only selected 
         if (!(r == chosen_rect) && !toggle_unselected) continue;
@@ -1579,7 +1711,7 @@ function zoomIn() {
     var pid = identities[rectsID[chosen_rect]];
     var r = boxes[i][pid];
 
-    var c = document.getElementById("canv" + (i + 1));
+    var c = document.getElementById("canv" + cameraPaths[i]);
     if (isBoundingBoxInCanvas(r, c)) { zoomratio[i] = c.height * 60 / (100 * (r.y2 - r.y1)); }
     else {
       zoomratio[i] = null;
@@ -1605,7 +1737,7 @@ function zoomIn() {
 
 function zoomOut() {
   for (var i = 0; i < nb_cams; i++) {
-    var c = document.getElementById("canv" + (i + 1));
+    var c = document.getElementById("canv" + cameraPaths[i]);
     if (zoomratio[i] != undefined && zoomratio[i] != Infinity) {
       c.width = c.width * zoomratio[i];
       c.height = c.height * zoomratio[i];
