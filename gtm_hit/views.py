@@ -136,7 +136,7 @@ def frame(request, dataset_name, workerID):
         if w.frameNB < 0:
             w.frameNB = settings.STARTFRAME
             w.save()
-        frame_number = w.frameNB
+        frame_number = int(w.frameNB * settings.FRAME_SKIP)
         nblabeled = w.frame_labeled
         try:
             dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
@@ -259,7 +259,7 @@ def get_cuboids_2d(world_point, obj,new=False):
         # 
         # try:
             # check if world point is in the camera FOV
-        if geometry.is_visible(world_point, settings.CALIBS[settings.CAMS[cam_id]], check_mesh=False):
+        if geometry.is_visible(world_point, settings.CAMS[cam_id], check_mesh=True):
             cuboid = geometry.get_cuboid_from_ground_world(
             world_point, settings.CALIBS[settings.CAMS[cam_id]], *object_size, obj.get("rotation_theta", 0))
             p1, p2 = geometry.get_bounding_box(cuboid)
@@ -296,14 +296,19 @@ def click(request):
         # if 0 <= cam < settings.NB_CAMS:
             feet2d_h = np.array([[x], [y]])#, [1]])
             # print("2d: ", feet2d_h, "cam: ", cam, "calib: ", settings.CALIBS[settings.CAMS[cam]])
-            world_point = geometry.project_2d_points_to_mesh(
-                feet2d_h, settings.CALIBS[cam], settings.MESH)#undistort=settings.UNDISTORTED_FRAMES)
+            if settings.FLAT_GROUND:
+                calib = settings.CALIBS[cam]
+                K0, R0, T0 = calib.K, calib.R, calib.T
+                world_point = geometry.reproject_to_world_ground_batched(feet2d_h.T, K0, R0, T0)
+            else:
+                world_point = geometry.project_2d_points_to_mesh(
+                    feet2d_h, settings.CALIBS[cam], settings.MESH)#undistort=settings.UNDISTORTED_FRAMES)
             if "person_id" not in obj:
                 obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset_name=dataset_name)
 
             # print("World point:", world_point)
             rectangles = get_cuboids_2d(world_point[0], obj)
-            print("Rectangles:", rectangles)
+            # print("Rectangles:", rectangles)
             rect_json = json.dumps(rectangles)
             
             
@@ -385,6 +390,45 @@ def save(request):
 def load(request):
     return load_db(request)
 
+# def load_previous(request):
+#     if is_ajax(request):
+#         try:
+#             frameID = request.POST['ID']
+#             if not frameID:
+#                 return HttpResponse("No frame ID provided")
+            
+#             wid = request.POST['workerID']
+#             current_frame = int(float(frameID))
+            
+#             # Use regex pattern to match frame numbers
+#             pattern = rf"{wid}_(\d+)\.json$"
+#             label_dir = Path(f"./gtm_hit/static/gtm_hit/dset/{settings.DSETNAME}/labels/{wid}/")
+            
+#             # Find closest previous frame using regex
+#             frames = []
+#             for f in label_dir.glob("*.json"):
+#                 if match := re.search(pattern, f.name):
+#                     frame_num = int(match.group(1))
+#                     if frame_num < current_frame:
+#                         frames.append(frame_num)
+            
+#             if frames:
+#                 closest = max(frames)
+#                 frame = f"{closest:08d}"
+#                 rect_json = read_save(frame, wid)
+#                 return HttpResponse(rect_json, content_type="application/json")
+
+#         except (FileNotFoundError, KeyError):
+#             return HttpResponse("Error")
+#     return HttpResponse("Error")
+
+# def read_save(frameID, workerID):
+#     path_pattern = f"./gtm_hit/static/gtm_hit/dset/{settings.DSETNAME}/labels/{workerID}/{workerID}_{frameID}.json"
+#     with open(path_pattern, 'r') as loadFile:
+#         annotations = json.load(loadFile)
+#     return json.dumps(annotations)
+
+
 def load_previous(request):
     if is_ajax(request):
         try:
@@ -452,7 +496,7 @@ def changeframe(request):
             frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames')
             frame_strs = {}
             for cam in settings.CAMS:
-                pattern = f"{frames_path}/{cam}/*_{new_frame_number}.jpg"
+                pattern = f"{frames_path}/{cam}/*_{new_frame_number * settings.FRAME_SKIP}.jpg"
                 matching_files = glob.glob(pattern)
                 if matching_files:
                     frame_strs[cam] = matching_files[0].split('/')[-1]
@@ -679,23 +723,31 @@ def load_db(request):
             # 
             retjson = []
             camviews = View.objects.all()
-            for camview in camviews:
-                #
-                a2l = serialize_annotation2dviews(
-                    Annotation2DView.objects.filter(annotation__frame=frame, view=camview))
-                retjson.append(a2l)
-            # print(a2l)
-            #a2l = list(Annotation2DView.objects.filter(annotation__frame=frame, view=View.objects.get(view_id=0)).values())
+
+            retjson = serialize_frame_annotations(frame)
+            # print(retjson)
+            # for camview in camviews:
+            #     print('serialising camview: ', camview, 'for frame: ', frame)
+            #     #
+            #     a2l = serialize_annotation2dviews(
+            #         Annotation2DView.objects.filter(annotation__frame=frame, view=camview))
+            #     # print("")
+            #     # print('serialised camview: ', a2l)
+            #     # print("")
+            #     retjson.append(a2l)
+            # # print(a2l)
+            # a2l = list(Annotation2DView.objects.filter(annotation__frame=frame, view=View.objects.get(view_id=0)).values())
+            # print(a2l[0])
             return HttpResponse(json.dumps(retjson), content_type="application/json")
 
-            # # Read the serialized views from the JSON file and deserialize them
+            # Read the serialized views from the JSON file and deserialize them
             # labels_directory = os.path.join(
             #     './gtm_hit/static/gtm_hit/dset/', settings.DSETNAME, 'labels', worker_id)
             # with open(os.path.join(labels_directory, f'{worker_id}_{frame_id}.json'), 'r') as rect_json:
             #     # Deserialize the views from the serialized data
             #     views = serializers.deserialize('json', rect_json)
 
-            # # Iterate through each view and prefetch the related annotation and annotation2dview objects
+            # Iterate through each view and prefetch the related annotation and annotation2dview objects
             # for view in views:
             #     view.object = view.object.prefetch_related(
             #         'annotation_set__twod_views').select_related('frame')
@@ -842,9 +894,8 @@ def timeview(request):
             print('looking for frame: ', frame_id)
             # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
 
-            # FRAMES_NO = 
-            frame_id_start = max(1, frame_id - 10)
-            frame_id_end =  min(frame_id + 10, settings.NUM_FRAMES)
+            frame_id_start = max(0, frame_id - settings.TIMEWINDOW)
+            frame_id_end =  min(frame_id + settings.TIMEWINDOW, settings.NUM_FRAMES)
             
             # Filter the Annotation2DView objects using the calculated frame range and the Person object
             annotation2dviews = Annotation2DView.objects.filter(
@@ -895,7 +946,7 @@ def create_video(request):
 def serve_frame(request):
     if is_ajax(request):
         # try:
-        frame_number = int(float(request.POST['frame_number']))
+        frame_number = int(float(request.POST['frame_number']) * settings.FRAME_SKIP)
         camera_name = int(request.POST['camera_name'])
         # print(camera_name)
         camera_name = settings.CAMS[camera_name]
@@ -939,7 +990,7 @@ def merge(request):
             worker_id = request.POST['workerID']
             
             # Generate new person ID for the merged track
-            merged_person_id = max(Person.objects.all().values_list('person_id', flat=True)) + 1
+            merged_person_id = max(Person.objects.all().values_list('id', flat=True)) + 1
             print(f"Merging trajectories for persons {person_id1} and {person_id2} into trajectory {merged_person_id}")
 
             # Retrieve Annotation2DView and Annotation objects

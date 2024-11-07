@@ -85,170 +85,19 @@ function toggleCamera(camName) {
   }
 }
 
-
-
-// function toggleCamera(camName) {
-//     const checkbox = document.getElementById(`checkbox${camName}`);
-//     const canvas = document.getElementById(`canv${camName}`);
-    
-//     if (checkbox && canvas) {
-//       if (checkbox.checked) {
-//           // Remove camera
-//           checkbox.checked = false;
-//           canvas.style.display = 'none';
-//           activeCameras = activeCameras.filter(id => id !== camName);
-//       } else {
-//           // Add camera back
-//           checkbox.checked = true;
-//           canvas.style.display = 'block';
-//           activeCameras.push(camName);
-//       }
-    
-//     updateCameraGrid();
-//     }
-// }
-
 function updateCameraGrid() {
     const container = document.getElementById('cameraContainer');
     const numActive = activeCameras.length;
     
     // Update grid layout based on number of active cameras
-    container.style.gridTemplateColumns = `repeat(${Math.ceil(Math.sqrt(numActive))}, 1fr)`;
+    container.style.gridTemplateColumns = `repeat(${Math.min(Math.ceil(Math.sqrt(numActive)), 2)}, 1fr)`;
 }
-
-// function updateCameraOrder() {
-//     activeCameras = Array.from(document.getElementById('cameraContainer').children)
-//         .map(canvas => parseInt(canvas.id.replace('canv', '')))
-//         .filter(id => document.getElementById(`cam${id}`).checked);
-// }
 
 $(document).ready(function() {
   activeCameras = Array.from({length: cameraPaths.length}, (_, i) => i + 1);
-  console.log(cameraPaths)
   initializeCameraMenu();
   updateCameraGrid();
 });
-
-
-// hashsets --> rect per camera ? rect -> id to coordinates?
-// store variables here? in db ? (reupload db?)
-// window.onload = function () {
-//   toggle_ground = false;
-//   toggle_orientation = false;
-//   // getFrameStrs();
-
-//   var d = document.getElementById("changeF");
-//   if (d != null) {
-//     d.className = d.className; // + " disabled";
-//     if (nblabeled >= to_label) {
-//       var button = document.getElementById("changeF");
-//       button.href = "/gtm_hit/"  + dset_name + "/"+ workerID + "/processFrame";
-//       button.text = "Finish";
-//     }
-//   }
-//   if (nblabeled > 0) {
-//     load();
-//   }
-//   camName = cams.substring(2, cams.length - 2).split("', '");
-  
-//   frameStrs = frame_strs;
-//   for (var i = 0; i < nb_cams; i++) {
-//     boxes[i] = {};
-
-//     // arrArray[i] = new Image();
-//     // arrArray[i].id = ("arrows" + i);
-//     // arrArray[i].src = '/static/gtm_hit/images/arrows' + i + '_3D.png';
-
-//     imgArray[i] = new Image();
-//     imgArray[i].id = (i + 1);
-//     imgArray[i].onload = function () {
-//       var c = document.getElementById("canv" + this.id);
-//       if (!c) {
-//         console.error("Canvas with ID canv" + this.id + " not found.");
-//         return;
-//     }
-//       var ctx = c.getContext('2d');
-
-//       ctx.drawImage(this, 0, 0);
-//       // if (toggle_orientation)
-//       //   drawArrows(ctx, this.id - 1);
-//       c.addEventListener('contextmenu', mainClick, false);
-
-//       c.addEventListener("mousedown", onMouseDown);
-//       c.addEventListener("mousemove", onMouseMove);
-//       c.addEventListener("mouseup", onMouseUp);
-//       c.addEventListener("click", drawDot);
-//       loadcount++;
-//       if (loadcount == nb_cams) {
-//         $("#loader").hide();
-//       }
-//       update();
-//     }
-
-//     loadcount = 0;
-//     $("#loader").show();
-
-//     if (useUndistorted=="True") undistort_frames_path="undistorted_"
-    
-    
-//     imgArray[i].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
-//     console.log('js: /static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]])
-
-//   }
-//   var topview = new Image();
-//   topview.id = "topviewimg";
-//   topview.onload = function () {
-//     var c = document.getElementById("topview" + this.id);
-//     var ctx = c.getContext('2d');
-//     ctx.drawImage(this, 0, 0);
-//     }
-//   topview.src = '/static/gtm_hit/dset/scout/NewarkPennTopView2.tif'
-
-//   $(document).bind('keydown', "backspace", backSpace);
-
-//   $(document).bind('keydown', "left", leftLarge);
-//   $(document).bind('keydown', "right", rightLarge);
-//   $(document).bind('keydown', "up", upLarge);
-//   $(document).bind('keydown', "down", downLarge);
-
-//   $(document).bind('keydown', "a", left);
-//   $(document).bind('keydown', "d", right);
-//   $(document).bind('keydown', "w", up);
-//   $(document).bind('keydown', "s", down);
-
-//   $(document).bind('keydown', "i", increaseHeight);
-//   $(document).bind('keydown', "k", decreaseHeight);
-//   $(document).bind('keydown', "o", increaseWidth);
-//   $(document).bind('keydown', "u", decreaseWidth);
-//   $(document).bind('keydown', "l", increaseLength);
-//   $(document).bind('keydown', "j", decreaseLength);
-
-
-//   $(document).bind('keydown', "e", rotateCW);
-//   $(document).bind('keydown', "q", rotateCCW);
-
-
-//   $(document).bind('keydown', "tab", tab);
-//   $(document).bind('keydown', "space", space);
-//   $(document).bind("keydown", "v", validate);
-//   $(document).bind("keydown", "z", zoomControl);
-//   $(document).bind("keydown", "g", toggleGround);
-//   $(document).bind("keydown", "c", toggleCuboid);
-//   $(document).bind("keydown", "h", toggleUnselected);
-
-//   $(document).bind("keydown", "n", keyPrevFrame);
-//   $(document).bind("keydown", "m", keyNextFrame);
-
-//   $(document).bind("keydown", "b", toggleOrientation);
-//   $(document).bind("keydown", "ctrl+s", save);
-
-
-//   $("#pID").bind("keydown", "return", changeID);
-//   $("#pID").val(-1);
-//   $("#pHeight").val(-1);
-//   $("#pWidth").val(-1);
-
-// };
 
 window.onload = function () {
   // toggle_ground = true;
@@ -318,7 +167,6 @@ window.onload = function () {
         if (useUndistorted == "True") undistort_frames_path = "undistorted_";
 
         imgArray[index].src = '/static/gtm_hit/dset/' + dset_name + '/' + undistort_frames_path + 'frames/' + camName + '/' + frameStrs[camName];
-        console.log('js: /static/gtm_hit/dset/' + dset_name + '/' + undistort_frames_path + 'frames/' + camName + '/' + frameStrs[camName]);
       })
 
       // // Load the top view after initial setup
@@ -375,11 +223,11 @@ function onMouseDown(event) {
   const { offsetX, offsetY } = event;
   var mousex = offsetX * frame_size[0] / this.clientWidth;
   var mousey = offsetY * frame_size[1] / this.clientHeight;
-  console.log('Clicked on: ', event.target.id)
+  // console.log('Clicked on: ', event.target.id)
   // Get the canvas index from the canvas id
   const canvasIndex = cameraPaths.indexOf(event.target.id.replace('canv', '',)); //parseInt(event.target.id.slice(4)) - 1;
-  console.log('Mouse coordinates:', {mousex, mousey});
-  console.log('Canvas index:', canvasIndex);
+  // console.log('Mouse coordinates:', {mousex, mousey});
+  // console.log('Canvas index:', canvasIndex);
 
   // Check if any bounding box is selected
   let threshold = 10;
@@ -1163,71 +1011,119 @@ function loader2(uri) {
         load_prev();
     }
   });
-}
-
-function loader_db(uri) {
+}function loader_db(uri) {
   $.ajax({
-    method: "POST",
-    url: uri,
-    data: {
-      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
-      ID: frame_str,
-      workerID: workerID,
-      datasetName: dset_name
-    },
-    dataType: 'json',
-    success: function (msg) {
-      boxesLoaded=false;
-      clean();
-      var maxID = 0;
-      for (var i = 0; i < msg[0].length; i++) {
-        var rid = msg[0][i].rectangleID;
-        var indof = rectsID.indexOf(rid);
-        if (indof == -1) {
-          rectsID.push(rid);
-          chosen_rect = rectsID.length - 1;
-        }else{
-          chosen_rect = rectsID[indof];
-          var pid = msg[0][i].person_id
-          identities[rid] = pid;
-        }
-        var pid = msg[0][i].person_id
-        identities[rid] = pid;
-        for (var cami = 0; cami < nb_cams; cami++) {
-          boxes[cami][pid] = msg[cami][i];
-          }
-        if (pid > maxID)
-          maxID = pid;
-        if (uri == "loadprev")
-          validation[pid] = false;
-        else
-          validation[pid] = true;
-          
-      }
+      method: "POST",
+      url: uri,
+      data: {
+          csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+          ID: frame_str,
+          workerID: workerID,
+          datasetName: dset_name
+      },
+      dataType: 'json',
+      success: function(annotations) {
+          boxesLoaded = false;
+          clean();
+          let maxID = 0;
 
-      if (prev_chosen_identity!=undefined){
-        if (prev_chosen_identity in boxes[0]){
-          chosen_rect =  rectsID.indexOf(boxes[0][prev_chosen_identity].rectangleID)
-          getTracklet();
-          displayCrops(frame_str, prev_chosen_identity, timeview_canv_idx); //display crops --timeview.js
-          showCopyBtn()
-        }
-        else {
-          interpolate()
-        }
+          // Initialize boxes array for each camera
+          for (let i = 0; i < nb_cams; i++) {
+              boxes[i] = {};
+          }
+
+          annotations.forEach(ann => {
+              const rid = ann.rectangleID;
+              const pid = ann.person_id;
+              maxID = Math.max(maxID, pid);
+              
+              if (!rectsID.includes(rid)) {
+                  rectsID.push(rid);
+                  chosen_rect = rectsID.length - 1;
+              } else {
+                  chosen_rect = rectsID.indexOf(rid);
+              }
+              
+              identities[rid] = pid;
+              console.log(ann);
+              boxes[ann.cameraID][pid] = ann;
+              validation[pid] = (uri !== "loadprev");
+          });
+
+          // Rest of the success handler...
       }
-      
-      personID = maxID + 1;
-      boxesLoaded=true;
-      $("#unsaved").html("All changes saved.");
-      update();
-    },
-    error: function (msg) {
-      if (uri == "load")
-        load_prev();
-    }
   });
 }
+
+// function loader_db(uri) {
+//   // console.log('loading from db');
+//   $.ajax({
+//     method: "POST",
+//     url: uri,
+//     data: {
+//       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+//       ID: frame_str,
+//       workerID: workerID,
+//       datasetName: dset_name
+//     },
+//     dataType: 'json',
+//     success: function (msg) {
+//       console.log(msg[0]);
+//       boxesLoaded=false;
+//       clean();
+//       var maxID = 0;
+//       for (var i = 0; i < msg[0].length; i++) {
+//         var rid = msg[0][i].rectangleID;
+//         var indof = rectsID.indexOf(rid);
+        
+//         if (indof == -1) {
+//           rectsID.push(rid);
+//           chosen_rect = rectsID.length - 1;
+//         }else{
+//           chosen_rect = rectsID[indof];
+//           var pid = msg[0][i].person_id
+//           identities[rid] = pid;
+//         }
+        
+//         var pid = msg[0][i].person_id
+//         identities[rid] = pid;
+        
+//         for (var cami = 0; cami < nb_cams; cami++) {
+//           boxes[cami][pid] = msg[cami][i];
+//           // console.log('chosen rect id: ', chosen_rect, 'person id: ', pid, 'with boxes: ', boxes[cami][pid]);
+//           }
+//         if (pid > maxID)
+//           maxID = pid;
+//         if (uri == "loadprev")
+//           validation[pid] = false;
+//         else
+//           validation[pid] = true;
+          
+//       }
+
+//       if (prev_chosen_identity!=undefined){
+//         if (prev_chosen_identity in boxes[0]){
+//           chosen_rect =  rectsID.indexOf(boxes[0][prev_chosen_identity].rectangleID)
+//           getTracklet();
+//           displayCrops(frame_str, prev_chosen_identity, timeview_canv_idx); //display crops --timeview.js
+//           showCopyBtn()
+//         }
+//         else {
+//           interpolate()
+//         }
+//       }
+      
+//       personID = maxID + 1;
+//       boxesLoaded=true;
+//       $("#unsaved").html("All changes saved.");
+//       update();
+//     },
+//     error: function (msg) {
+//       if (uri == "load")
+//         load_prev();
+//     }
+//   });
+// }
 
 function clean() {
   for (var i = 0; i < nb_cams; i++) {
@@ -1562,14 +1458,18 @@ function drawRect() {
   var sumH = 0;
   // console.log(boxes)
   for (key in boxes) {
+    if (boxes[key] == undefined) continue;
     for (var r = 0; r < rectsID.length; r++) {
       var field = boxes[key][identities[rectsID[r]]];
-      console.log({
-          key: boxes[key],
-          // rectId: rectsID[r],
-          identity: identities[rectsID[r]],
-          field: field
-      });
+      if (field == undefined) continue;
+      // console.log({
+
+      //     key: key,
+      //     boxes : boxes[key],
+      //     // rectId: rectsID[r],
+      //     identity: identities[rectsID[r]],
+      //     field: field
+      // });
 
       
       if (field.y1 != -1 && field.y2 != -1 && field.x1 != -1) {
@@ -1636,11 +1536,19 @@ function drawRect() {
   if (chosen_rect >= 0) {
     let pid = identities[rectsID[chosen_rect]];
     let box = boxes[key][pid];
-    //round to 2 decimal places
-    $("#pHeight").text("Height: "+box.object_size[0].toFixed(3)); 
-    $("#pWidth").text("Width: "+box.object_size[1].toFixed(3));
-    $("#pLength").text("Length: "+box.object_size[2].toFixed(3));
-    $("#pID").text(pid);
+    if (box) {
+      //round to 2 decimal places
+      $("#pHeight").text("Height: "+box.object_size[0].toFixed(3)); 
+      $("#pWidth").text("Width: "+box.object_size[1].toFixed(3));
+      $("#pLength").text("Length: "+box.object_size[2].toFixed(3));
+      $("#pID").text(pid);
+    }
+    else {
+      $("#pHeight").text(-1);
+      $("#pWidth").text(-1);
+      $("#pLength").text(-1);
+      $("#pID").text(-1);
+    }
 
 
   } else {
@@ -1798,65 +1706,65 @@ function checkRects() {
 }
 
 
-// function load_file(f) {
-//   var re = f.match(/_(.*)\./);
-//   if (re == null)
-//     var frame_string = f.split(".")[0];
-//   else
-//     var frame_string = f.match(/_(.*)\./).pop();
-//   $.ajax({
-//     method: "POST",
-//     url: "loadfile",
-//     data: {
-//       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
-//       ID: f
-//     },
-//     dataType: 'json',
-//     success: function (msg) {
-//       clean();
-//       load_frame(frame_string);
-//       var maxID = 0;
-//       for (var i = 0; i < msg.length; i++) {
-//         var rid = msg[i][0].rectangleID;
-//         var indof = rectsID.indexOf(rid);
-//         if (indof == -1) {
-//           rectsID.push(rid);
-//           saveRectLoad(msg[i]);
-//           chosen_rect = rectsID.length - 1;
-//           identities[rid] = msg[i][7];
-//           var pid = msg[i][7];
-//           if (pid > maxID)
-//             maxID = pid;
+function load_file(f) {
+  var re = f.match(/_(.*)\./);
+  if (re == null)
+    var frame_string = f.split(".")[0];
+  else
+    var frame_string = f.match(/_(.*)\./).pop();
+  $.ajax({
+    method: "POST",
+    url: "loadfile",
+    data: {
+      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+      ID: f
+    },
+    dataType: 'json',
+    success: function (msg) {
+      clean();
+      load_frame(frame_string);
+      var maxID = 0;
+      for (var i = 0; i < msg.length; i++) {
+        var rid = msg[i][0].rectangleID;
+        var indof = rectsID.indexOf(rid);
+        if (indof == -1) {
+          rectsID.push(rid);
+          saveRectLoad(msg[i]);
+          chosen_rect = rectsID.length - 1;
+          identities[rid] = msg[i][7];
+          var pid = msg[i][7];
+          if (pid > maxID)
+            maxID = pid;
 
-//           validation[pid] = msg[i][8];
-//         }
-//         personID = maxID + 1;
-//         update();
-//       }
-//     }
-//   });
+          validation[pid] = msg[i][8];
+        }
+        personID = maxID + 1;
+        update();
+      }
+    }
+  });
 
-// }
+}
 
-// async function load_frame(frame_string) {
-//   loadcount = 0;
-//   $("#loader").show();
-//   frame_str = frame_string.replace(/^0*/, "");
-//   $("#frameID").html("Frame ID: " + frame_str + "&nbsp;&nbsp;");
+async function load_frame(frame_string) {
+  loadcount = 0;
+  $("#loader").show();
+  frame_str = frame_string.replace(/^0*/, "");
+  $("#frameID").html("Frame ID: " + frame_str + "&nbsp;&nbsp;");
   
-//   if (useUndistorted=="True") undistort_frames_path="undistorted_"
-//   var frameStrs = JSON.parse('{{ frame_strs|safe }}');
+  if (useUndistorted=="True") undistort_frames_path="undistorted_"
+  var frameStrs = JSON.parse('{{ frame_strs|safe }}');
   
-//   for (var i = 0; i < nb_cams; i++) {
-//       var imgSrc = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
-//       const loadedImg = await loadImage(imgSrc);
-//       if (loadedImg !== null) {
-//           imgArray[i].src = imgSrc;
-//       }
-//   }
-//   clean();
-//   update();
-// }
+  for (var i = 0; i < nb_cams; i++) {
+      var imgSrc = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
+      const loadedImg = await loadImage(imgSrc);
+      if (loadedImg !== null) {
+          imgArray[i].src = imgSrc;
+      }
+  }
+  clean();
+  update();
+}
 
 // function fetchFrameStrings(frame_str) {
 //   $.ajax({

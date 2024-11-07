@@ -237,12 +237,7 @@ DELTA_SEARCH = 5
 # except FileNotFoundError:
 #         print("Error: Rectangle file not found")
 
-VALIDATIONCODES = []
-STARTFRAME = 2
-NBFRAMES = 5000
-LASTLOADED = 0
-INCREMENT = 7
-UNLABELED = list(range(0,NBFRAMES,INCREMENT))
+
 
 # DSETNAME = "rayon4"
 # CAMS = ["cam1","cam2","cam3","cam4"]
@@ -257,12 +252,22 @@ SYMLINK_DEST_FRAMES = DSETPATH / "frames"
 # SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
 CALIBPATH = DSETPATH / "calibrations"
 # CALIB_SRC = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/calibrations/calibrations")
-NUM_FRAMES = 12000
+FPS = 1 # framerate of input video (note, assumes 10fps base)
+NUM_FRAMES = int(12000 * FPS / 10)
 FRAME_START = 0
-FRAME_END = NUM_FRAMES
+FRAME_END = FRAME_START + NUM_FRAMES
 HEIGHT = 1.8
 RADIUS = 0.5 #person radius
+FLAT_GROUND = True # Whether or not to use the mesh for dataset generation and annotation
+FRAME_SKIP = 10 / FPS
+TIMEWINDOW = 10 * FRAME_SKIP # cropped frames loaded when selecting a bounding box (on either side)
 
+VALIDATIONCODES = []
+STARTFRAME = 2
+NBFRAMES = NUM_FRAMES
+LASTLOADED = 0
+INCREMENT = 1
+UNLABELED = list(range(0,NBFRAMES,INCREMENT))
 
 STEPL = 0.02
 MOVE_STEP = 0.02 #same as stepl vidis ovoDA
@@ -288,3 +293,15 @@ try:
 except:
     print("It's going to be slow")
 MESH = trimesh.load(MESHPATH)
+
+import json
+from shapely.geometry import Polygon
+from gtm_hit.misc.geometry import get_polygon_from_points_3d
+
+
+
+ROIjson = json.load(open('/cvlabdata2/home/grosche/dev/calibration/ROI_annotated_polygon.json'))
+
+ROI = {}
+for cam_name, polygon in ROIjson['points_3d'].items():
+    ROI[cam_name] = get_polygon_from_points_3d(polygon)

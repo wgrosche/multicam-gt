@@ -1,6 +1,6 @@
 # from gtm_hit.misc.invision_preprocess import preprocess_invision_data
 
-from gtm_hit.misc.scout_preprocess import preprocess_scout_data
+from gtm_hit.misc.scout_preprocess import preprocess_scout_data, preprocess_scout_data_from_dict
 from pathlib import Path
 from django.conf import settings
 # import argparse
@@ -17,10 +17,12 @@ class Args:
                 #  calibration_path="",
                  tracks_path="",
                 #  input_path="gtm_hit/static/gtm_hit/labels/json_output",
-                 worker_id="FULL_DATASET",
+                 worker_id="TEST",
+                 hdf5_template = "/cvlabdata2/home/grosche/dev/calibration/sync_frame_seq_1/{camera}",
                  dataset_name=settings.DSETNAME, 
-                 range_start=0,
-                 range_end=12000):
+                 range_start=settings.FRAME_START,
+                 range_end=settings.FRAME_END,
+                 fps =settings.FPS):
         
         # self.frames_path=frames_path,
         # self.calibration_path=calibration_path,
@@ -30,17 +32,23 @@ class Args:
         self.dataset_name = dataset_name
         self.range_start=range_start
         self.range_end=range_end
+        self.hdf5_template = hdf5_template
+        self.fps = fps
 
 args = Args()
 # args.frames_path=Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/")
 # args.calibration_path=Path("/cvlabdata2/home/grosche/dev/calibration/calibrations")
 args.tracks_path=Path("/cvlabdata2/home/grosche/dev/calibration/unmerged_tracks.pkl")
 
-preprocess_scout_data(
-    tracks_path=args.tracks_path,
-    worker_id=args.worker_id,
-    dataset_name=args.dataset_name,
-    range_start=args.range_start,
-    range_end=args.range_end,
-    testing = False
-)
+# preprocess_scout_data(
+#     tracks_path=args.tracks_path,
+#     worker_id=args.worker_id,
+#     dataset_name=args.dataset_name,
+#     range_start=args.range_start,
+#     range_end=args.range_end,
+#     testing = False
+# )
+
+preprocess_scout_data_from_dict(hdf5_template = args.hdf5_template, worker_id=args.worker_id,
+                          dataset_name=args.dataset_name, fps = args.fps
+                          )

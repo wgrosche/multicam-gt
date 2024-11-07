@@ -21,7 +21,6 @@
   <!-- <link rel="stylesheet" type="text/css" href="{% static 'gtm_hit/frame.css' %}" /> -->
 
   <script type="text/javascript">
-    console.log("Cameras:", {{ cams|safe }});
     var frame_number = "{{frame_number}}";
     var workerID = "{{workerID}}";
     var frame_strs =  {{ frame_strs|safe }};
@@ -35,7 +34,6 @@
     var frame_size = "{{frame_size}}";
     var useUndistorted = "{{undistort}}";
     frame_size = frame_size.substring(1, frame_size.length - 1).split(",");
-    console.log("cameraPaths:", cameraPaths);
   </script>
   <!-- <script type="text/javascript">
   console.log("cameraPaths:", cameraPaths);
