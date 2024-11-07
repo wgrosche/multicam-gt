@@ -91,11 +91,16 @@ def find_closest_annotations_to(person:Person,
 #         update_fields=['x1', 'y1', 'x2', 'y2']
 #     )
 def save_2d_views_bulk(annotations, batch_size=1000):
-    views = {view.view_id: view for view in View.objects.all()}
+
+    # bulk create View objects
+    views_to_create = [View(view_id=i) for i in range(settings.NB_CAMS)]
+    View.objects.bulk_create(views_to_create, ignore_conflicts=True)
+
+    views = View.objects.filter(view_id__in=range(settings.NB_CAMS))
     annotation2dviews_to_create = []
     
-    for i, annotation in enumerate(tqdm(annotations, total=len(annotations), desc='Saving 2D Views...')):
-        print(f"Processing annotation {i} of {len(annotations)}")
+    for i, annotation in enumerate(tqdm(annotations, total=len(annotations))):
+        tqdm.set_description(f"Processing annotation {i} of {len(annotations)} into 2D")
         for cam_idx in range(settings.NB_CAMS):
             cuboid = geometry.get_cuboid2d_from_annotation(
                     annotation, 

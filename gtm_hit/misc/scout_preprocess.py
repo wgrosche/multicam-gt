@@ -198,14 +198,14 @@ def load_trajectories_3d_as_dict(
         calibration:Dict[str, Calibration], 
         mesh:Trimesh, 
         hdf5_template:Optional[str] = "/cvlabdata2/home/grosche/dev/calibration/sync_frame_seq_1/{camera}",
-        frame_step:int = 1,
+        frame_range:range = range(settings.FRAME_START, settings.FRAME_END, settings.FRAME_SKIP),
         ) -> Dict[str, List[Tuple[np.ndarray, int, int, int]]]:
 
     # Load predictions from HDF5
     preds = HDF5FrameStore(hdf5_template.format(frame_seq=sequence, camera=camera))
     # skip frames according to frame_step
     frames = preds.get_all_frame_names()
-    frames = frames[::frame_step]
+    frames = [frames[i] for i in frame_range]
     
     start_time = time.time()
     predicted_frames = preds.load_frames(frames)
@@ -304,16 +304,25 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
                           dataset_name: str,
                           fps: int,
                           ):
+    
+    # Clear dataset of any values corresponding to this worker
+    Worker.objects.filter(workerID=worker_id).delete()
 
-    frame_step = int(10 // fps)
-    print(frame_step)
-    print(type(frame_step))
-    range_start = int(settings.FRAME_START)
-    range_end = int(settings.FRAME_END)
+    frame_range = range(int(settings.FRAME_START), 
+                        int(settings.FRAME_END), 
+                        int(settings.FRAME_SKIP))
+    
+    print(f"Frame range: {frame_range}")
+    # return None
     traj_dict_3d = {}
+
     for camera in settings.CAMS:
-        print(f"Processing {camera}...")
-        traj_dict_3d[camera] = (load_trajectories_3d_as_dict('sync_frame_seq_1', camera, settings.CALIBS, settings.MESH, hdf5_template=hdf5_template, frame_step = frame_step))
+        traj_dict_3d[camera] = (load_trajectories_3d_as_dict('sync_frame_seq_1', 
+                                                             camera, 
+                                                             settings.CALIBS, 
+                                                             settings.MESH, 
+                                                             hdf5_template=hdf5_template, 
+                                                             frame_range = frame_range))
 
     all_tracks_3d = {}
     global_to_local = []
@@ -329,33 +338,37 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
     worker, _ = Worker.objects.get_or_create(workerID=worker_id)
     dataset, _ = Dataset.objects.get_or_create(name=dataset_name)
 
-    print("Creating People...")
+    print("Creating people...")
     people_to_create = [Person(person_id=person_id, 
                                worker=worker, 
                                dataset=dataset) for person_id in all_tracks_3d.keys()]
-    print("Bulking People...")
+    print("Bulk adding people to database...")
     Person.objects.bulk_create(people_to_create, 
                                update_conflicts=True, 
                                update_fields=['person_id', 'worker', 'dataset'], 
                                unique_fields=['person_id', 'worker', 'dataset'])
     
-    print("Creating Frames...")
+    print("Creating frames...")
     frames_to_create = [MultiViewFrame(frame_id=frame_idx, 
             worker=worker, 
             undistorted=settings.UNDISTORTED_FRAMES, 
             dataset=dataset
-            ) for frame_idx in range(range_start, range_end, frame_step)]
-    print("Bulking Frames...")
+            ) for frame_idx in frame_range]
+    
+    print("Bulk adding frames to database...")
     MultiViewFrame.objects.bulk_create(frames_to_create, ignore_conflicts=True)
-    print("Fetching Frames...")
+
+    print("Fetching frames from database...")
     # Prefetch all frames once
     frames_dict = {frame.frame_id: frame for frame in 
                 MultiViewFrame.objects.filter(
                     worker=worker, 
                     dataset=dataset,
-                    frame_id__in=list(range(range_start, range_end, frame_step))
+                    frame_id__in=list(frame_range)
                 )}
-    print("Fetching People...")
+    
+    print(frames_dict.items())
+    print("Fetching people from database...")
     # Get all persons at once
     people = {p.person_id: p for p in Person.objects.filter(worker=worker, dataset=dataset)}
 
@@ -373,7 +386,7 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
         all_annotations.extend([
             Annotation(
                 person=person,
-                frame=frames_dict[start + frame_idx],
+                frame=frames_dict[frame_idx],
                 rectangle_id=uuid.uuid4().__str__().split("-")[-1],
                 rotation_theta=0,
                 Xw=position[0],
@@ -383,9 +396,9 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
                 object_size_y=0.6,
                 object_size_z=0.6,
                 creation_method="imported_scout_tracks"
-            ) for frame_idx, position in enumerate(positions) if start + frame_idx in frames_dict
+            ) for frame_idx, position in enumerate(positions) if frame_idx in frame_range
         ])
-    print("Bulking annotations...")
+    print("Bulk adding annotations to database...")
     # Bulk create all annotations at once
     Annotation.objects.bulk_create(
         all_annotations,
@@ -394,14 +407,11 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
         update_fields=['rectangle_id', 'rotation_theta', 'Xw', 'Yw', 'Zw', 
                     'object_size_x', 'object_size_y', 'object_size_z', 'creation_method']
     )
-    print("Fetching Annotations...")
+    print("Fetching annotations...")
     # Process all 2D views at once
     all_annotations = Annotation.objects.filter(
         person__in=people.values(),
         frame__in=frames_dict.values()
     ).select_related('frame', 'person')
 
-    # for annotation in tqdm(all_annotations, total=len(all_annotations), desc='Saving 2D views'):
-    #     print(annotation)
-    #     save_2d_views(annotation)
     save_2d_views_bulk(all_annotations)

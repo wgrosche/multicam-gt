@@ -590,7 +590,6 @@ function copyPrevOrNext(e) {
     },
     dataType: "json",
     success: function (msg) {
-      console.log(msg["message"])
       loader_db("load")
     },
     error: function (msg) {
@@ -1244,7 +1243,8 @@ function changeFrame(order, increment) {
           $("#frameID").html("Frame ID: " + fstr.toString() + "&nbsp;&nbsp;");
           
           if (useUndistorted=="True") undistort_frames_path="undistorted_"
-          cameraPaths.forEach((camName, index) =>{
+          activeCameras.forEach((camName) =>{
+            const index = cameraPaths.indexOf(camName);
             imgArray[index].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName + '/' + frameStrs[camName];
           })
           // for (var i = 0; i < nb_cams; i++) {
