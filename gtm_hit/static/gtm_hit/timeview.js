@@ -7,7 +7,6 @@ async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames
     //cropsContainer.style.display = "flex";
     const currentFrame = parseInt(frame);
     document.getElementById("crops-container").innerHTML = '<button id="close-button" style="position: absolute; top: 0; left: 0;" onclick="hideCrops()">X</button>';
-    console.log("This is where we are.")
     $.ajax({
         method: "POST",
         url: "timeview",

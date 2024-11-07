@@ -247,6 +247,7 @@ DELTA_SEARCH = 5
 
 # need to: establish symlinked folders for get frame size etc
 DSETNAME = "SCOUT"
+WORKER_ID = 'TEST'
 DSETPATH = Path("./gtm_hit/static/gtm_hit/dset/") / DSETNAME
 SYMLINK_DEST_FRAMES = DSETPATH / "frames"
 # SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
@@ -259,14 +260,14 @@ FRAME_END = FRAME_START + NUM_FRAMES
 HEIGHT = 1.8
 RADIUS = 0.5 #person radius
 FLAT_GROUND = True # Whether or not to use the mesh for dataset generation and annotation
-FRAME_SKIP = 10 / FPS
+FRAME_SKIP = int(float(10 / FPS))
 TIMEWINDOW = 10 * FRAME_SKIP # cropped frames loaded when selecting a bounding box (on either side)
 
 VALIDATIONCODES = []
 STARTFRAME = 2
-NBFRAMES = NUM_FRAMES
+NBFRAMES = NUM_FRAMES + 10
 LASTLOADED = 0
-INCREMENT = 1
+INCREMENT = FRAME_SKIP
 UNLABELED = list(range(0,NBFRAMES,INCREMENT))
 
 STEPL = 0.02

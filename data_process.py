@@ -17,7 +17,7 @@ class Args:
                 #  calibration_path="",
                  tracks_path="",
                 #  input_path="gtm_hit/static/gtm_hit/labels/json_output",
-                 worker_id="TEST",
+                 worker_id=settings.WORKER_ID,
                  hdf5_template = "/cvlabdata2/home/grosche/dev/calibration/sync_frame_seq_1/{camera}",
                  dataset_name=settings.DSETNAME, 
                  range_start=settings.FRAME_START,

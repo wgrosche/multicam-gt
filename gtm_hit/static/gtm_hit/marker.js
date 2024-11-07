@@ -127,9 +127,9 @@ window.onload = function () {
         button.text = "Finish";
       }
 
-      if (nblabeled > 0) {
+      // if (nblabeled > 0) {
         load();
-      }
+      // }
 
       // Proceed with image loading after frameStrs has been populated
       // camName = cameraPaths.substring(2, cameraPaths.length - 2).split("', '");
@@ -254,8 +254,8 @@ function onMouseDown(event) {
     if (
       mousex >= box.xMid - threshold &&
       mousex <= box.xMid + threshold &&
-      mousey >= box.y2 - threshold &&
-      mousey <= box.y2 + threshold
+      mousey >= box.y1 - threshold &&
+      mousey <= box.y1 + threshold
     ) {
       chosen_rect = rectsID.indexOf(rectID);
       console.log('Selected box:', {rectID, pid, box});
@@ -347,52 +347,105 @@ function getFrameStrs() {
     }
 })}
 
-function onMouseUp() {
+// function onMouseUp() {
+//   if (!mouseDown || !selectedBox) return;
+//   const { rectID, canvasIndex } = selectedBox;
+//   const pid = identities[rectID];
+//   const box = boxes[canvasIndex][pid];
+//   mouseDown = false;
+
+//   $.ajax({
+//     method: "POST",
+//     url: "click",
+//     data: {
+//       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+//       x: box.xMid,
+//       y: box.y2,
+//       rotation_theta: box.rotation_theta,
+//       object_size: box.object_size,
+//       canv: this.id,
+//       person_id: pid,
+//       workerID: workerID,
+//       datasetName: dset_name,
+//     },
+//     dataType: "json",
+//     success: function (msg) {
+//       var newrectid = msg[0].rectangleID;
+//       var indof = rectsID.indexOf(newrectid);
+//       if (indof == -1) {
+//         const { rectID, canvasIndex } = selectedBox;
+//         //save the new rectangle
+//         const pid = identities[rectID];
+//         const box = boxes[canvasIndex][pid];
+//         saveRect(msg, pid);
+//         //reassign the identity to the new rectangle
+//         identities[newrectid] = pid;
+//         delete identities[rectID];
+
+//         // reassign the rectangle to the new identity
+//         rectsID[rectsID.indexOf(rectID)] = newrectid;
+
+//       } else {
+//         chosen_rect = indof;
+//       }
+//       update();
+//       selectedBox = null;
+//     }
+//   });
+// }
+
+function onMouseUp(event) {
   if (!mouseDown || !selectedBox) return;
+  
+  const { offsetX, offsetY } = event;
+  var xCorr = Math.round(offsetX * frame_size[0] / this.clientWidth);
+  var yCorr = Math.round(offsetY * frame_size[1] / this.clientHeight);
+  
   const { rectID, canvasIndex } = selectedBox;
   const pid = identities[rectID];
   const box = boxes[canvasIndex][pid];
   mouseDown = false;
 
   $.ajax({
-    method: "POST",
-    url: "click",
-    data: {
-      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
-      x: box.xMid,
-      y: box.y2,
-      rotation_theta: box.rotation_theta,
-      object_size: box.object_size,
-      canv: this.id,
-      person_id: pid,
-      workerID: workerID,
-      datasetName: dset_name,
-    },
-    dataType: "json",
-    success: function (msg) {
-      var newrectid = msg[0].rectangleID;
-      var indof = rectsID.indexOf(newrectid);
-      if (indof == -1) {
-        const { rectID, canvasIndex } = selectedBox;
-        //save the new rectangle
-        const pid = identities[rectID];
-        const box = boxes[canvasIndex][pid];
-        saveRect(msg, pid);
-        //reassign the identity to the new rectangle
-        identities[newrectid] = pid;
-        delete identities[rectID];
-
-        // reassign the rectangle to the new identity
-        rectsID[rectsID.indexOf(rectID)] = newrectid;
-
-      } else {
-        chosen_rect = indof;
+      method: "POST",
+      url: "click",
+      data: {
+          csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+          x: xCorr,
+          y: yCorr,
+          rotation_theta: box.rotation_theta,
+          object_size: box.object_size,
+          canv: this.id,
+          person_id: pid,
+          workerID: workerID,
+          datasetName: dset_name,
+      },
+      dataType: "json",
+      success: function (msg) {
+        var newrectid = msg[0].rectangleID;
+        var indof = rectsID.indexOf(newrectid);
+        if (indof == -1) {
+          const { rectID, canvasIndex } = selectedBox;
+          //save the new rectangle
+          const pid = identities[rectID];
+          const box = boxes[canvasIndex][pid];
+          saveRect(msg, pid);
+          //reassign the identity to the new rectangle
+          identities[newrectid] = pid;
+          delete identities[rectID];
+  
+          // reassign the rectangle to the new identity
+          rectsID[rectsID.indexOf(rectID)] = newrectid;
+  
+        } else {
+          chosen_rect = indof;
+        }
+        update();
+        selectedBox = null;
       }
-      update();
-      selectedBox = null;
-    }
   });
 }
+
 
 function mainClick(e) {
   e.preventDefault();
@@ -720,6 +773,7 @@ function mergeIDs() {
   success: function (msg) {
     console.log(msg);
     unsavedChanges = false;
+    load();
     $("#unsaved").html("All changes saved.");
   }
 });
@@ -1050,8 +1104,27 @@ function loader2(uri) {
               validation[pid] = (uri !== "loadprev");
           });
 
-          // Rest of the success handler...
-      }
+          if (prev_chosen_identity!=undefined){
+            if (prev_chosen_identity in boxes[0]){
+              chosen_rect =  rectsID.indexOf(boxes[0][prev_chosen_identity].rectangleID)
+              getTracklet();
+              displayCrops(frame_str, prev_chosen_identity, timeview_canv_idx); //display crops --timeview.js
+              showCopyBtn()
+            }
+            else {
+              interpolate()
+            }
+          }
+          
+          personID = maxID + 1;
+          boxesLoaded=true;
+          $("#unsaved").html("All changes saved.");
+          update();
+        },
+        error: function (msg) {
+          if (uri == "load")
+            load_prev();
+        }
   });
 }
 
@@ -1510,7 +1583,7 @@ function drawRect() {
 
         ctx.beginPath();
         ctx.fillStyle = "green";
-        ctx.fillRect(field.xMid - 5, field.y2 - 5, 10, 10);
+        ctx.fillRect(field.xMid - 5, field.y1 - 5, 10, 10);
         ctx.stroke();
         ctx.closePath();
 

@@ -120,14 +120,16 @@ def move_with_mesh_intersection(ground_pix): #reproject to mesh
     
     Requires that settings.MESH is a Trimesh.base.Trimesh object
     """
-
-    mesh = settings.MESH
-    
-    # Use the nearest point function of trimesh
-    closest_point, distance, _ = mesh.nearest.on_surface(ground_pix.reshape(-1, 3))
-    
+    if settings.FLAT_GROUND:
+        return ground_pix
+    else:
+        mesh = settings.MESH
+        
+        # Use the nearest point function of trimesh
+        closest_point, distance, _ = mesh.nearest.on_surface(ground_pix.reshape(-1, 3))
+        ground_pixel = closest_point[0]
     # Return the closest point and distance
-    return closest_point[0]#, distance[0]
+    return ground_pixel
 
 
 def project_world_to_camera(world_point, K1, R1, T1):
