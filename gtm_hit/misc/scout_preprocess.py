@@ -1,6 +1,6 @@
 import numpy as np
 import uuid
-from gtm_hit.models import MultiViewFrame, Worker, Annotation, Person,Dataset
+from gtm_hit.models import MultiViewFrame, Worker, Annotation, Person,Dataset, Annotation2DView
 from django.conf import settings
 from gtm_hit.misc.db import save_2d_views_bulk, save_2d_views
 from pathlib import Path
@@ -14,7 +14,7 @@ from typing import List, Tuple, Dict, Union, Optional
 from collections import namedtuple
 from dataclasses import dataclass
 from .geometry import project_2d_points_to_mesh, reproject_to_world_ground_batched
-
+import json
 Calibration = namedtuple('Calibration', ['K', 'R', 'T', 'dist', 'view_id'])
 from trimesh.base import Trimesh
 
@@ -191,7 +191,6 @@ class HDF5FrameStore:
         return names
     
 
-    
 def load_trajectories_3d_as_dict(
         sequence:str, 
         camera:str, 
@@ -225,7 +224,8 @@ def load_trajectories_3d_as_dict(
     total_project_time = 0
 
     # Process all frames
-    for frame_id, frame in enumerate(frames):
+    for frame_idx, frame in enumerate(frames):
+        frame_id = frame_range[frame_idx]
         loop_start_time = time.time()
         
         pred = predicted_frames[frame]
@@ -302,7 +302,7 @@ def load_trajectories_3d_as_dict(
 def preprocess_scout_data_from_dict(hdf5_template:str,
                           worker_id: str, 
                           dataset_name: str,
-                          fps: int,
+                          dict_path:str = '',
                           ):
     
     # Clear dataset of any values corresponding to this worker
@@ -314,28 +314,32 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
     
     print(f"Frame range: {frame_range}")
     # return None
-    traj_dict_3d = {}
+    if not dict_path:
+        traj_dict_3d = {}
 
-    for camera in settings.CAMS:
-        traj_dict_3d[camera] = (load_trajectories_3d_as_dict('sync_frame_seq_1', 
-                                                             camera, 
-                                                             settings.CALIBS, 
-                                                             settings.MESH, 
-                                                             hdf5_template=hdf5_template, 
-                                                             frame_range = frame_range))
+        for camera in settings.CAMS:
+            traj_dict_3d[camera] = (load_trajectories_3d_as_dict('sync_frame_seq_1', 
+                                                                camera, 
+                                                                settings.CALIBS, 
+                                                                settings.MESH, 
+                                                                hdf5_template=hdf5_template, 
+                                                                frame_range = frame_range))
 
-    all_tracks_3d = {}
-    global_to_local = []
-    current_idx = 0
-    for cam, trajs in traj_dict_3d.items():
-        for local_idx, traj in enumerate(trajs):
-            all_tracks_3d[current_idx] = traj
-            global_to_local.append((cam, local_idx))
-            current_idx += 1
+        all_tracks_3d = {}
+        # global_to_local = []
+        current_idx = 0
+        for cam, trajs in traj_dict_3d.items():
+            for local_idx, traj in enumerate(trajs):
+                all_tracks_3d[current_idx] = traj
+                # global_to_local.append((cam, local_idx))
+                current_idx += 1
+    
+    else:
+        all_tracks_3d = {int(k): (np.array(v[0]), int(v[1]), int(v[2]), int(v[3])) for k,v in json.load(open(dict_path, 'r')).items()}
 
     
     # Create worker and dataset
-    worker, _ = Worker.objects.get_or_create(workerID=worker_id)
+    worker, _ = Worker.objects.get_or_create(workerID=worker_id, tuto = True)
     dataset, _ = Dataset.objects.get_or_create(name=dataset_name)
 
     print("Creating people...")
@@ -353,9 +357,9 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
             worker=worker, 
             undistorted=settings.UNDISTORTED_FRAMES, 
             dataset=dataset
-            ) for frame_idx in frame_range]
-    
-    print("Bulk adding frames to database...")
+            ) for frame_idx in range(int(settings.FRAME_START), int(settings.FRAME_END))]
+
+    print(f"Bulk adding {len(frames_to_create)} frames to database...")
     MultiViewFrame.objects.bulk_create(frames_to_create, ignore_conflicts=True)
 
     print("Fetching frames from database...")
@@ -363,11 +367,9 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
     frames_dict = {frame.frame_id: frame for frame in 
                 MultiViewFrame.objects.filter(
                     worker=worker, 
-                    dataset=dataset,
-                    frame_id__in=list(frame_range)
+                    dataset=dataset
                 )}
     
-    print(frames_dict.items())
     print("Fetching people from database...")
     # Get all persons at once
     people = {p.person_id: p for p in Person.objects.filter(worker=worker, dataset=dataset)}
@@ -376,27 +378,32 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
     all_annotations = []
     for person_id, tracks in tqdm(all_tracks_3d.items(), total=len(all_tracks_3d), desc='Creating annotations'):
         positions, start, end, id = tracks
+        # for frame_idx in frame_range:
+        #     # print(start, end)
+        #     if frame_idx in range(start, end):
+                # print(frame_idx, frames_dict[frame_idx])
+            
 
+        positions = np.array(positions)
         if person_id not in people:
             print(f"Person {person_id} not found in database")
             continue
-
-        person = people[person_id]
         
+        person = people[person_id]
         all_annotations.extend([
             Annotation(
                 person=person,
                 frame=frames_dict[frame_idx],
                 rectangle_id=uuid.uuid4().__str__().split("-")[-1],
                 rotation_theta=0,
-                Xw=position[0],
-                Yw=position[1],
-                Zw=position[2] if position.shape[0] > 2 else 0,
+                Xw=positions[frame_idx - start][0],
+                Yw=positions[frame_idx - start][1],
+                Zw=positions[frame_idx - start][2] if positions[frame_idx - start].shape[0] > 2 else 0,
                 object_size_x=1.7,
-                object_size_y=0.6,
+                object_size_y=0.6,  
                 object_size_z=0.6,
                 creation_method="imported_scout_tracks"
-            ) for frame_idx, position in enumerate(positions) if frame_idx in frame_range
+            ) for frame_idx in frame_range if frame_idx in range(start, end)
         ])
     print("Bulk adding annotations to database...")
     # Bulk create all annotations at once
@@ -415,3 +422,24 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
     ).select_related('frame', 'person')
 
     save_2d_views_bulk(all_annotations)
+
+    print("\n=== Processing Summary ===")
+    print(f"Total People Created: {Person.objects.filter(worker=worker, dataset=dataset).count()}")
+    print(f"Total Frames Created: {MultiViewFrame.objects.filter(worker=worker, dataset=dataset).count()}")
+    print(f"Total Annotations Created: {Annotation.objects.filter(person__worker=worker, person__dataset=dataset).count()}")
+    print(f"Total 2D Views Created: {Annotation2DView.objects.filter(annotation__person__worker=worker, annotation__person__dataset=dataset).count()}")
+    print(f"Frame Range: {frame_range.start} to {frame_range.stop}")
+    print("=====================\n")
+
+    # Get and display frame IDs with annotations
+    frames_with_annotations = sorted(list(MultiViewFrame.objects.filter(
+        worker=worker, 
+        dataset=dataset,
+        annotation__isnull=False
+    ).distinct().values_list('frame_id', flat=True)))
+
+    print(f"\nFrames with annotations ({len(frames_with_annotations)} total):")
+    print(f"First 10 frames: {frames_with_annotations[:10]}")
+    print(f"Last 10 frames: {frames_with_annotations[-10:]}")
+    print("=====================\n")
+

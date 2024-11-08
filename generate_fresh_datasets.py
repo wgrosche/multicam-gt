@@ -1,5 +1,3 @@
-# from gtm_hit.misc.invision_preprocess import preprocess_invision_data
-
 from gtm_hit.misc.scout_preprocess import preprocess_scout_data, preprocess_scout_data_from_dict
 from pathlib import Path
 from django.conf import settings
@@ -9,6 +7,10 @@ from django.conf import settings
 # parser.add_argument('-w',"--worker_id",default="INVISION1", help="Worker ID (default: INVISION1).")
 # parser.add_argument('-d',"--dataset_name", default="invision", help="Dataset name. It should match the name of the folder in dset/ (default: invision).")
 # args = parser.parse_args()
+
+
+merging_strategies_to_generate = ['unmerged', 'mean', 'camera_mean_top', 'camera_mean']
+worker_names = ['UNMERGED', 'MEAN', 'CAMERAMEANTOP', 'CAMERAMEAN']
 
 #Note: undistortion and increment is determined by the settings file.
 class Args:
@@ -48,7 +50,11 @@ args.tracks_path=Path("/cvlabdata2/home/grosche/dev/calibration/unmerged_tracks.
 #     range_end=args.range_end,
 #     testing = False
 # )
-
-preprocess_scout_data_from_dict(hdf5_template = args.hdf5_template, worker_id=args.worker_id,
-                          dataset_name=args.dataset_name, dict_path = args.dict_path
+for strategy in merging_strategies_to_generate:
+    print("Generating dataset for strategy: ", strategy)
+    dict_path = Path('/cvlabdata2/home/grosche/dev/calibration/') / f'traj_dict_{strategy}.json'
+    preprocess_scout_data_from_dict(args.hdf5_template,
+                          worker_id=worker_names[merging_strategies_to_generate.index(strategy)], 
+                          dataset_name=args.dataset_name,
+                          dict_path=dict_path
                           )

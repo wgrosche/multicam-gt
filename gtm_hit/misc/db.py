@@ -98,9 +98,11 @@ def save_2d_views_bulk(annotations, batch_size=1000):
 
     views = View.objects.filter(view_id__in=range(settings.NB_CAMS))
     annotation2dviews_to_create = []
+
+    pbar = tqdm(annotations, total=len(annotations))
     
-    for i, annotation in enumerate(tqdm(annotations, total=len(annotations))):
-        tqdm.set_description(f"Processing annotation {i} of {len(annotations)} into 2D")
+    for i, annotation in enumerate(pbar):
+        pbar.set_description(f"Processing annotation {i} of {len(annotations)} into 2D")
         for cam_idx in range(settings.NB_CAMS):
             cuboid = geometry.get_cuboid2d_from_annotation(
                     annotation, 
@@ -321,8 +323,9 @@ def change_annotation_id_propagate(old_id, new_id, frame, options):
 
 def get_annotation2dviews_for_frame_and_person(frame:MultiViewFrame, person:Person):
     # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
-    frame_id_start = max(1, frame.frame_id - 100)
-    frame_id_end = frame.frame_id + 100
+    frame_id = frame.frame_id
+    frame_id_start = max(0, frame_id - settings.TIMEWINDOW)
+    frame_id_end = min(frame_id + settings.TIMEWINDOW, settings.NUM_FRAMES)
 
     # Filter the Annotation2DView objects using the calculated frame range and the Person object
     annotation2dviews = Annotation2DView.objects.filter(

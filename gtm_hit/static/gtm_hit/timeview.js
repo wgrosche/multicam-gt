@@ -45,7 +45,9 @@ async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames
                 else
                 changeFrame("next",cropFrame-frame_str);
               };
-              canvas.style.maxWidth = "100px";
+              // Set fixed height while maintaining aspect ratio
+              canvas.style.height = "150px"; // Adjust this value as needed
+              canvas.style.width = "auto";
               cropsContainer.append(canvas);
             }
           }
@@ -56,6 +58,65 @@ async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames
       });
 
   }
+// async function displayCrops(frame, pid, numPrevFrames = 5, numFutureFrames = 5) {
+//     document.getElementById("crops-container").style.display = "flex";
+//     const cropsContainer = $("#crops-container");
+//     cropsContainer.empty();
+    
+//     const currentFrame = parseInt(frame);
+//     document.getElementById("crops-container").innerHTML = '<button id="close-button" style="position: absolute; top: 0; left: 0;" onclick="hideCrops()">X</button>';
+
+//     // Create a container for each camera view
+//     activeCameras.forEach(camid => {
+//         const cameraContainer = $('<div>').addClass('camera-crop-container');
+//         cameraContainer.append(`<h4>Camera ${camid}</h4>`);
+//         cropsContainer.append(cameraContainer);
+
+//         $.ajax({
+//             method: "POST",
+//             url: "timeview",
+//             data: {
+//                 csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+//                 personID: pid,
+//                 frameID: parseInt(frame_str),
+//                 viewID: camid,
+//                 workerID: workerID,
+//                 datasetName: dset_name
+//             },
+//             dataType: "json",
+//             success: async function(msg) {
+//                 for (let i = 0; i < msg.length; i++) {
+//                     const box = msg[i];
+//                     const cropFrame = box.frameID;
+                    
+//                     if (cropFrame < 0) continue;
+
+//                     const frameUrl = await getFrameUrl(cropFrame, camid);
+//                     const cropImg = await loadImage(frameUrl);
+
+//                     if (cropImg !== null) {
+//                         const canvas = createCroppedCanvas(cropImg, box, cropFrame, currentFrame);
+//                         canvas.className = "crop-image";
+//                         canvas.id = `${camid}-${cropFrame}`;
+//                         canvas.onclick = function() {
+//                             if (cropFrame < frame_str) changeFrame("prev", frame_str-cropFrame);
+//                             else changeFrame("next", cropFrame-frame_str);
+//                         };
+//                         canvas.style.height = "150px";
+//                         canvas.style.width = "auto";
+                        
+//                         // Add frame number label
+//                         const cropWrapper = $('<div>').addClass('crop-wrapper');
+//                         cropWrapper.append(canvas);
+//                         cropWrapper.append(`<div class="frame-label">Frame ${cropFrame}</div>`);
+                        
+//                         cameraContainer.append(cropWrapper);
+//                     }
+//                 }
+//             }
+//         });
+//     });
+// }
 
 
   

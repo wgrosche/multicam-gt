@@ -69,3 +69,25 @@
     height: auto;
     cursor: move;
 } */
+
+
+.camera-crop-container {
+  margin: 10px;
+  padding: 10px;
+  border: 1px solid #ccc;
+}
+
+.crop-wrapper {
+  display: inline-block;
+  margin: 5px;
+  text-align: center;
+}
+
+.frame-label {
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.selected-for-merge {
+  border: 2px solid yellow !important;
+}

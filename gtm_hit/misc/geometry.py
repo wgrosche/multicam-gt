@@ -279,7 +279,7 @@ def is_visible(point3d:np.ndarray, cam_name:str, check_mesh:bool = True) -> bool
         # print("Point not in ROI")
         return False
     
-    print("Point in ROI")
+    # print("Point in ROI")
     
     # Check if there’s an intersection between the ray and the mesh
     # if mesh is not None and check_mesh:
@@ -367,3 +367,180 @@ def reproject_to_world_ground_batched(ground_pix, K0, R0, T0, height=0):
     
     # Transpose back to Nx3
     return world_points.T
+
+
+from dataclasses import dataclass
+from typing import Union, Tuple, List
+@dataclass
+class Trajectory:
+    coordinates:np.ndarray
+    frame_start:int
+    frame_end:int
+    view_id:Union[int, Tuple[int, int]]
+    camera:str
+    person_id:int = None
+    calibration:Calibration = None
+
+
+def point_ground_bounding_box(ground_point, height, radius, calibration):
+    # Unpack calibration parameters
+    K = calibration.K  # Intrinsic matrix
+    R = calibration.R  # Rotation matrix 
+    T = calibration.T  # Translation vector
+
+    # Get camera position in world coordinates
+    camera_pos = -R.T @ T.squeeze()
+    
+    # Get vector from ground point to camera (projected onto ground plane)
+    to_camera = camera_pos[:2] - ground_point[:2]
+    to_camera = to_camera / np.linalg.norm(to_camera)
+    
+    # Get perpendicular vector in ground plane
+    perp_vector = np.array([-to_camera[1], to_camera[0]])
+
+    # Define corners that form a rectangle oriented towards camera
+    corners_ground = []
+    # Front corners (closer to camera)
+    front_center = ground_point[:2] + radius * to_camera
+    corners_ground.append(np.array([front_center[0] + radius * perp_vector[0], 
+                                  front_center[1] + radius * perp_vector[1], 0]))
+    corners_ground.append(np.array([front_center[0] - radius * perp_vector[0],
+                                  front_center[1] - radius * perp_vector[1], 0]))
+    
+    # Back corners (farther from camera) 
+    back_center = ground_point[:2] - radius * to_camera
+    corners_ground.append(np.array([back_center[0] + radius * perp_vector[0],
+                                  back_center[1] + radius * perp_vector[1], 0]))
+    corners_ground.append(np.array([back_center[0] - radius * perp_vector[0],
+                                  back_center[1] - radius * perp_vector[1], 0]))
+
+    # Add top corners
+    corners_top = []
+    for corner in corners_ground:
+        corners_top.append(np.array([corner[0], corner[1], height]))
+
+    all_corners = corners_ground + corners_top
+
+    def project_to_image(world_point, K1, R1, T1):
+        """
+        Project 3D world coordinate point to image plane (pixel coordinate)
+        """
+        point1 = ((R1 @ world_point) + T1.squeeze())
+        if point1[2] < 0:
+            raise ValueError("World point is located behind the camera plane")
+        point1 = K1 @ point1
+        point1 = point1 / point1[2]
+        return point1[:2]
+
+    # Project all corners to image space
+    image_points = []
+    for corner in all_corners:
+        try:
+            image_point = project_to_image(corner, K, R, T)
+            image_points.append(image_point)
+        except ValueError:
+            continue
+
+    if not image_points:
+        raise ValueError("No corners could be projected to image plane")
+        
+    image_points = np.array(image_points)
+
+    # Find min/max x and y coordinates to create bounding box
+    bbox_x_min = int(np.min(image_points[:,0]))
+    bbox_x_max = int(np.max(image_points[:,0]))
+    bbox_y_min = int(np.min(image_points[:,1])) 
+    bbox_y_max = int(np.max(image_points[:,1]))
+
+    # Bounding box in image coordinates
+    bbox = (bbox_x_min, bbox_y_min, bbox_x_max, bbox_y_max)
+
+    return bbox
+
+
+def merge_trajectory_group(trajectories:List[Trajectory], merging_strategy="mean"):
+    """Merge multiple 3D trajectories based on the specified merging strategy.
+    
+    Args:
+        trajectories: List of trajectories to merge
+        calibrations: Dictionary mapping camera IDs to calibration objects
+        merging_strategy: Strategy to merge overlapping coordinates
+    
+    Returns:
+        Tuple containing:
+        - Merged trajectory with combined coordinates
+        - Dictionary mapping camera IDs to lists of bounding boxes
+    """
+    # Get overall frame range
+    start_frame = min(traj.frame_start for traj in trajectories)
+    end_frame = max(traj.frame_end for traj in trajectories)
+    
+    # Initialize merged coordinates and bbox dictionary
+    merged_coords = []
+    bboxes = {traj.camera: [] for traj in trajectories}
+    
+    for frame in range(start_frame, end_frame + 1):
+        # Get coordinates from all trajectories that have this frame
+        frame_coords = []
+        cam_positions = []
+        directions = []
+        
+        for traj in trajectories:
+            idx = frame - traj.frame_start
+            if 0 <= idx < len(traj.coordinates):
+                coord = traj.coordinates[idx]
+                calib = traj.calibration
+                cam_pos = -calib.R.T @ calib.T.squeeze()
+                
+                frame_coords.append(coord)
+                cam_positions.append(cam_pos)
+                directions.append(coord - cam_pos)
+        
+        if frame_coords:
+            if merging_strategy == "mean":
+                merged_coord = np.mean(frame_coords, axis=0)
+                
+            elif merging_strategy == "camera_mean_top":
+                ground_points = []
+                for cam_pos, direction in zip(cam_positions, directions):
+                    t = -cam_pos[2] / direction[2]
+                    ground_points.append(cam_pos + t * direction)
+                merged_coord = np.mean(ground_points, axis=0)
+                
+            else:  # camera_mean
+                closest_points = []
+                for i, (cam_pos1, dir1) in enumerate(zip(cam_positions, directions)):
+                    dir1 = dir1 / np.linalg.norm(dir1)
+                    for cam_pos2, dir2 in zip(cam_positions[i+1:], directions[i+1:]):
+                        dir2 = dir2 / np.linalg.norm(dir2)
+                        
+                        n = np.cross(dir1, dir2)
+                        n1 = np.cross(dir1, n)
+                        n2 = np.cross(dir2, n)
+                        
+                        c1 = cam_pos1 + (np.dot((cam_pos2 - cam_pos1), n2) / np.dot(dir1, n2)) * dir1
+                        c2 = cam_pos2 + (np.dot((cam_pos1 - cam_pos2), n1) / np.dot(dir2, n1)) * dir2
+                        
+                        closest_points.extend([c1, c2])
+                
+                merged_coord = np.mean(closest_points, axis=0) if closest_points else np.mean(frame_coords, axis=0)
+            
+            merged_coords.append(merged_coord)
+            
+            # # Calculate bounding boxes for all cameras
+            # for camera_id, calib in calibrations.items():
+            #     bbox = point_ground_bounding_box(merged_coord, 1.6, 0.25, calib)
+            #     bboxes[camera_id].append(bbox)
+    
+    # Create merged trajectory
+    merged_trajectory = Trajectory(
+        coordinates=np.array(merged_coords),
+        frame_start=start_frame,
+        frame_end=end_frame,
+        view_id=tuple(traj.view_id for traj in trajectories),
+        camera=trajectories[0].camera,
+        person_id=next((traj.person_id for traj in trajectories if traj.person_id is not None), None),
+        calibration=trajectories[0].calibration
+    )
+    
+    return merged_trajectory#, bboxes

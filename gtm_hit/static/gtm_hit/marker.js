@@ -21,6 +21,7 @@ var frame_str = '0';
 // var activeCameras = [];
 // var workerID = 0;
 // var dset_name = '';
+let selectedBoxes = [];
 
 var undistort_frames_path ='';
 var zoomratio = [];
@@ -66,6 +67,9 @@ function initializeCameraMenu() {
         li.appendChild(a);
         menu.appendChild(li);
     });
+    document.getElementById('merge-boxes').addEventListener('click', handleMergeBoxes);
+    
+  
 }
 function toggleCamera(camName) {
   const checkbox = document.getElementById(`checkbox${camName}`);
@@ -94,7 +98,7 @@ function updateCameraGrid() {
 }
 
 $(document).ready(function() {
-  activeCameras = Array.from({length: cameraPaths.length}, (_, i) => i + 1);
+  activeCameras = cameraPaths//Array.from({length: cameraPaths.length}, (_, i) => i + 1);
   initializeCameraMenu();
   updateCameraGrid();
 });
@@ -153,6 +157,7 @@ window.onload = function () {
           c.addEventListener("mousemove", onMouseMove);
           c.addEventListener("mouseup", onMouseUp);
           c.addEventListener("click", drawDot);
+          
 
           loadcount++;
           if (loadcount == nb_cams) {
@@ -210,6 +215,7 @@ window.onload = function () {
   $(document).bind("keydown", "m", keyNextFrame);
   $(document).bind("keydown", "b", toggleOrientation);
   $(document).bind("keydown", "ctrl+s", save);
+  
 
   $("#pID").bind("keydown", "return", changeID);
   $("#pID").val(-1);
@@ -259,6 +265,21 @@ function onMouseDown(event) {
     ) {
       chosen_rect = rectsID.indexOf(rectID);
       console.log('Selected box:', {rectID, pid, box});
+      console.log('Selected boxes:', selectedBoxes);
+
+      if (event.shiftKey) {
+        // Handle shift-click selection for merge
+        if (selectedBoxes.length < 2) {
+            selectedBoxes.push({rectID, pid, box});
+        }
+        if (selectedBoxes.length === 2) {
+            document.getElementById('merge-boxes').disabled = false;
+        }
+        
+        update();
+        return;
+      }
+      selectedBoxes = [];
       update();
       getTracklet();
       displayCrops(frame_str, pid, canvasIndex); //display crops --timeview.js
@@ -286,6 +307,116 @@ function onMouseDown(event) {
     }
   }
 }
+
+
+// document.getElementById('merge-boxes').addEventListener('click', () => {
+//   if (selectedBoxes.length === 2) {
+//     personID1 = selectedBoxes[0].personID;
+//     personID2 = selectedBoxes[1].personID;
+
+//     $.ajax({
+//       method: "POST",
+//       url: 'merge',
+//       data: {
+//           csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+//           personID1: personID1,
+//           personID2: personID2,
+//           workerID: workerID,
+//           datasetName: dset_name
+//       },
+//       success: function (msg) {
+//         console.log(msg);
+//         unsavedChanges = false;
+//         load();
+//         $("#unsaved").html("All changes saved.");
+      
+//       selectedBoxes.forEach(box => {
+//           box.element.classList.remove('selected-for-merge');
+//       });
+//       selectedBoxes = [];
+//       document.getElementById('merge-boxes').disabled = true;
+//   }
+// })}});
+
+// document.getElementById('merge-boxes').addEventListener('click', () => {
+//   if (selectedBoxes.length === 2) {
+//       const personID1 = selectedBoxes[0].person_id;  // Match Django model field name
+//       const personID2 = selectedBoxes[1].person_id;
+      
+//       // Add frame context
+//       const frameID = parseInt(frame_str);
+
+//       $.ajax({
+//           method: "POST",
+//           url: 'merge',
+//           data: {
+//               csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+//               personID1: personID1,
+//               personID2: personID2,
+//               frameID: frameID,  // Include current frame context
+//               workerID: workerID,
+//               datasetName: dset_name
+//           },
+//           success: function(msg) {
+//               console.log('Merge response:', msg);
+//               unsavedChanges = false;
+              
+//               // Clear selections before reloading
+//               selectedBoxes.forEach(box => {
+//                   box.element.classList.remove('selected-for-merge');
+//               });
+//               selectedBoxes = [];
+//               document.getElementById('merge-boxes').disabled = true;
+              
+//               // Reload annotations
+//               load();
+//               $("#unsaved").html("All changes saved.");
+//           },
+//           error: function(xhr, status, error) {
+//               console.error('Merge failed:', error);
+//               $("#unsaved").html("Error during merge operation.");
+//           }
+//       });
+//   }
+// });
+
+function handleMergeBoxes() {
+  if (selectedBoxes.length === 2) {
+      const personID1 = selectedBoxes[0].pid;
+      const personID2 = selectedBoxes[1].pid;
+      const frameID = parseInt(frame_str);
+
+      $.ajax({
+          method: "POST",
+          url: 'merge',
+          data: {
+              csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+              personID1: personID1,
+              personID2: personID2,
+              workerID: workerID,
+              datasetName: dset_name
+          },
+          success: function(msg) {
+              console.log('Merge response:', msg);
+              unsavedChanges = false;
+              
+              selectedBoxes = [];
+              document.getElementById('merge-boxes').disabled = true;
+              
+              // Reload annotations
+              load();
+              $("#unsaved").html("All changes saved.");
+          },
+          error: function(xhr, status, error) {
+              console.error('Merge failed:', error);
+              $("#unsaved").html("Error during merge operation.");
+          }
+      });
+  }
+}
+
+
+
 
 function onMouseMove(event) {
   if (!mouseDown || !selectedBox) return;
@@ -559,7 +690,7 @@ function interpolate(e) {
       loader_db("load")
     },
     error: function (msg) {
-      console.log("Error while interpolating,running copy from previous/next frame")
+      console.log("Error while interpolating, running copy from previous/next frame")
       showCopyBtn()
     }
   });
@@ -1098,7 +1229,7 @@ function loader2(uri) {
               }
               
               identities[rid] = pid;
-              console.log(ann);
+              // console.log(ann);
               boxes[ann.cameraID][pid] = ann;
               validation[pid] = (uri !== "loadprev");
           });
@@ -1556,12 +1687,17 @@ function drawRect() {
 
         var w = field.x2 - field.x1;
         var h = field.y2 - field.y1;
-        if (r == chosen_rect) {
+        if (selectedBoxes.some(selected => rectsID[r] === selected.rectID)) {
+          ctx.strokeStyle = "magenta";  // Distinct color for merge-selected boxes
+          ctx.lineWidth = "5";
+        }
+        else if (r == chosen_rect) {
           ctx.strokeStyle = "cyan";
-          ctx.lineWidth = "3";
+          ctx.lineWidth = "4";
           heightR += (field.y2 - field.y1) * field.ratio;
           widthR += (field.x2 - field.x1) * field.ratio;
           sumH += 1;
+        
         } else {
           var pid = identities[field.rectangleID];
           if (validation[pid])
