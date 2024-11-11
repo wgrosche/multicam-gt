@@ -32,7 +32,7 @@ def main():
     
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='SCOUT')
-    parser.add_argument('--worker', type=str, default='TEST')
+    parser.add_argument('--worker', type=str, default='MARTINMEANANDDEPRESSED')
     # parser.add_argument('--output', type=str, required=True, help='Output file path')
 
     args = parser.parse_args()
@@ -42,20 +42,24 @@ def main():
     export_dict = {}
     for view in View.objects.all():
         for annotation in annotations:
-            view_id, frame_id, person_id, [x1, x2, y1, y2], [xw, yw, zw] = get_frame_data(annotation, view)
-            camera = settings.CAMS[view_id]
-            if camera not in export_dict:
-                export_dict[camera] = {}
-            if frame_id not in export_dict[camera]:
-                export_dict[camera][frame_id] = []
-            export_dict[camera][frame_id].append({
-                'person_id': person_id,
-                'bbox': [x1, x2, y1, y2],
-                'pos': [xw, yw, zw]
-            })
+            try:
+                view_id, frame_id, person_id, [x1, x2, y1, y2], [xw, yw, zw] = get_frame_data(annotation, view)
+                camera = settings.CAMS[view_id]
+                if camera not in export_dict:
+                    export_dict[camera] = {}
+                if frame_id not in export_dict[camera]:
+                    export_dict[camera][frame_id] = []
+                export_dict[camera][frame_id].append({
+                    'person_id': annotation.person.person_id,
+                    'bbox': [x1, x2, y1, y2],
+                    'pos': [xw, yw, zw]
+                })
+            except:
+                continue
     # Save the each camera dict to a JSON file
         with open(f'exports/{args.dataset}_{args.worker}_{settings.CAMS[view_id]}.json', 'w') as f:
             json.dump(export_dict[camera], f)
 
 if __name__ == '__main__':
+    print('testing')
     main()

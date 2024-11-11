@@ -90,8 +90,16 @@ def find_closest_annotations_to(person:Person,
 #         unique_fields=['view', 'annotation'],
 #         update_fields=['x1', 'y1', 'x2', 'y2']
 #     )
-def save_2d_views_bulk(annotations, batch_size=1000):
+from django.db import transaction
 
+@transaction.atomic
+def save_2d_views_bulk(annotations, batch_size=1000):
+    # Refresh the queryset to ensure we have current data
+    annotations = annotations.select_related().all()
+    
+    # Verify all annotations exist
+    annotation_ids = set(annotations.values_list('id', flat=True))
+    
     # bulk create View objects
     views_to_create = [View(view_id=i) for i in range(settings.NB_CAMS)]
     View.objects.bulk_create(views_to_create, ignore_conflicts=True)
@@ -101,6 +109,8 @@ def save_2d_views_bulk(annotations, batch_size=1000):
 
     pbar = tqdm(annotations, total=len(annotations))
     
+    # Rest of your code remains the same
+
     for i, annotation in enumerate(pbar):
         pbar.set_description(f"Processing annotation {i} of {len(annotations)} into 2D")
         for cam_idx in range(settings.NB_CAMS):
@@ -126,17 +136,18 @@ def save_2d_views_bulk(annotations, batch_size=1000):
             
             if cuboid is not None:
                 annotation2dview.set_cuboid_points_2d(cuboid)
-            
+            # print(annotation2dviews_to_create)
             annotation2dviews_to_create.append(annotation2dview)
 
         # Bulk create when batch size is reached
         if len(annotation2dviews_to_create) >= batch_size:
-            # print(f"Saving batch of {len(annotation2dviews_to_create)} 2D Views...")
+            print(f"Saving batch of {len(annotation2dviews_to_create)} 2D Views...")
+            print(f"Sample of annotation2dviews_to_create: {[ann.x1 for ann in annotation2dviews_to_create[:3]]}")
             Annotation2DView.objects.bulk_create(
                 annotation2dviews_to_create,
                 update_conflicts=True,
                 unique_fields=['view', 'annotation'],
-                update_fields=['x1', 'y1', 'x2', 'y2']
+                update_fields=['x1', 'y1', 'x2', 'y2', 'cuboid_points']
             )
             annotation2dviews_to_create = []
 

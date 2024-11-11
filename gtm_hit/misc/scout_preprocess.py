@@ -14,6 +14,7 @@ from typing import List, Tuple, Dict, Union, Optional
 from collections import namedtuple
 from dataclasses import dataclass
 from .geometry import project_2d_points_to_mesh, reproject_to_world_ground_batched
+from django.db import transaction
 import json
 Calibration = namedtuple('Calibration', ['K', 'R', 'T', 'dist', 'view_id'])
 from trimesh.base import Trimesh
@@ -245,7 +246,7 @@ def load_trajectories_3d_as_dict(
         project_start_time = time.time()
         if settings.FLAT_GROUND:
             K0, R0, T0 = calib.K, calib.R, calib.T
-            ground_points = reproject_to_world_ground_batched(bottom_centers_2d, K0, R0, T0)
+            ground_points = reproject_to_world_ground_batched(bottom_centers_2d, K0, R0, T0, height=-0.301)
         else:
             ground_points = project_2d_points_to_mesh(bottom_centers_2d, calib, mesh)
         project_time = time.time() - project_start_time
@@ -337,7 +338,6 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
     else:
         all_tracks_3d = {int(k): (np.array(v[0]), int(v[1]), int(v[2]), int(v[3])) for k,v in json.load(open(dict_path, 'r')).items()}
 
-    
     # Create worker and dataset
     worker, _ = Worker.objects.get_or_create(workerID=worker_id, tuto = True)
     dataset, _ = Dataset.objects.get_or_create(name=dataset_name)
@@ -418,7 +418,8 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
     # Process all 2D views at once
     all_annotations = Annotation.objects.filter(
         person__in=people.values(),
-        frame__in=frames_dict.values()
+        frame__in=frames_dict.values(),
+        creation_method="imported_scout_tracks" 
     ).select_related('frame', 'person')
 
     save_2d_views_bulk(all_annotations)

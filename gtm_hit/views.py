@@ -298,7 +298,7 @@ def click(request):
             if settings.FLAT_GROUND:
                 calib = settings.CALIBS[cam]
                 K0, R0, T0 = calib.K, calib.R, calib.T
-                world_point = geometry.reproject_to_world_ground_batched(feet2d_h.T, K0, R0, T0)
+                world_point = geometry.reproject_to_world_ground_batched(feet2d_h.T, K0, R0, T0, height=-0.301)
             else:
                 world_point = geometry.project_2d_points_to_mesh(
                     feet2d_h, settings.CALIBS[cam], settings.MESH)#undistort=settings.UNDISTORTED_FRAMES)
@@ -1124,7 +1124,6 @@ import json
 #             return JsonResponse({"message": "Error", "error": str(e)}, status=500)
 #     return JsonResponse({"message": "Error"}, status=400)
 
-
 def merge(request):
     if is_ajax(request):
         try:
@@ -1143,61 +1142,67 @@ def merge(request):
                     dataset=dataset
 
                 )
-                # Retrieve Annotation2DView and Annotation objects
-                annotation_1 = Annotation.objects.filter(person__person_id=person_id1, 
-                                                         person__worker=worker, 
-                                                         person__dataset=dataset)
-                annotation_2 = Annotation.objects.filter(person__person_id=person_id2,
-                                                         person__worker=worker, 
-                                                         person__dataset=dataset)
+                                # Get all frames at once
+                            # Get all frames in the correct range
+                frames = MultiViewFrame.objects.filter(
+                    frame_id__range=(settings.FRAME_START, settings.FRAME_END),
+                    dataset=dataset,
+                    worker=worker
+                )
 
+                # Get all annotations for both persons across all frames
+                annotations = Annotation.objects.filter(
+                    person__person_id__in=[person_id1, person_id2],
+                    person__worker=worker,
+                    person__dataset=dataset,
+                    frame__frame_id__range=(settings.FRAME_START, settings.FRAME_END)
+                ).select_related('frame')
+
+                print(len(annotations))
+
+
+                # Create lookup dictionary for all frames
+                annotations_by_frame = {}
+                for ann in annotations:
+                    frame_id = ann.frame.frame_id
+                    print(frame_id)
+                    if frame_id not in annotations_by_frame:
+                        annotations_by_frame[frame_id] = []
+                    annotations_by_frame[frame_id].append(ann)
+
+                # Print the available frame numbers
+                print("Available frames:", sorted(annotations_by_frame.keys()))
+
+                # Create merged annotations for all frames where we have annotations
                 merged_annotations = []
-                for frame_number in range(settings.FRAME_START, settings.FRAME_END + 1):
-                    frame_ann_1 = annotation_1.filter(
-                                        frame__frame_id=frame_number,
-                                        person__worker=worker,
-                                        person__dataset=dataset
-                                    ).first()
-                    frame_ann_2 = annotation_2.filter(
-                                        frame__frame_id=frame_number,
-                                        person__worker=worker,
-                                        person__dataset=dataset
-                                    ).first()
-                    if frame_ann_1 is not None or frame_ann_2 is not None:
-                        print("frame_ann_1: ", frame_ann_1)
-                        print("frame_ann_2: ", frame_ann_2)
-
+                for frame_number in sorted(annotations_by_frame.keys()):
+                    frame_anns = annotations_by_frame.get(frame_number, [])
+                    print(frame_anns)
+                    if not frame_anns:
+                        continue
                     
-                    if frame_ann_1 and frame_ann_2:
-                        pos_1 = np.array([frame_ann_1.Xw, frame_ann_1.Yw, frame_ann_1.Zw])
-                        pos_2 = np.array([frame_ann_2.Xw, frame_ann_2.Yw, frame_ann_2.Zw])
-                        avg_pos = (pos_1 + pos_2) / 2
-                    elif frame_ann_1:
-                        avg_pos = np.array([frame_ann_1.Xw, frame_ann_1.Yw, frame_ann_1.Zw])
-                    elif frame_ann_2:
-                        # If only person_id2 exists for the frame, use its position
-                        avg_pos = np.array([frame_ann_2.Xw, frame_ann_2.Yw, frame_ann_2.Zw])
-                    else:
-                        continue  # Skip if neither has an annotation for this frame
-                    avg_Xw = avg_pos[0]
-                    avg_Yw = avg_pos[1]
-                    avg_Zw = avg_pos[2]
-                    # Create a new Annotation for the merged person ID
-                    merged_annotation = Annotation(
+                    positions = np.array([[ann.Xw, ann.Yw, ann.Zw] for ann in frame_anns])
+                    avg_pos = positions.mean(axis=0) if len(positions) > 1 else positions[0]
+                    
+                    frame = frames.get(frame_id=frame_number)
+                    merged_annotations.append(
+                        Annotation(
                             person=merged_person,
-                            frame=MultiViewFrame.objects.get(frame_id=frame_number, dataset=dataset, worker=worker),
+                            frame=frame,
                             rectangle_id=uuid.uuid4().__str__().split("-")[-1],
                             rotation_theta=0,
-                            Xw=avg_Xw,
-                            Yw=avg_Yw,
-                            Zw=avg_Zw,
+                            Xw=avg_pos[0],
+                            Yw=avg_pos[1],
+                            Zw=avg_pos[2],
                             object_size_x=1.7,
                             object_size_y=0.6,
                             object_size_z=0.6,
                             creation_method="merged_scout_tracks"
                         )
+                    )
 
-                    merged_annotations.append(merged_annotation)
+
+
                 
                 
                 # Delete old data BEFORE creating new
@@ -1208,8 +1213,21 @@ def merge(request):
                 
                 # Bulk create new data
                 Annotation.objects.bulk_create(merged_annotations)
-                print(merged_annotations)
+                merged_annotations = Annotation.objects.filter(person=merged_person)
                 save_2d_views_bulk(merged_annotations)
+
+                merge_history_file = 'merge_history.json'
+
+                # Load existing history or create new
+                if os.path.exists(merge_history_file):
+                    with open(merge_history_file, 'r') as f:
+                        merge_history = json.load(f)
+                else:
+                    merge_history = {}
+
+                merge_history[merged_person.person_id] = [person_id1, person_id2]
+                with open(merge_history_file, 'w') as f:
+                    json.dump(merge_history, f, indent=4)
 
                 return JsonResponse({"message": "ok"})
             
@@ -1217,6 +1235,101 @@ def merge(request):
             print("Exception:", e)
             return JsonResponse({"message": "Error", "error": str(e)}, status=500)
     return JsonResponse({"message": "Error"}, status=400)
+
+# def merge(request):
+#     if is_ajax(request):
+#         try:
+#             with transaction.atomic():
+#                 person_id1 = int(float(request.POST['personID1']))
+#                 person_id2 = int(float(request.POST['personID2']))
+#                 dataset_name = request.POST['datasetName']
+#                 worker_id = request.POST['workerID']
+                
+#                 # Create new Person instance for merged track
+#                 worker = Worker.objects.get(workerID=worker_id)
+#                 dataset = Dataset.objects.get(name=dataset_name)
+#                 merged_person = Person.objects.create(
+#                     person_id=max(Person.objects.all().values_list('person_id', flat=True)) + 1,
+#                     worker=worker,
+#                     dataset=dataset
+
+#                 )
+#                 # Retrieve Annotation2DView and Annotation objects
+#                 annotation_1 = Annotation.objects.filter(person__person_id=person_id1, 
+#                                                          person__worker=worker, 
+#                                                          person__dataset=dataset)
+#                 annotation_2 = Annotation.objects.filter(person__person_id=person_id2,
+#                                                          person__worker=worker, 
+#                                                          person__dataset=dataset)
+
+                                                         
+
+#                 merged_annotations = []
+#                 for frame_number in range(settings.FRAME_START, settings.FRAME_END + 1):
+#                     frame_ann_1 = annotation_1.filter(
+#                                         frame__frame_id=frame_number,
+#                                         person__worker=worker,
+#                                         person__dataset=dataset
+#                                     ).first()
+#                     frame_ann_2 = annotation_2.filter(
+#                                         frame__frame_id=frame_number,
+#                                         person__worker=worker,
+#                                         person__dataset=dataset
+#                                     ).first()
+#                     if frame_ann_1 is not None or frame_ann_2 is not None:
+#                         print("frame_ann_1: ", frame_ann_1)
+#                         print("frame_ann_2: ", frame_ann_2)
+
+                    
+#                     if frame_ann_1 and frame_ann_2:
+#                         pos_1 = np.array([frame_ann_1.Xw, frame_ann_1.Yw, frame_ann_1.Zw])
+#                         pos_2 = np.array([frame_ann_2.Xw, frame_ann_2.Yw, frame_ann_2.Zw])
+#                         avg_pos = (pos_1 + pos_2) / 2
+#                     elif frame_ann_1:
+#                         avg_pos = np.array([frame_ann_1.Xw, frame_ann_1.Yw, frame_ann_1.Zw])
+#                     elif frame_ann_2:
+#                         # If only person_id2 exists for the frame, use its position
+#                         avg_pos = np.array([frame_ann_2.Xw, frame_ann_2.Yw, frame_ann_2.Zw])
+#                     else:
+#                         continue  # Skip if neither has an annotation for this frame
+#                     avg_Xw = avg_pos[0]
+#                     avg_Yw = avg_pos[1]
+#                     avg_Zw = avg_pos[2]
+#                     # Create a new Annotation for the merged person ID
+#                     merged_annotation = Annotation(
+#                             person=merged_person,
+#                             frame=MultiViewFrame.objects.get(frame_id=frame_number, dataset=dataset, worker=worker),
+#                             rectangle_id=uuid.uuid4().__str__().split("-")[-1],
+#                             rotation_theta=0,
+#                             Xw=avg_Xw,
+#                             Yw=avg_Yw,
+#                             Zw=avg_Zw,
+#                             object_size_x=1.7,
+#                             object_size_y=0.6,
+#                             object_size_z=0.6,
+#                             creation_method="merged_scout_tracks"
+#                         )
+
+#                     merged_annotations.append(merged_annotation)
+                
+                
+#                 # Delete old data BEFORE creating new
+#                 Annotation2DView.objects.filter(annotation__person__in=[person_id1, person_id2]).delete()
+#                 Annotation.objects.filter(person__in=[person_id1, person_id2]).delete()
+#                 Person.objects.filter(person_id__in=[person_id1, person_id2]).delete()
+            
+                
+#                 # Bulk create new data
+#                 Annotation.objects.bulk_create(merged_annotations)
+#                 print(merged_annotations)
+#                 save_2d_views_bulk(merged_annotations)
+
+#                 return JsonResponse({"message": "ok"})
+            
+#         except Exception as e:
+#             print("Exception:", e)
+#             return JsonResponse({"message": "Error", "error": str(e)}, status=500)
+#     return JsonResponse({"message": "Error"}, status=400)
 
 # def merge(request):
 #     if is_ajax(request):

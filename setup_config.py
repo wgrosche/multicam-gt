@@ -3,6 +3,7 @@ import shutil
 from dataclasses import dataclass
 import logging
 from pathlib import Path
+# from django.conf import settings
 
 # Configure logging
 log_path = Path("setup_logs")
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SetupArgs:
-    DSETNAME = "SCOUT"
+    DSETNAME = "WILKEANNOTATE"
     SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
     CALIB_SRC = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/calibrations/calibrations")
     TRACKS_SRC = Path("/cvlabdata2/home/grosche/dev/calibration/merged_tracks.pkl")
@@ -83,7 +84,7 @@ def main():
     copy_calibrations(args.CALIB_SRC, DSETPATH)
     load_tracks(args.TRACKS_SRC, DSETPATH)
 
-    undistort_frames(DSETPATH)
+    # undistort_frames(DSETPATH)
     
     
     

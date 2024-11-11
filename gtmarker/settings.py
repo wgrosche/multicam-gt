@@ -259,9 +259,9 @@ FRAME_START = 0
 FRAME_END = FRAME_START + NUM_FRAMES
 HEIGHT = 1.8
 RADIUS = 0.5 #person radius
-FLAT_GROUND = True # Whether or not to use the mesh for dataset generation and annotation
+FLAT_GROUND = False#True # Whether or not to use the mesh for dataset generation and annotation
 FRAME_SKIP = int(float(10 / FPS))
-TIMEWINDOW = 10 * FRAME_SKIP # cropped frames loaded when selecting a bounding box (on either side)
+TIMEWINDOW = 100 * FRAME_SKIP # cropped frames loaded when selecting a bounding box (on either side)
 
 VALIDATIONCODES = []
 STARTFRAME = 2

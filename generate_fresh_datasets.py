@@ -9,8 +9,8 @@ from django.conf import settings
 # args = parser.parse_args()
 
 
-merging_strategies_to_generate = ['unmerged', 'mean', 'camera_mean_top', 'camera_mean']
-worker_names = ['UNMERGED', 'MEAN', 'CAMERAMEANTOP', 'CAMERAMEAN']
+merging_strategies_to_generate = ['mean']#['unmerged', 'mean', 'camera_mean_top', 'camera_mean']
+worker_names = ['WILKEMEAN']#['UNMERGED2', 'MEAN2', 'CAMERAMEANTOP2', 'CAMERAMEAN2']
 
 #Note: undistortion and increment is determined by the settings file.
 class Args:
@@ -53,6 +53,11 @@ args.tracks_path=Path("/cvlabdata2/home/grosche/dev/calibration/unmerged_tracks.
 for strategy in merging_strategies_to_generate:
     print("Generating dataset for strategy: ", strategy)
     dict_path = Path('/cvlabdata2/home/grosche/dev/calibration/') / f'traj_dict_{strategy}.json'
+    # preprocess_scout_data_from_dict(args.hdf5_template,
+    #                       worker_id=worker_names[merging_strategies_to_generate.index(strategy)], 
+    #                       dataset_name=args.dataset_name,
+    #                       dict_path=dict_path
+    #                       )
     preprocess_scout_data_from_dict(args.hdf5_template,
                           worker_id=worker_names[merging_strategies_to_generate.index(strategy)], 
                           dataset_name=args.dataset_name,
