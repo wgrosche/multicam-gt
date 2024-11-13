@@ -25,14 +25,16 @@ def get_frame_data(annotation:Annotation, view:View):
     x1, y1, x2, y2 = annotation.twod_views.all()[view_id].x1, annotation.twod_views.all()[view_id].y1, annotation.twod_views.all()[view_id].x2, annotation.twod_views.all()[view_id].y2
     xw, yw, zw = annotation.Xw, annotation.Yw, annotation.Zw
     frame_id = annotation.frame.frame_id
+    # if [x1, x2, y1, y2] == [-1, -1, -1, -1]:
+    #     return None
     # view = annotation.twod_views.all()[0].view.view_id
-    return view.view_id, frame_id, person_id, [x1, x2, y1, y2], [xw, yw, zw]
+    return view.view_id, frame_id, person_id, [x1, y1, x2, y2], [xw, yw, zw]
 
 def main():
     
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='SCOUT')
-    parser.add_argument('--worker', type=str, default='MARTINMEANANDDEPRESSED')
+    parser.add_argument('--worker', type=str, default='HIGHRESMESH')
     # parser.add_argument('--output', type=str, required=True, help='Output file path')
 
     args = parser.parse_args()
@@ -43,15 +45,17 @@ def main():
     for view in View.objects.all():
         for annotation in annotations:
             try:
-                view_id, frame_id, person_id, [x1, x2, y1, y2], [xw, yw, zw] = get_frame_data(annotation, view)
+                view_id, frame_id, person_id, [x1, y1, x2, y2], [xw, yw, zw] = get_frame_data(annotation, view)
                 camera = settings.CAMS[view_id]
                 if camera not in export_dict:
                     export_dict[camera] = {}
                 if frame_id not in export_dict[camera]:
                     export_dict[camera][frame_id] = []
+                if [x1, y1, x2, y2] == [-1, -1, -1, -1]:
+                    continue
                 export_dict[camera][frame_id].append({
                     'person_id': annotation.person.person_id,
-                    'bbox': [x1, x2, y1, y2],
+                    'bbox': [x1, y1, x2, y2],
                     'pos': [xw, yw, zw]
                 })
             except:

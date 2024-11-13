@@ -286,8 +286,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # MESHPATH = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply")
 
-MESHPATH = Path("/cvlabdata2/home/grosche/dev/calibration") \
-    / "scene_dense_texturet_decimate_1_manual_cleanup.ply"
+MESHPATH = '/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply'#Path("/cvlabdata2/home/grosche/dev/calibration") \
+    # / "scene_dense_texturet_decimate_1_manual_cleanup.ply"
 import trimesh
 try:
     import trimesh.ray.ray_pyembree

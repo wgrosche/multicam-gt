@@ -346,7 +346,7 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
     people_to_create = [Person(person_id=person_id, 
                                worker=worker, 
                                dataset=dataset) for person_id in all_tracks_3d.keys()]
-    print("Bulk adding people to database...")
+    print(f"Bulk adding {len(people_to_create)} people to database...")
     Person.objects.bulk_create(people_to_create, 
                                update_conflicts=True, 
                                update_fields=['person_id', 'worker', 'dataset'], 
@@ -370,10 +370,13 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
                     dataset=dataset
                 )}
     
+    print(f"Fetched {len(frames_dict)} frames from database...")
+    
     print("Fetching people from database...")
     # Get all persons at once
     people = {p.person_id: p for p in Person.objects.filter(worker=worker, dataset=dataset)}
 
+    print(f"Fetched {len(people)} people from database...")
     # Create all annotations in one go
     all_annotations = []
     for person_id, tracks in tqdm(all_tracks_3d.items(), total=len(all_tracks_3d), desc='Creating annotations'):
@@ -385,7 +388,7 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
             
 
         positions = np.array(positions)
-        if person_id not in people:
+        if person_id not in Person.objects.filter(worker=worker, dataset=dataset).values('person_id').values_list('person_id', flat=True):
             print(f"Person {person_id} not found in database")
             continue
         
@@ -405,7 +408,7 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
                 creation_method="imported_scout_tracks"
             ) for frame_idx in frame_range if frame_idx in range(start, end)
         ])
-    print("Bulk adding annotations to database...")
+    print(f"Bulk adding {len(all_annotations)} annotations to database...")
     # Bulk create all annotations at once
     Annotation.objects.bulk_create(
         all_annotations,
@@ -421,6 +424,8 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
         frame__in=frames_dict.values(),
         creation_method="imported_scout_tracks" 
     ).select_related('frame', 'person')
+
+    print(f"Fetched {len(all_annotations)} annotations from database...")
 
     save_2d_views_bulk(all_annotations)
 

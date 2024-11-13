@@ -808,18 +808,52 @@ def change_id(request):
     #set_trace()
     if is_ajax(request):
         try:
+            
+
+
+            
+
             person_id = int(float(request.POST['personID']))
             new_person_id = int(float(request.POST['newPersonID']))
             frame_id = int(float(request.POST['frameID']))
             worker_id = request.POST['workerID']
             dataset_name = request.POST['datasetName']
+            change_id_history_file = f'change_id_history_{worker_id}.json'
+            split_frame = int(float(request.POST['splitFrame'])) if request.POST.get('splitFrame') else None
+            new_person_id = max(Person.objects.all().values_list('person_id', flat=True)) + 1
+
+            frame_id = split_frame if split_frame else frame_id
+            # Load existing history or create new
+            if os.path.exists(change_id_history_file):
+                with open(change_id_history_file, 'r') as f:
+                    change_id_history = json.load(f)
+            else:
+                change_id_history = {}
 
             frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES,dataset__name=dataset_name)
 
             options = json.loads(request.POST['options'])
-            success = change_annotation_id_propagate(person_id, new_person_id,frame,options)
+            success = change_annotation_id_propagate(person_id, new_person_id, frame, options)
+
+            
             if success:
-                return HttpResponse(JsonResponse({"message": "ID changed.","options":options}))
+                change_id_entry = {
+                'dataset': frame.dataset.name,
+                'worker': worker_id,
+                'old_id': person_id,
+                'new_id': new_person_id,
+                'switch_frame': frame.frame_id,
+                'options': options
+                }
+                # Add to history
+                if frame.dataset.name not in change_id_history:
+                    change_id_history[frame.dataset.name] = []
+                change_id_history[frame.dataset.name].append(change_id_entry)
+
+                # Save updated history
+                with open(change_id_history_file, 'w') as f:
+                    json.dump(change_id_history, f, indent=4)
+                    return HttpResponse(JsonResponse({"message": "ID changed.","options":options}))
             else:
                 return HttpResponse("Error")
         except KeyError:
@@ -937,8 +971,8 @@ def timeview(request):
             # print('looking for frame: ', frame_id)
             # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
 
-            frame_id_start = max(0, frame_id - settings.TIMEWINDOW)
-            frame_id_end =  min(frame_id + settings.TIMEWINDOW, settings.NUM_FRAMES)
+            frame_id_start = 0#max(0, frame_id - settings.TIMEWINDOW)
+            frame_id_end =  settings.NUM_FRAMES#min(frame_id + settings.TIMEWINDOW, settings.NUM_FRAMES)
             
             # Filter the Annotation2DView objects using the calculated frame range and the Person object
             annotation2dviews = Annotation2DView.objects.filter(
@@ -1182,6 +1216,24 @@ def merge(request):
                         continue
                     
                     positions = np.array([[ann.Xw, ann.Yw, ann.Zw] for ann in frame_anns])
+
+                    # After positions array calculation
+                    if len(positions) > 1:
+                        # Calculate distances between consecutive points
+                        distances = np.linalg.norm(positions[1:] - positions[:-1], axis=1)
+                        max_distance = 5.0  # meters threshold
+                        print(distances)
+                        
+                        if np.any(distances > max_distance):
+                            return JsonResponse({
+                                "message": "Error: Trajectories too far apart", 
+                                "error": "Maximum distance between consecutive points exceeds threshold"
+                            }, status=400)
+                            
+                        avg_pos = positions.mean(axis=0)
+                    else:
+                        avg_pos = positions[0]
+
                     avg_pos = positions.mean(axis=0) if len(positions) > 1 else positions[0]
                     
                     frame = frames.get(frame_id=frame_number)
@@ -1216,7 +1268,7 @@ def merge(request):
                 merged_annotations = Annotation.objects.filter(person=merged_person)
                 save_2d_views_bulk(merged_annotations)
 
-                merge_history_file = 'merge_history.json'
+                merge_history_file = f'merge_history_{worker_id}.json'
 
                 # Load existing history or create new
                 if os.path.exists(merge_history_file):

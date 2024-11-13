@@ -17,12 +17,12 @@ class Args:
                 #  calibration_path="",
                  tracks_path="",
                 #  input_path="gtm_hit/static/gtm_hit/labels/json_output",
-                 worker_id="WILKEMEANANDDEPRESSED2",
+                 worker_id="HIGHRESMESH2",
                  hdf5_template = "/cvlabdata2/home/grosche/dev/calibration/sync_frame_seq_1/{camera}",
                  dataset_name=settings.DSETNAME, 
                  range_start=settings.FRAME_START,
                  range_end=settings.FRAME_END,
-                 dict_path ='/cvlabdata2/home/grosche/dev/calibration/traj_dict_mean_depressed.json'):
+                 dict_path =''):
         
         # self.frames_path=frames_path,
         # self.calibration_path=calibration_path,
@@ -39,6 +39,7 @@ args = Args()
 # args.frames_path=Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/")
 # args.calibration_path=Path("/cvlabdata2/home/grosche/dev/calibration/calibrations")
 args.tracks_path=Path("/cvlabdata2/home/grosche/dev/calibration/unmerged_tracks.pkl")
+args.dict_path = "/cvlabdata2/home/grosche/dev/calibration/traj_dict_mean_high_res.json"
 
 # preprocess_scout_data(
 #     tracks_path=args.tracks_path,

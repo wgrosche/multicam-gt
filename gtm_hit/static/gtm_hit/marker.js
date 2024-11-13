@@ -41,36 +41,92 @@ var boxesLoaded = true;
 
 // let activeCameras = Array.from({length: cameraPaths.length}, (_, i) => i + 1); // Initially all cameras active
 
-
-
 function initializeCameraMenu() {
-    const menu = document.getElementById('cameraMenu');
-    
-    const header = document.createElement('li');
-    header.className = 'dropdown-header';
-    header.textContent = 'Toggle Cameras';
-    menu.appendChild(header);
-    
-    const divider = document.createElement('li');
-    divider.className = 'divider';
-    menu.appendChild(divider);
-    
-    cameraPaths.forEach((camName, index) => {
-        const li = document.createElement('li');
-        const a = document.createElement('a');
-        a.href = '#';
-        a.innerHTML = `<input type="checkbox" id="checkbox${camName}" checked> ${camName}`;
-        a.onclick = (e) => {
-            e.preventDefault();
+  const menu = document.getElementById('cameraMenu');
+  
+  const header = document.createElement('li');
+  header.className = 'dropdown-header';
+  header.textContent = 'Toggle Cameras';
+  menu.appendChild(header);
+
+  const divider = document.createElement('li');
+  divider.className = 'divider';
+  menu.appendChild(divider);
+
+  // Add Unselect All button
+  const unselectAll = document.createElement('li');
+  const unselectLink = document.createElement('a');
+  unselectLink.href = '#';
+  unselectLink.textContent = 'Unselect All';
+  unselectLink.onclick = (e) => {
+    // e.preventDefault();
+    // First update all checkboxes
+    cameraPaths.forEach(camName => {
+      
+        const checkbox = document.getElementById(`checkbox${camName}`);
+        
+        if (checkbox.checked) {  // Only toggle if currently checked
+            // console.log(checkbox.checked);
+            // checkbox.checked = false;
+            // console.log(checkbox.checked);
             toggleCamera(camName);
-        };
-        li.appendChild(a);
-        menu.appendChild(li);
+        }
     });
-    document.getElementById('merge-boxes').addEventListener('click', handleMergeBoxes);
+  };
+
+  unselectAll.appendChild(unselectLink);
+  menu.appendChild(unselectAll);
+
+  // Add another divider
+  const divider2 = document.createElement('li');
+  divider2.className = 'divider';
+  menu.appendChild(divider2);
+
+  cameraPaths.forEach((camName, index) => {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = '#';
+      a.innerHTML = `<input type="checkbox" id="checkbox${camName}" checked> ${camName}`;
+      a.onclick = (e) => {
+          e.preventDefault();
+          toggleCamera(camName);
+      };
+      li.appendChild(a);
+      menu.appendChild(li);
+  });
+
+  document.getElementById('merge-boxes').addEventListener('click', handleMergeBoxes);
+}
+
+
+// function initializeCameraMenu() {
+//     const menu = document.getElementById('cameraMenu');
+    
+//     const header = document.createElement('li');
+//     header.className = 'dropdown-header';
+//     header.textContent = 'Toggle Cameras';
+//     menu.appendChild(header);
+    
+//     const divider = document.createElement('li');
+//     divider.className = 'divider';
+//     menu.appendChild(divider);
+    
+//     cameraPaths.forEach((camName, index) => {
+//         const li = document.createElement('li');
+//         const a = document.createElement('a');
+//         a.href = '#';
+//         a.innerHTML = `<input type="checkbox" id="checkbox${camName}" checked> ${camName}`;
+//         a.onclick = (e) => {
+//             e.preventDefault();
+//             toggleCamera(camName);
+//         };
+//         li.appendChild(a);
+//         menu.appendChild(li);
+//     });
+//     document.getElementById('merge-boxes').addEventListener('click', handleMergeBoxes);
     
   
-}
+// }
 function toggleCamera(camName) {
   const checkbox = document.getElementById(`checkbox${camName}`);
   const wrapper = document.getElementById(`canv${camName}`).parentElement;
@@ -1419,8 +1475,10 @@ function validate() {
 function changeID(opt) {
   const propagateElement = document.getElementById('propagate');
   const conflictsElement = document.getElementById('conflicts');
+  const splitFrameElement = document.getElementById('splitFrame');
   const propagateValue = propagateElement.value;
   const conflictsValue = conflictsElement.value;
+  const splitFrameValue = splitFrameElement.value;
 
   var newID = parseInt($("#pID").val());
   if (opt==undefined)opt="";
@@ -1433,6 +1491,7 @@ function changeID(opt) {
       newPersonID: newID,
       frameID: parseInt(frame_str),
       personID: identities[rectsID[chosen_rect]],
+      splitFrame: parseInt(splitFrameValue),
       workerID: workerID,
       datasetName: dset_name,
       options: JSON.stringify({'propagate':propagateValue,'conflicts':conflictsValue})

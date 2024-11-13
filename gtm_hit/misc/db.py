@@ -7,6 +7,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from ipdb import set_trace
 from django.db.models import Count
 from tqdm import tqdm
+import os
+import json
 
 def find_closest_annotations_to(person:Person, 
                                 frame:MultiViewFrame, 
@@ -297,6 +299,14 @@ def change_annotation_id_propagate(old_id, new_id, frame, options):
     with transaction.atomic():  # Start a transaction to ensure data consistency
         #set_trace()
         try:
+            propagation_history_file = f'propagation_history_{frame.worker_id}.json'
+
+            # Load existing history or create new
+            if os.path.exists(propagation_history_file):
+                with open(propagation_history_file, 'r') as f:
+                    propagation_history = json.load(f)
+            else:
+                propagation_history = {}
             next_id = get_next_available_id(worker_id=frame.worker_id,dataset_name=frame.dataset.name)
             filterargs={'person__person_id': new_id, 'frame__undistorted':settings.UNDISTORTED_FRAMES, 'frame__worker_id':frame.worker_id}
             filterargs = propagation_filter(filterargs,options,frame.frame_id)
@@ -326,6 +336,25 @@ def change_annotation_id_propagate(old_id, new_id, frame, options):
                 # Update the related Annotation object
                 annotation.person = target_future_person
                 annotation.save()
+            
+            # Create new propagation entry
+            propagation_entry = {
+                'dataset': frame.dataset.name,
+                'worker': frame.worker_id,
+                'old_id': old_id,
+                'new_id': new_id,
+                'switch_frame': frame.frame_id,
+                'options': options
+            }
+
+            # Add to history
+            if frame.dataset.name not in propagation_history:
+                propagation_history[frame.dataset.name] = []
+            propagation_history[frame.dataset.name].append(propagation_entry)
+
+            # Save updated history
+            with open(propagation_history_file, 'w') as f:
+                json.dump(propagation_history, f, indent=4)
 
             return True
         except Exception as e:
