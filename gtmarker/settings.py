@@ -285,24 +285,25 @@ UNDISTORTED_FRAMES=False
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # MESHPATH = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply")
+EXPORT = True
+if not EXPORT:
+    MESHPATH = '/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply'#Path("/cvlabdata2/home/grosche/dev/calibration") \
+        # / "scene_dense_texturet_decimate_1_manual_cleanup.ply"
+    import trimesh
+    try:
+        import trimesh.ray.ray_pyembree
+    except:
+        print("It's going to be slow")
+    MESH = trimesh.load(MESHPATH)
 
-MESHPATH = '/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply'#Path("/cvlabdata2/home/grosche/dev/calibration") \
-    # / "scene_dense_texturet_decimate_1_manual_cleanup.ply"
-import trimesh
-try:
-    import trimesh.ray.ray_pyembree
-except:
-    print("It's going to be slow")
-MESH = trimesh.load(MESHPATH)
-
-import json
-from shapely.geometry import Polygon
-from gtm_hit.misc.geometry import get_polygon_from_points_3d
+    import json
+    from shapely.geometry import Polygon
+    from gtm_hit.misc.geometry import get_polygon_from_points_3d
 
 
 
-ROIjson = json.load(open('/cvlabdata2/home/grosche/dev/calibration/ROI_annotated_polygon.json'))
+    ROIjson = json.load(open('/cvlabdata2/home/grosche/dev/calibration/ROI_annotated_polygon.json'))
 
-ROI = {}
-for cam_name, polygon in ROIjson['points_3d'].items():
-    ROI[cam_name] = get_polygon_from_points_3d(polygon)
+    ROI = {}
+    for cam_name, polygon in ROIjson['points_3d'].items():
+        ROI[cam_name] = get_polygon_from_points_3d(polygon)

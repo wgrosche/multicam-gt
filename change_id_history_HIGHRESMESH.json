@@ -505,6 +505,622 @@
                 "propagate": "future",
                 "conflicts": "assign_new"
             }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 4348,
+            "new_id": 12463,
+            "switch_frame": 200,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 4348,
+            "new_id": 12465,
+            "switch_frame": 190,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 12469,
+            "new_id": 12471,
+            "switch_frame": 310,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 2578,
+            "new_id": 12475,
+            "switch_frame": 760,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 12441,
+            "new_id": 12479,
+            "switch_frame": 250,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 3540,
+            "new_id": 12481,
+            "switch_frame": 420,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 2535,
+            "new_id": 12485,
+            "switch_frame": 560,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 788,
+            "new_id": 12496,
+            "switch_frame": 740,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 12500,
+            "new_id": 12505,
+            "switch_frame": 490,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 2538,
+            "new_id": 12507,
+            "switch_frame": 490,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 2547,
+            "new_id": 12511,
+            "switch_frame": 840,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 2549,
+            "new_id": 12522,
+            "switch_frame": 1080,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 12520,
+            "new_id": 12523,
+            "switch_frame": 1080,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 12520,
+            "new_id": 12526,
+            "switch_frame": 720,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 2573,
+            "new_id": 12558,
+            "switch_frame": 1160,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 2573,
+            "new_id": 12560,
+            "switch_frame": 1370,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 2571,
+            "new_id": 12562,
+            "switch_frame": 1150,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 12563,
+            "new_id": 12566,
+            "switch_frame": 1160,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 3575,
+            "new_id": 12569,
+            "switch_frame": 1220,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 850,
+            "new_id": 12579,
+            "switch_frame": 1520,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 2632,
+            "new_id": 12581,
+            "switch_frame": 1700,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 7846,
+            "new_id": 12582,
+            "switch_frame": 1700,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 2632,
+            "new_id": 12583,
+            "switch_frame": 1360,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 7843,
+            "new_id": 12584,
+            "switch_frame": 1700,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 12577,
+            "new_id": 12594,
+            "switch_frame": 1240,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 4383,
+            "new_id": 12597,
+            "switch_frame": 1270,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 12553,
+            "new_id": 12599,
+            "switch_frame": 1270,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 7845,
+            "new_id": 12601,
+            "switch_frame": 1390,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 2599,
+            "new_id": 12605,
+            "switch_frame": 1360,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 12548,
+            "new_id": 12614,
+            "switch_frame": 1490,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 4374,
+            "new_id": 12618,
+            "switch_frame": 1440,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 7855,
+            "new_id": 12623,
+            "switch_frame": 1600,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 7855,
+            "new_id": 12625,
+            "switch_frame": 1410,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 7848,
+            "new_id": 12633,
+            "switch_frame": 1450,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 2583,
+            "new_id": 12634,
+            "switch_frame": 1410,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 12586,
+            "new_id": 12635,
+            "switch_frame": 1690,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 2612,
+            "new_id": 12636,
+            "switch_frame": 1690,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 842,
+            "new_id": 12640,
+            "switch_frame": 1440,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 841,
+            "new_id": 12643,
+            "switch_frame": 1440,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 6810,
+            "new_id": 12648,
+            "switch_frame": 610,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 6813,
+            "new_id": 12649,
+            "switch_frame": 200,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 6574,
+            "new_id": 12650,
+            "switch_frame": 200,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 6577,
+            "new_id": 12652,
+            "switch_frame": 160,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 7797,
+            "new_id": 12660,
+            "switch_frame": 920,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 806,
+            "new_id": 12664,
+            "switch_frame": 570,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 1488,
+            "new_id": 12666,
+            "switch_frame": 540,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 8320,
+            "new_id": 12675,
+            "switch_frame": 400,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 12677,
+            "new_id": 12680,
+            "switch_frame": 960,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 3564,
+            "new_id": 12681,
+            "switch_frame": 960,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 7819,
+            "new_id": 12682,
+            "switch_frame": 960,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 3369,
+            "new_id": 12689,
+            "switch_frame": 850,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 1271,
+            "new_id": 12702,
+            "switch_frame": 170,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 1271,
+            "new_id": 12705,
+            "switch_frame": 180,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 585,
+            "new_id": 12708,
+            "switch_frame": 330,
+            "options": {
+                "propagate": "past",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 12717,
+            "new_id": 12719,
+            "switch_frame": 710,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
+        },
+        {
+            "dataset": "SCOUT",
+            "worker": "HIGHRESMESH",
+            "old_id": 12530,
+            "new_id": 12722,
+            "switch_frame": 870,
+            "options": {
+                "propagate": "future",
+                "conflicts": "assign_new"
+            }
         }
     ]
 }
