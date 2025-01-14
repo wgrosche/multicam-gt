@@ -105,11 +105,12 @@ def main():
     # print(f"There are {len(person_ids)} people in the dataset")
     # print(f"Max ID: {max(person_ids)}")
 
-    # active_annotations = Annotation.objects.filter(person__dataset__name=args.dataset, person__worker__workerID=args.worker, frame__frame_id__lt=2000)
-    # active_2d_annotations = Annotation2DView.objects.filter(annotation__in=active_annotations, cuboid_points__isnull=False)
+    active_annotations = Annotation.objects.filter(person__dataset__name=args.dataset, person__worker__workerID=args.worker)#, frame__frame_id__lt=2000)
+    print("There are {} active annotations".format(active_annotations.count()))
+    active_2d_annotations = Annotation2DView.objects.filter(annotation__in=active_annotations, cuboid_points__isnull=False)
 
     # print(f"There are {active_annotations.count()} active annotations")
-    # print(f"There are {active_2d_annotations.count()} active 2d annotations")
+    print(f"There are {active_2d_annotations.count()} active 2d annotations")
 
 
 
@@ -145,11 +146,13 @@ def main():
                             annotation__frame__frame_id__lt=2000).annotate(annotation_count=Count('annotation'))
 
     first_bin = Annotation.objects.filter(person__in = base_binning.filter(annotation_count__gt=75))#.values('Xw', 'Yw', 'Zw', 'person__person_id')
+    print(f"Number of annotations in first bin: {first_bin.count()}")
     
     second_bin =Annotation.objects.filter(person__in = base_binning.filter(annotation_count__gt=30, annotation_count__lt=75))#.values('Xw', 'Yw', 'Zw', 'person__person_id')
+    print(f"Number of annotations in second bin: {second_bin.count()}")
     
     third_bin = Annotation.objects.filter(person__in = base_binning.filter(annotation_count__gt=20, annotation_count__lt=30))#.values('Xw', 'Yw', 'Zw', 'person__person_id')
-    
+    print(f"Number of annotations in third bin: {third_bin.count()}")
 
     print(f"Average distance top bin: {get_binned_stats(first_bin)}")
     print(f"Average distance middle bin: {get_binned_stats(second_bin)}")
