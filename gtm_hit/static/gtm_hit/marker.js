@@ -39,6 +39,10 @@ let selectedBox = null;
 var unsavedChanges = false;
 var boxesLoaded = true;
 
+// Global state to track transformations
+var zoomState = [];
+
+
 // let activeCameras = Array.from({length: cameraPaths.length}, (_, i) => i + 1); // Initially all cameras active
 
 function initializeCameraMenu() {
@@ -153,11 +157,22 @@ function updateCameraGrid() {
     container.style.gridTemplateColumns = `repeat(${Math.min(Math.ceil(Math.sqrt(numActive)), 2)}, 1fr)`;
 }
 
+// Initialize the application
 $(document).ready(function() {
-  activeCameras = cameraPaths//Array.from({length: cameraPaths.length}, (_, i) => i + 1);
+  activeCameras = cameraPaths; // Assuming cameraPaths is defined globally
   initializeCameraMenu();
   updateCameraGrid();
+
+  // Initialize zoomState dynamically based on the number of cameras
+  updateZoomState();
 });
+
+// Function to initialize or update zoomState
+function updateZoomState() {
+  zoomState = Array.from({ length: nb_cams }, () => ({ scale: 1, translateX: 0, translateY: 0 }));
+
+  console.log('Zoom State initialized:', zoomState, "for nb_cams:", nb_cams);
+}
 
 window.onload = function () {
   // toggle_ground = true;
@@ -239,6 +254,7 @@ window.onload = function () {
       //   ctx.drawImage(this, 0, 0);
       // };
       // topview.src = '/static/gtm_hit/dset/scout/NewarkPennTopView2.tif';
+
     }
   });
 
@@ -1894,46 +1910,98 @@ function isBoundingBoxInCanvas(box, canvas) {
     (isBoxTopInCanvas || isBoxBottomInCanvas);
 }
 
+
+
+
 function zoomIn() {
   for (var i = 0; i < nb_cams; i++) {
     var pid = identities[rectsID[chosen_rect]];
     var r = boxes[i][pid];
 
     var c = document.getElementById("canv" + cameraPaths[i]);
-    if (isBoundingBoxInCanvas(r, c)) { zoomratio[i] = c.height * 60 / (100 * (r.y2 - r.y1)); }
-    else {
-      zoomratio[i] = null;
+    if (!isBoundingBoxInCanvas(r, c)) {
+      zoomState[i].scale = 1; // Reset zoom for canvases without bounding boxes
       continue;
     }
-    if (zoomratio[i] != Infinity) {
 
-      var ctx = c.getContext('2d');
-      c.width = c.width / zoomratio[i];
-      c.height = c.height / zoomratio[i];
-      var originx = r.xMid - c.width / 2;
-      // var originx = r.xMid;
-      var originy = r.y1 - 12.5 * c.clientHeight / 100;
-      // ctx.scale(1.75,1.75);
-      ctx.translate(-originx, -originy);
+    // Calculate zoom ratio
+    var zoomRatio = c.height * 60 / (100 * (r.y2 - r.y1));
+    if (zoomRatio === Infinity || zoomRatio === null) continue;
 
-    }
+    // Update zoom state
+    zoomState[i].scale *= zoomRatio;
+
+    // Calculate translation
+    var originX = r.xMid - c.width / (2 * zoomRatio);
+    var originY = r.y1 - 12.5 * c.height / (100 * zoomRatio);
+    zoomState[i].translateX += -originX; //* zoomRatio;
+    zoomState[i].translateY += -originY;// * zoomRatio;
+
+    // Apply transformations
+    var ctx = c.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset canvas transformations
+    ctx.scale(zoomState[i].scale, zoomState[i].scale);
+    ctx.translate(zoomState[i].translateX, zoomState[i].translateY);
   }
   zoomOn = true;
   return false;
-
 }
 
 function zoomOut() {
   for (var i = 0; i < nb_cams; i++) {
     var c = document.getElementById("canv" + cameraPaths[i]);
-    if (zoomratio[i] != undefined && zoomratio[i] != Infinity) {
-      c.width = c.width * zoomratio[i];
-      c.height = c.height * zoomratio[i];
-    }
+
+    // Reset transformations using the inverse of the current zoom state
+    var ctx = c.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset canvas transformations
+    zoomState[i].scale = 1; // Reset scale
+    zoomState[i].translateX = 0; // Reset translation
+    zoomState[i].translateY = 0;
   }
   zoomOn = false;
   return false;
 }
+
+// function zoomIn() {
+//   for (var i = 0; i < nb_cams; i++) {
+//     var pid = identities[rectsID[chosen_rect]];
+//     var r = boxes[i][pid];
+
+//     var c = document.getElementById("canv" + cameraPaths[i]);
+//     if (isBoundingBoxInCanvas(r, c)) { zoomratio[i] = c.height * 60 / (100 * (r.y2 - r.y1)); }
+//     else {
+//       zoomratio[i] = null;
+//       continue;
+//     }
+//     if (zoomratio[i] != Infinity) {
+
+//       var ctx = c.getContext('2d');
+//       c.width = c.width / zoomratio[i];
+//       c.height = c.height / zoomratio[i];
+//       var originx = r.xMid - c.width / 2;
+//       // var originx = r.xMid;
+//       var originy = r.y1 - 12.5 * c.height/100;//c.clientHeight / 100;
+//       // ctx.scale(1.75,1.75);z
+//       ctx.translate(-originx, -originy);
+
+//     }
+//   }
+//   zoomOn = true;
+//   return false;
+
+// }
+
+// function zoomOut() {
+//   for (var i = 0; i < nb_cams; i++) {
+//     var c = document.getElementById("canv" + cameraPaths[i]);
+//     if (zoomratio[i] != undefined && zoomratio[i] != Infinity) {
+//       c.width = c.width * zoomratio[i];
+//       c.height = c.height * zoomratio[i];
+//     }
+//   }
+//   zoomOn = false;
+//   return false;
+// }
 
 
 function toggleGround() {

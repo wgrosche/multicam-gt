@@ -247,11 +247,7 @@ DELTA_SEARCH = 5
 
 # need to: establish symlinked folders for get frame size etc
 DSETNAME = "SCOUT"
-<<<<<<< HEAD
 WORKER_ID = 'NEWCALIBMESH'
-=======
-# WORKER_ID = 'NEWCALIBMESH'
->>>>>>> 98adb780a88bded1fac37d327d513c0439c26e0d
 DSETPATH = Path("./gtm_hit/static/gtm_hit/dset/") / DSETNAME
 SYMLINK_DEST_FRAMES = DSETPATH / "frames"
 SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
@@ -279,15 +275,11 @@ STEPL = 0.02
 MOVE_STEP = 0.02 #same as stepl vidis ovoDA
 SIZE_CHANGE_STEP=0.03
 # NOTE: run data creation with full cameras before bed!
-<<<<<<< HEAD
-CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIBPATH.iterdir()]#["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
-=======
 try:
     CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIBPATH.iterdir()]
 except FileNotFoundError:
     CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIB_SRC.iterdir()]
     #["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
->>>>>>> 98adb780a88bded1fac37d327d513c0439c26e0d
 print(CAMS)
 FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 #CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)

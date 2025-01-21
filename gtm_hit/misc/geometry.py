@@ -113,7 +113,7 @@ def get_ray_directions(points_2d:np.ndarray, calib):
     return ray_origins, ray_directions
 
 
-def project_2d_points_to_mesh(points_2d, calib, mesh, VERBOSE=False):
+def project_2d_points_to_mesh(points_2d, calib, mesh, VERBOSE=False, min_z=-0.5, max_z=0.5, min_cam_dist=1, z_plane=0.1):
     # Get ray origins and directions
     ray_origins, ray_directions = get_ray_directions(points_2d, calib)
     
@@ -129,8 +129,10 @@ def project_2d_points_to_mesh(points_2d, calib, mesh, VERBOSE=False):
 
     # Check if there are no intersections
     if len(locations) == 0:
-        if VERBOSE:
-            print("No intersections found for any rays.")
+        # if VERBOSE:
+        print(f"No intersections found for any rays. Projecting to groundplane. (z={z_plane})")
+        ground_points = reproject_to_world_ground_batched(points_2d, calib.K, calib.R, calib.T, calib.dist, z_plane)
+        
         return ground_points#.tolist()
 
     # Cache variables to reduce attribute lookups
@@ -142,11 +144,9 @@ def project_2d_points_to_mesh(points_2d, calib, mesh, VERBOSE=False):
         print(f"Depths sample: {depths[:5]}")
 
     # Use NumPy to efficiently process the intersections
-    min_dist = 1.0
-    z_coord_threshold = 0.8
 
     # Filter intersections by depth and z-coordinates in a single pass
-    valid_mask = (depths > min_dist) & (locations[:, 2] < z_coord_threshold)
+    valid_mask = (depths > min_cam_dist) & (locations[:, 2] < max_z) & (locations[:, 2] > min_z)
     
     # Get valid indices per ray
     valid_indices = index_ray[valid_mask]
@@ -386,7 +386,7 @@ def get_bounding_box(points):
     return  (x, y), (x+w, y+h)
 
 
-def reproject_to_world_ground_batched(ground_pix, K0, R0, T0, height=0):
+def reproject_to_world_ground_batched(ground_pix, K0, R0, T0, dist=None, height=0):
     """
     Compute world coordinates from pixel coordinates of points on a plane at specified height
     
@@ -405,6 +405,11 @@ def reproject_to_world_ground_batched(ground_pix, K0, R0, T0, height=0):
     # print("R0: ", np.array(R0).shape)
     # print("T0: ", np.array(T0).shape)
     # Convert ground_pix to homogeneous coordinates if needed
+    if dist is not None:
+        undistorted_points = cv.undistortPoints(ground_pix, K0, dist, P=K0)
+        undistorted_points = undistorted_points.reshape(-1, 2)
+        ground_pix = undistorted_points
+
     if ground_pix.shape[1] == 2:
         ground_pix_hom = np.hstack((ground_pix, np.ones((ground_pix.shape[0], 1))))
     else:
