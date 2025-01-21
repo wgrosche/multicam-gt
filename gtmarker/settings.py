@@ -308,7 +308,7 @@ from gtm_hit.misc.geometry import get_polygon_from_points_3d
 
 
 
-ROIjson = json.load(open('/cvlabdata2/home/grosche/dev/calibration/ROI_annotated_polygon.json'))
+ROIjson = json.load(open('/cvlabdata2/home/grosche/dev/calibration/ROI_annotated_polygon_4.json'))
 
 ROI = {}
 # for cam_name, polygon in ROIjson['points_3d'].items():
@@ -317,6 +317,6 @@ from gtm_hit.misc.geometry import reproject_to_world_ground_batched
 for cam_name, polygon in ROIjson['points_2d'].items():
     # project 2d points to 3d
     ground_pix = np.array(polygon)
-    K0, R0, T0 = CALIBS[cam_name].K, CALIBS[cam_name].R, CALIBS[cam_name].T
-    polygon_3d = reproject_to_world_ground_batched(ground_pix, K0, R0, T0)
+    K0, R0, T0, dist = CALIBS[cam_name].K, CALIBS[cam_name].R, CALIBS[cam_name].T, CALIBS[cam_name].dist
+    polygon_3d = reproject_to_world_ground_batched(ground_pix, K0, R0, T0, dist)
     ROI[cam_name] = get_polygon_from_points_3d(polygon_3d)

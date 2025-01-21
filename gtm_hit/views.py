@@ -281,8 +281,8 @@ def click(request):
             # print("2d: ", feet2d_h, "cam: ", cam, "calib: ", settings.CALIBS[settings.CAMS[cam]])
             if settings.FLAT_GROUND:
                 calib = settings.CALIBS[cam]
-                K0, R0, T0 = calib.K, calib.R, calib.T
-                world_point = geometry.reproject_to_world_ground_batched(feet2d_h.T, K0, R0, T0, height=-0.301)
+                K0, R0, T0, dist = calib.K, calib.R, calib.T, calib.dist
+                world_point = geometry.reproject_to_world_ground_batched(feet2d_h.T, K0, R0, T0, dist, height=-0.301)
             else:
                 world_point = geometry.project_2d_points_to_mesh(
                     feet2d_h, settings.CALIBS[cam], settings.MESH)#undistort=settings.UNDISTORTED_FRAMES)

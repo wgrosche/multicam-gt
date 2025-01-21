@@ -129,8 +129,8 @@ def project_2d_points_to_mesh(points_2d, calib, mesh, VERBOSE=False, min_z=-0.5,
 
     # Check if there are no intersections
     if len(locations) == 0:
-        # if VERBOSE:
-        print(f"No intersections found for any rays. Projecting to groundplane. (z={z_plane})")
+        if VERBOSE:
+            print(f"No intersections found for any rays. Projecting to groundplane. (z={z_plane})")
         ground_points = reproject_to_world_ground_batched(points_2d, calib.K, calib.R, calib.T, calib.dist, z_plane)
         
         return ground_points#.tolist()
@@ -148,6 +148,10 @@ def project_2d_points_to_mesh(points_2d, calib, mesh, VERBOSE=False, min_z=-0.5,
     # Filter intersections by depth and z-coordinates in a single pass
     valid_mask = (depths > min_cam_dist) & (locations[:, 2] < max_z) & (locations[:, 2] > min_z)
     
+    if VERBOSE: 
+        print(f"ALL points: {locations}")
+        print(f"Valid points: {locations[valid_mask]}")
+
     # Get valid indices per ray
     valid_indices = index_ray[valid_mask]
     valid_depths = depths[valid_mask]
@@ -172,6 +176,13 @@ def project_2d_points_to_mesh(points_2d, calib, mesh, VERBOSE=False, min_z=-0.5,
         
         # Assign only those rays that had valid intersections
         ground_points[unique_rays] = closest_points[unique_rays]
+    else:
+        if VERBOSE:
+            print(f"No valid intersections after filtering. Projecting to groundplane. (z={z_plane})")
+        ground_points = reproject_to_world_ground_batched(points_2d, calib.K, calib.R, calib.T, calib.dist, z_plane)
+
+    if VERBOSE:
+        print(f"Ground points: {ground_points}")
     
     return ground_points#.tolist()
 
@@ -194,15 +205,31 @@ def move_with_mesh_intersection(ground_pix): #reproject to mesh
     return ground_pixel
 
 
-def project_world_to_camera(world_point, K1, R1, T1):
+def project_world_to_camera(world_point, K1, R1, T1, dist=None):
     """
-    Project 3D point world coordinate to image plane (pixel coordinate)
+    Project 3D point world coordinate to image plane (pixel coordinate) using cv2
+    
+    Args:
+        world_point: 3D point in world coordinates
+        K1: Camera intrinsic matrix
+        R1: Rotation matrix
+        T1: Translation vector
+        dist: Distortion coefficients (optional)
+    
+    Returns:
+        2D projected point in pixel coordinates
     """
-    point1 = ((R1 @ world_point.reshape(3, 1)) + T1).reshape(3, 1)
-    point1 = K1 @ point1
-    point1 = point1 / point1[2]
-
-    return point1[:2]
+    # Reshape point to 1x3 array
+    world_point = np.array(world_point, dtype=np.float32).reshape(1, 3)
+    
+    # Convert rotation matrix to rodrigues vector
+    rvec, _ = cv.Rodrigues(R1)
+    
+    # Project points using cv2.projectPoints
+    projected_points, _ = cv.projectPoints(world_point, rvec, T1, K1, dist)
+    
+    # Return 2D point
+    return projected_points.reshape(-1, 2).T.astype(float)
 
 def get_projected_points(points3d, 
                          calib:CameraParams, 
@@ -216,7 +243,7 @@ def get_projected_points(points3d,
     if undistort:
         points2d = [project_world_to_camera(point3d, calib.newCameraMatrix, calib.R, calib.T) for point3d in points3d]
     else:
-        points2d = [project_world_to_camera(point3d, calib.K, calib.R, calib.T) for point3d in points3d]
+        points2d = [project_world_to_camera(point3d, calib.K, calib.R, calib.T, calib.dist) for point3d in points3d]
     # if points2d == (None, None):
     #     raise ValueError("Could not project points to image plane.")
     points2d = np.squeeze(points2d)
@@ -406,7 +433,7 @@ def reproject_to_world_ground_batched(ground_pix, K0, R0, T0, dist=None, height=
     # print("T0: ", np.array(T0).shape)
     # Convert ground_pix to homogeneous coordinates if needed
     if dist is not None:
-        undistorted_points = cv.undistortPoints(ground_pix, K0, dist, P=K0)
+        undistorted_points = cv.undistortPoints(np.array(ground_pix, dtype=np.float32), K0, dist, P=K0)
         undistorted_points = undistorted_points.reshape(-1, 2)
         ground_pix = undistorted_points
 
