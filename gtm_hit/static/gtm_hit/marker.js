@@ -271,6 +271,8 @@ window.onload = function () {
   $(document).bind("keydown", "m", keyNextFrame);
   $(document).bind("keydown", "b", toggleOrientation);
   $(document).bind("keydown", "ctrl+s", save);
+  $(document).bind("keydown", ",", copyPrevOrNext);
+  // add copy button
   
 
   $("#pID").bind("keydown", "return", changeID);
