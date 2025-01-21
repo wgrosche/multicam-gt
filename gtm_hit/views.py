@@ -286,7 +286,7 @@ def click(request):
             else:
                 world_point = geometry.project_2d_points_to_mesh(
                     feet2d_h, settings.CALIBS[cam], settings.MESH)#undistort=settings.UNDISTORTED_FRAMES)
-            if "person_id" not in obj:
+            if "person_id" not in obj or obj["person_id"] == "":
                 obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset_name=dataset_name)
 
             # print("World point:", world_point)

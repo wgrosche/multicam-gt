@@ -641,6 +641,15 @@ function mainClick(e) {
   const { offsetX, offsetY } = e;
   var xCorr = Math.round(offsetX * frame_size[0] / this.clientWidth);
   var yCorr = Math.round(offsetY * frame_size[1] / this.clientHeight);
+  
+
+  var pid = identities[rectsID[chosen_rect]];
+  if (e.altKey) {
+    var pid = "";
+  }
+  // let box = boxes[0][pid];
+  // if (!box) return;
+  // box["personID"] = pid;
   if (zoomOn)
     zoomOut();
   //post
@@ -653,7 +662,8 @@ function mainClick(e) {
       y: yCorr,
       canv: this.id.replace('canv', ''),
       workerID: workerID,
-      datasetName: dset_name
+      datasetName: dset_name,
+      person_id: pid
     },
     dataType: "json",
     success: function (msg) {
