@@ -47,7 +47,7 @@ args.tracks_path=Path("/cvlabdata2/home/grosche/dev/calibration/unmerged_tracks.
 # args.dict_path = "/cvlabdata2/home/grosche/dev/calibration/traj_dict_mean_high_res.json"
 args.dict_path = "/cvlabdata2/home/grosche/dev/calibration/traj_dict_weighted_mean_high_res.json"
 # args.worker_id = "NEWCALIBMESHMEAN"
-args.worker_id = "WEIGHTEDMEANBASIC"
+args.worker_id = "WEIGHTEDMEANSQ"
 # args.dict_path = "/cvlabdata2/home/grosche/dev/calibration/traj_dict_unmerged_high_res.json"
 
 # "/cvlabdata2/home/grosche/dev/calibration/traj_dict_mean_high_res_new_calibration.json"
