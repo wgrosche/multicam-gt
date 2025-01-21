@@ -315,7 +315,10 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
     
     print(f"Frame range: {frame_range}")
     # return None
-    if not dict_path:
+    if dict_path == "scratch":
+        skip_annotations = True
+    elif not dict_path:
+        skip_annotations = False
         traj_dict_3d = {}
 
         for camera in settings.CAMS:
@@ -342,15 +345,17 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
     worker, _ = Worker.objects.get_or_create(workerID=worker_id, tuto = True)
     dataset, _ = Dataset.objects.get_or_create(name=dataset_name)
 
-    print("Creating people...")
-    people_to_create = [Person(person_id=person_id, 
+
+    if not skip_annotations:
+        print("Creating people...")
+        people_to_create = [Person(person_id=person_id, 
                                worker=worker, 
                                dataset=dataset) for person_id in all_tracks_3d.keys()]
-    print(f"Bulk adding {len(people_to_create)} people to database...")
-    Person.objects.bulk_create(people_to_create, 
-                               update_conflicts=True, 
-                               update_fields=['person_id', 'worker', 'dataset'], 
-                               unique_fields=['person_id', 'worker', 'dataset'])
+        print(f"Bulk adding {len(people_to_create)} people to database...")
+        Person.objects.bulk_create(people_to_create, 
+                                update_conflicts=True, 
+                                update_fields=['person_id', 'worker', 'dataset'], 
+                                unique_fields=['person_id', 'worker', 'dataset'])
     
     print("Creating frames...")
     frames_to_create = [MultiViewFrame(frame_id=frame_idx, 
@@ -372,62 +377,63 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
     
     print(f"Fetched {len(frames_dict)} frames from database...")
     
-    print("Fetching people from database...")
-    # Get all persons at once
-    people = {p.person_id: p for p in Person.objects.filter(worker=worker, dataset=dataset)}
+    if not skip_annotations:
+        print("Fetching people from database...")
+        # Get all persons at once
+        people = {p.person_id: p for p in Person.objects.filter(worker=worker, dataset=dataset)}
 
-    print(f"Fetched {len(people)} people from database...")
-    # Create all annotations in one go
-    all_annotations = []
-    for person_id, tracks in tqdm(all_tracks_3d.items(), total=len(all_tracks_3d), desc='Creating annotations'):
-        positions, start, end, id = tracks
-        # for frame_idx in frame_range:
-        #     # print(start, end)
-        #     if frame_idx in range(start, end):
-                # print(frame_idx, frames_dict[frame_idx])
+        print(f"Fetched {len(people)} people from database...")
+        # Create all annotations in one go
+        all_annotations = []
+        for person_id, tracks in tqdm(all_tracks_3d.items(), total=len(all_tracks_3d), desc='Creating annotations'):
+            positions, start, end, id = tracks
+            # for frame_idx in frame_range:
+            #     # print(start, end)
+            #     if frame_idx in range(start, end):
+                    # print(frame_idx, frames_dict[frame_idx])
+                
+
+            positions = np.array(positions)
+            if person_id not in Person.objects.filter(worker=worker, dataset=dataset).values('person_id').values_list('person_id', flat=True):
+                print(f"Person {person_id} not found in database")
+                continue
             
+            person = people[person_id]
+            all_annotations.extend([
+                Annotation(
+                    person=person,
+                    frame=frames_dict[frame_idx],
+                    rectangle_id=uuid.uuid4().__str__().split("-")[-1],
+                    rotation_theta=0,
+                    Xw=positions[frame_idx - start][0],
+                    Yw=positions[frame_idx - start][1],
+                    Zw=positions[frame_idx - start][2] if positions[frame_idx - start].shape[0] > 2 else 0,
+                    object_size_x=1.7,
+                    object_size_y=0.6,  
+                    object_size_z=0.6,
+                    creation_method="imported_scout_tracks"
+                ) for frame_idx in frame_range if frame_idx in range(start, end)
+            ])
+        print(f"Bulk adding {len(all_annotations)} annotations to database...")
+        # Bulk create all annotations at once
+        Annotation.objects.bulk_create(
+            all_annotations,
+            update_conflicts=True,
+            unique_fields=['frame', 'person'],
+            update_fields=['rectangle_id', 'rotation_theta', 'Xw', 'Yw', 'Zw', 
+                        'object_size_x', 'object_size_y', 'object_size_z', 'creation_method']
+        )
+        print("Fetching annotations...")
+        # Process all 2D views at once
+        all_annotations = Annotation.objects.filter(
+            person__in=people.values(),
+            frame__in=frames_dict.values(),
+            creation_method="imported_scout_tracks" 
+        ).select_related('frame', 'person')
 
-        positions = np.array(positions)
-        if person_id not in Person.objects.filter(worker=worker, dataset=dataset).values('person_id').values_list('person_id', flat=True):
-            print(f"Person {person_id} not found in database")
-            continue
-        
-        person = people[person_id]
-        all_annotations.extend([
-            Annotation(
-                person=person,
-                frame=frames_dict[frame_idx],
-                rectangle_id=uuid.uuid4().__str__().split("-")[-1],
-                rotation_theta=0,
-                Xw=positions[frame_idx - start][0],
-                Yw=positions[frame_idx - start][1],
-                Zw=positions[frame_idx - start][2] if positions[frame_idx - start].shape[0] > 2 else 0,
-                object_size_x=1.7,
-                object_size_y=0.6,  
-                object_size_z=0.6,
-                creation_method="imported_scout_tracks"
-            ) for frame_idx in frame_range if frame_idx in range(start, end)
-        ])
-    print(f"Bulk adding {len(all_annotations)} annotations to database...")
-    # Bulk create all annotations at once
-    Annotation.objects.bulk_create(
-        all_annotations,
-        update_conflicts=True,
-        unique_fields=['frame', 'person'],
-        update_fields=['rectangle_id', 'rotation_theta', 'Xw', 'Yw', 'Zw', 
-                    'object_size_x', 'object_size_y', 'object_size_z', 'creation_method']
-    )
-    print("Fetching annotations...")
-    # Process all 2D views at once
-    all_annotations = Annotation.objects.filter(
-        person__in=people.values(),
-        frame__in=frames_dict.values(),
-        creation_method="imported_scout_tracks" 
-    ).select_related('frame', 'person')
+        print(f"Fetched {len(all_annotations)} annotations from database...")
 
-    print(f"Fetched {len(all_annotations)} annotations from database...")
-
-    save_2d_views_bulk(all_annotations)
+        save_2d_views_bulk(all_annotations)
 
     print("\n=== Processing Summary ===")
     print(f"Total People Created: {Person.objects.filter(worker=worker, dataset=dataset).count()}")
