@@ -411,19 +411,19 @@ def copy_annotation_to_frame(annotation, current_frame):
     )
     new_annotation.save()
 
-    save_2d_views(annotation)
+    # save_2d_views(new_annotation)
     # Copy 2D annotations for each view
-    # for annotation_2d_view in annotation.twod_views.all():
-    #     new_annotation_2d_view = Annotation2DView.objects.create(
-    #         view=annotation_2d_view.view,
-    #         annotation=new_annotation,
-    #         x1=annotation_2d_view.x1,
-    #         y1=annotation_2d_view.y1,
-    #         x2=annotation_2d_view.x2,
-    #         y2=annotation_2d_view.y2,
-    #         cuboid_points=annotation_2d_view.cuboid_points
-    #     )
-    #     new_annotation_2d_view.save()
+    for annotation_2d_view in annotation.twod_views.all():
+        new_annotation_2d_view = Annotation2DView.objects.create(
+            view=annotation_2d_view.view,
+            annotation=new_annotation,
+            x1=annotation_2d_view.x1,
+            y1=annotation_2d_view.y1,
+            x2=annotation_2d_view.x2,
+            y2=annotation_2d_view.y2,
+            cuboid_points=annotation_2d_view.cuboid_points
+        )
+        new_annotation_2d_view.save()
 
     return True
 

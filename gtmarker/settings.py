@@ -247,11 +247,16 @@ DELTA_SEARCH = 5
 
 # need to: establish symlinked folders for get frame size etc
 DSETNAME = "SCOUT"
+<<<<<<< HEAD
 WORKER_ID = 'NEWCALIBMESH'
+=======
+# WORKER_ID = 'NEWCALIBMESH'
+>>>>>>> 98adb780a88bded1fac37d327d513c0439c26e0d
 DSETPATH = Path("./gtm_hit/static/gtm_hit/dset/") / DSETNAME
 SYMLINK_DEST_FRAMES = DSETPATH / "frames"
-# SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
+SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
 CALIBPATH = DSETPATH / "calibrations"
+CALIB_SRC = Path("/cvlabscratch/home/engilber/dev/calibration/data/calib_test_2/initial_calibration/")
 # CALIB_SRC = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/calibrations/calibrations")
 FPS = 1 # framerate of input video (note, assumes 10fps base)
 NUM_FRAMES = 12000
@@ -261,7 +266,7 @@ HEIGHT = 1.8
 RADIUS = 0.5 #person radius
 FLAT_GROUND = False#True # Whether or not to use the mesh for dataset generation and annotation
 FRAME_SKIP = int(float(10 / FPS))
-TIMEWINDOW = 100 * FRAME_SKIP # cropped frames loaded when selecting a bounding box (on either side)
+TIMEWINDOW = 5 * FRAME_SKIP # cropped frames loaded when selecting a bounding box (on either side)
 
 VALIDATIONCODES = []
 STARTFRAME = 2
@@ -274,12 +279,20 @@ STEPL = 0.02
 MOVE_STEP = 0.02 #same as stepl vidis ovoDA
 SIZE_CHANGE_STEP=0.03
 # NOTE: run data creation with full cameras before bed!
+<<<<<<< HEAD
 CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIBPATH.iterdir()]#["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
+=======
+try:
+    CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIBPATH.iterdir()]
+except FileNotFoundError:
+    CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIB_SRC.iterdir()]
+    #["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
+>>>>>>> 98adb780a88bded1fac37d327d513c0439c26e0d
 print(CAMS)
 FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 #CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)
 NB_CAMS = len(CAMS)
-CALIBS= load_scout_calib(CALIBPATH, cameras=CAMS)
+CALIBS= load_scout_calib(CALIBPATH, cameras=CAMS, calib_source_path = CALIB_SRC)
 ROTATION_THETA = np.pi/24
 UNDISTORTED_FRAMES=False
 

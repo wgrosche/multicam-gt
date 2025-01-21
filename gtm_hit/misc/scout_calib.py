@@ -8,7 +8,7 @@ import os.path as osp
 import numpy as np
 from ipdb import set_trace
 from dataclasses import dataclass
-from typing import Union, List
+from typing import Union, List, Optional
 from pathlib import Path
 from collections import namedtuple
 
@@ -74,7 +74,21 @@ class CameraParams:
     def set_view_id(self, view_id):
         self.view_id = view_id
 
-def load_scout_calib(params_dir:Path, cameras:List[str]):
+
+def prepare_calibs(calib_source_path, calib_path):
+    # symlink calibs to calib_path
+
+    calib_source_path = Path(calib_source_path)
+    calib_path = Path(calib_path)
+
+    # create calib_path if it doesn't exist
+    calib_path.mkdir(parents=True, exist_ok=True)
+    # symlink all calibs in calib_source_path to calib_path
+    for calib_file in calib_source_path.glob("*.json"):
+        if not (calib_path / calib_file.name).exists():
+            (calib_path / calib_file.name).symlink_to(calib_file)
+
+def load_scout_calib(params_dir:Path, cameras:List[str], calib_source_path:Optional[Path] = None):
     # cam_id_mat = np.mgrid[1:3,1:5].reshape(2,-1).T
     # cam_id_keys = [f"cam_{cam_id[0]}_{cam_id[1]}" for cam_id in cam_id_mat]
 
@@ -82,6 +96,11 @@ def load_scout_calib(params_dir:Path, cameras:List[str]):
     #                           for i in range(len(cam_id_keys)))
     # videos_captures = {}
     # output_data = {}
+    if calib_source_path is not None and calib_source_path.exists():
+        prepare_calibs(calib_source_path, params_dir)
+        if not params_dir.exists():
+            params_dir.mkdir(parents=True, exist_ok=True)
+
     cam_params = {}
 
     for camera_name in cameras:
