@@ -28,9 +28,10 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SetupArgs:
-    DSETNAME = "WILKEANNOTATE"
+    DSETNAME = "SCOUT"
     SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
-    CALIB_SRC = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/calibrations/calibrations")
+    CALIB_SRC = Path("/cvlabdata2/home/grosche/dev/calibration/initial_calibration")
+    # Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/calibrations/calibrations")
     TRACKS_SRC = Path("/cvlabdata2/home/grosche/dev/calibration/merged_tracks.pkl")
     MESH_SRC = None #Path("/cvlabdata2/home/grosche/dev/calibration/merged_mesh.pkl")
 
@@ -82,7 +83,7 @@ def main():
     symlink_frames(args.SYMLINK_SOURCE_FRAMES, DSETPATH)
     logger.info("Copying calibration files...")
     copy_calibrations(args.CALIB_SRC, DSETPATH)
-    load_tracks(args.TRACKS_SRC, DSETPATH)
+    # load_tracks(args.TRACKS_SRC, DSETPATH)
 
     # undistort_frames(DSETPATH)
     

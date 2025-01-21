@@ -10,6 +10,10 @@ from django.conf import settings
 # parser.add_argument('-d',"--dataset_name", default="invision", help="Dataset name. It should match the name of the folder in dset/ (default: invision).")
 # args = parser.parse_args()
 
+
+
+
+
 #Note: undistortion and increment is determined by the settings file.
 class Args:
     def __init__(self,
@@ -17,8 +21,9 @@ class Args:
                 #  calibration_path="",
                  tracks_path="",
                 #  input_path="gtm_hit/static/gtm_hit/labels/json_output",
-                 worker_id="HIGHRESMESH2",
+                 worker_id=None, #settings.WORKER_ID,
                  hdf5_template = "/cvlabdata2/home/grosche/dev/calibration/sync_frame_seq_1/{camera}",
+                #  hdf5_template = "/cvlabscratch/home/engilber/dev/calibration/data/calib_test_2/initial_calibration/{camera}",
                  dataset_name=settings.DSETNAME, 
                  range_start=settings.FRAME_START,
                  range_end=settings.FRAME_END,
@@ -39,7 +44,13 @@ args = Args()
 # args.frames_path=Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/")
 # args.calibration_path=Path("/cvlabdata2/home/grosche/dev/calibration/calibrations")
 args.tracks_path=Path("/cvlabdata2/home/grosche/dev/calibration/unmerged_tracks.pkl")
-args.dict_path = "/cvlabdata2/home/grosche/dev/calibration/traj_dict_mean_high_res.json"
+# args.dict_path = "/cvlabdata2/home/grosche/dev/calibration/traj_dict_mean_high_res.json"
+args.dict_path = "/cvlabdata2/home/grosche/dev/calibration/traj_dict_weighted_mean_high_res.json"
+# args.worker_id = "NEWCALIBMESHMEAN"
+args.worker_id = "WEIGHTEDMEANBASIC"
+# args.dict_path = "/cvlabdata2/home/grosche/dev/calibration/traj_dict_unmerged_high_res.json"
+
+# "/cvlabdata2/home/grosche/dev/calibration/traj_dict_mean_high_res_new_calibration.json"
 
 # preprocess_scout_data(
 #     tracks_path=args.tracks_path,
@@ -49,6 +60,7 @@ args.dict_path = "/cvlabdata2/home/grosche/dev/calibration/traj_dict_mean_high_r
 #     range_end=args.range_end,
 #     testing = False
 # )
+
 
 preprocess_scout_data_from_dict(hdf5_template = args.hdf5_template, worker_id=args.worker_id,
                           dataset_name=args.dataset_name, dict_path = args.dict_path

@@ -247,11 +247,12 @@ DELTA_SEARCH = 5
 
 # need to: establish symlinked folders for get frame size etc
 DSETNAME = "SCOUT"
-WORKER_ID = 'TEST'
+# WORKER_ID = 'NEWCALIBMESH'
 DSETPATH = Path("./gtm_hit/static/gtm_hit/dset/") / DSETNAME
 SYMLINK_DEST_FRAMES = DSETPATH / "frames"
-# SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
+SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
 CALIBPATH = DSETPATH / "calibrations"
+CALIB_SRC = Path("/cvlabscratch/home/engilber/dev/calibration/data/calib_test_2/initial_calibration/")
 # CALIB_SRC = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/calibrations/calibrations")
 FPS = 1 # framerate of input video (note, assumes 10fps base)
 NUM_FRAMES = 12000
@@ -261,7 +262,7 @@ HEIGHT = 1.8
 RADIUS = 0.5 #person radius
 FLAT_GROUND = False#True # Whether or not to use the mesh for dataset generation and annotation
 FRAME_SKIP = int(float(10 / FPS))
-TIMEWINDOW = 100 * FRAME_SKIP # cropped frames loaded when selecting a bounding box (on either side)
+TIMEWINDOW = 5 * FRAME_SKIP # cropped frames loaded when selecting a bounding box (on either side)
 
 VALIDATIONCODES = []
 STARTFRAME = 2
@@ -274,18 +275,23 @@ STEPL = 0.02
 MOVE_STEP = 0.02 #same as stepl vidis ovoDA
 SIZE_CHANGE_STEP=0.03
 # NOTE: run data creation with full cameras before bed!
-CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIBPATH.iterdir()]#["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
+try:
+    CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIBPATH.iterdir()]
+except FileNotFoundError:
+    CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIB_SRC.iterdir()]
+    #["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
+print(CAMS)
 FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 #CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)
 NB_CAMS = len(CAMS)
-CALIBS= load_scout_calib(CALIBPATH, cameras=CAMS)
+CALIBS= load_scout_calib(CALIBPATH, cameras=CAMS, calib_source_path = CALIB_SRC)
 ROTATION_THETA = np.pi/24
 UNDISTORTED_FRAMES=False
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # MESHPATH = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply")
-EXPORT = True
+EXPORT = False
 if not EXPORT:
     MESHPATH = '/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply'#Path("/cvlabdata2/home/grosche/dev/calibration") \
         # / "scene_dense_texturet_decimate_1_manual_cleanup.ply"
@@ -296,14 +302,21 @@ if not EXPORT:
         print("It's going to be slow")
     MESH = trimesh.load(MESHPATH)
 
-    import json
-    from shapely.geometry import Polygon
-    from gtm_hit.misc.geometry import get_polygon_from_points_3d
+import json
+from shapely.geometry import Polygon
+from gtm_hit.misc.geometry import get_polygon_from_points_3d
 
 
 
-    ROIjson = json.load(open('/cvlabdata2/home/grosche/dev/calibration/ROI_annotated_polygon.json'))
+ROIjson = json.load(open('/cvlabdata2/home/grosche/dev/calibration/ROI_annotated_polygon.json'))
 
-    ROI = {}
-    for cam_name, polygon in ROIjson['points_3d'].items():
-        ROI[cam_name] = get_polygon_from_points_3d(polygon)
+ROI = {}
+# for cam_name, polygon in ROIjson['points_3d'].items():
+#     ROI[cam_name] = get_polygon_from_points_3d(polygon)
+from gtm_hit.misc.geometry import reproject_to_world_ground_batched
+for cam_name, polygon in ROIjson['points_2d'].items():
+    # project 2d points to 3d
+    ground_pix = np.array(polygon)
+    K0, R0, T0 = CALIBS[cam_name].K, CALIBS[cam_name].R, CALIBS[cam_name].T
+    polygon_3d = reproject_to_world_ground_batched(ground_pix, K0, R0, T0)
+    ROI[cam_name] = get_polygon_from_points_3d(polygon_3d)

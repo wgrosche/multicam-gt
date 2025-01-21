@@ -12,21 +12,83 @@ from matplotlib.path import Path as mplpath
 Calibration = namedtuple('Calibration', ['K', 'R', 'T', 'view_id'])
 
 
-class CuboidVertexEnum(IntEnum):
-    FrontTopRight = 0
-    FrontTopLeft = 1
-    RearTopRight = 2
-    RearTopLeft = 3
-    FrontBottomRight = 4
-    FrontBottomLeft = 5
-    RearBottomRight = 6
-    RearBottomLeft = 7
-    Base = 8
-    Direction=9
-    CUBOID_VERTEX_COUNT = 10
+# class CuboidVertexEnum(IntEnum):
+#     FrontTopRight = 0
+#     FrontTopLeft = 1
+#     RearTopRight = 2
+#     RearTopLeft = 3
+#     FrontBottomRight = 4
+#     FrontBottomLeft = 5
+#     RearBottomRight = 6
+#     RearBottomLeft = 7
+#     Base = 8
+#     Direction=9
+#     CUBOID_VERTEX_COUNT = 10
+
+class Cuboid:
+    def __init__(self, calib:CameraParams, 
+                 world_point:np.ndarray, 
+                 width:float = None, 
+                 length:float = None,
+                 height:float = None):
+
+        if width is None:
+            width = settings.RADIUS
+        if length is None:
+            length = settings.RADIUS
+        if height is None:
+            height = settings.HEIGHT
+
+        self.calib = calib
+
+        self.front_top_right = np.array([width / 2, length / 2, height])
+        self.front_top_left = np.array([-width / 2, length / 2, height])
+        self.rear_top_right = np.array([width / 2, -length / 2, height])
+        self.rear_top_left = np.array([-width / 2, -length / 2, height])
+        self.front_bottom_right = np.array([width / 2, length / 2, 0])
+        self.front_bottom_left = np.array([-width / 2, length / 2, 0])
+        self.rear_bottom_right = np.array([width / 2, -length / 2, 0])
+        self.rear_bottom_left = np.array([-width / 2, -length / 2, 0])
+        self.base = np.array([0, 0, 0])
+        self.direction = np.array([0, length / 2, 0])
+
+        self.cuboid_points3d = np.vstack([self.front_top_right,
+                                          self.front_top_left,
+                                          self.rear_top_right,
+                                          self.rear_top_left,
+                                          self.front_bottom_right,
+                                          self.front_bottom_left,
+                                          self.rear_bottom_right,
+                                          self.rear_bottom_left,
+                                          self.base,
+                                          self.direction])
+        
+        self.world_point = world_point
+        
+    def get_cuboid_points3d(self):
+        return self.cuboid_points3d
+    
+    def get_cuboid_points_3d_rotated(self, theta:float = 0):
+        rotz = np.array([[np.cos(theta),-np.sin(theta),0],
+                        [np.sin(theta), np.cos(theta),0],
+                        [            0,             0,1]])
+
+        cuboid_points3d_rot = (rotz @ self.cuboid_points3d.T).T
+        return cuboid_points3d_rot
+    
+    def get_cuboid_points_3d_world(self, theta:float = 0):
+        cuboid_points3d_rot = self.get_cuboid_points_3d_rotated(theta)
+        cuboid_points3d_world = cuboid_points3d_rot + self.world_point.T
+        return cuboid_points3d_world
+
+    def get_cuboid_points_2d(self, theta:float = 0):
+        cuboid_points3d_world = self.get_cuboid_points_3d_world(theta)
+        cuboid_points2d = get_projected_points(cuboid_points3d_world, self.calib)
+
+        return cuboid_points2d
 
 
-def get_ray_directions(points_2d, calib):
+def get_ray_directions(points_2d:np.ndarray, calib):
     points_2d = np.array(points_2d, dtype=float).reshape(-1, 1, 2)
 
     # Vectorized undistortion
@@ -144,7 +206,7 @@ def project_world_to_camera(world_point, K1, R1, T1):
 
 def get_projected_points(points3d, 
                          calib:CameraParams, 
-                         undistort=False):
+                         ):
     """
     Projects points into the image plane and filters non-visible points.
     """
@@ -162,35 +224,38 @@ def get_projected_points(points3d,
     return points2d
 
 
-def get_cuboid_from_ground_world(world_point:np.ndarray, 
-                                 calib:CameraParams, 
-                                 height:float, 
-                                 width:float, 
-                                 length:float, 
-                                 theta:float):
+# def get_cuboid_from_ground_world(world_point:np.ndarray, 
+#                                  calib:CameraParams, 
+#                                  height:float, 
+#                                  width:float, 
+#                                  length:float, 
+#                                  theta:float):
     
-    cuboid_points3d = np.zeros((CuboidVertexEnum.CUBOID_VERTEX_COUNT, 3))
-    cuboid_points3d[CuboidVertexEnum.FrontTopRight] = [width / 2, length / 2, height]
-    cuboid_points3d[CuboidVertexEnum.FrontTopLeft] = [-width / 2, length / 2, height]
-    cuboid_points3d[CuboidVertexEnum.RearTopRight] = [width / 2, -length / 2, height]
-    cuboid_points3d[CuboidVertexEnum.RearTopLeft] = [-width / 2, -length / 2, height]
-    cuboid_points3d[CuboidVertexEnum.FrontBottomRight] = [width / 2, length / 2, 0]
-    cuboid_points3d[CuboidVertexEnum.FrontBottomLeft] = [-width / 2, length / 2, 0]
-    cuboid_points3d[CuboidVertexEnum.RearBottomRight] = [width / 2, -length / 2, 0]
-    cuboid_points3d[CuboidVertexEnum.RearBottomLeft] = [-width / 2, -length / 2, 0]
-    cuboid_points3d[CuboidVertexEnum.Base] = [0, 0, 0]
-    cuboid_points3d[CuboidVertexEnum.Direction] = [0, length / 2, 0]
+#     # cuboid_points3d = np.zeros((CuboidVertexEnum.CUBOID_VERTEX_COUNT, 3))
+#     # cuboid_points3d[CuboidVertexEnum.FrontTopRight] = [width / 2, length / 2, height]
+#     # cuboid_points3d[CuboidVertexEnum.FrontTopLeft] = [-width / 2, length / 2, height]
+#     # cuboid_points3d[CuboidVertexEnum.RearTopRight] = [width / 2, -length / 2, height]
+#     # cuboid_points3d[CuboidVertexEnum.RearTopLeft] = [-width / 2, -length / 2, height]
+#     # cuboid_points3d[CuboidVertexEnum.FrontBottomRight] = [width / 2, length / 2, 0]
+#     # cuboid_points3d[CuboidVertexEnum.FrontBottomLeft] = [-width / 2, length / 2, 0]
+#     # cuboid_points3d[CuboidVertexEnum.RearBottomRight] = [width / 2, -length / 2, 0]
+#     # cuboid_points3d[CuboidVertexEnum.RearBottomLeft] = [-width / 2, -length / 2, 0]
+#     # cuboid_points3d[CuboidVertexEnum.Base] = [0, 0, 0]
+#     # cuboid_points3d[CuboidVertexEnum.Direction] = [0, length / 2, 0]
 
 
-    rotz = np.array([[np.cos(theta),-np.sin(theta),0],
-                     [np.sin(theta), np.cos(theta),0],
-                     [            0,             0,1]])
+#     # rotz = np.array([[np.cos(theta),-np.sin(theta),0],
+#     #                  [np.sin(theta), np.cos(theta),0],
+#     #                  [            0,             0,1]])
     
-    cuboid_points3d = (rotz @ cuboid_points3d.T).T
-    cuboid_points3d = cuboid_points3d + world_point.T
-    #
-    cuboid_points2d = get_projected_points(cuboid_points3d, calib)
-    return cuboid_points2d
+#     # cuboid_points3d = (rotz @ cuboid_points3d.T).T
+#     # cuboid_points3d = cuboid_points3d + world_point.T
+#     # #
+#     # cuboid_points2d = get_projected_points(cuboid_points3d, calib)
+
+#     cuboid = Cuboid(calib, world_point, width = width, length = length, height = height)
+#     cuboid_points2d = cuboid.get_cuboid_points_2d(theta)
+#     return cuboid_points2d
 
 
 def get_cuboid2d_from_annotation(annotation, cam_name, undistort=False):
@@ -212,8 +277,10 @@ def get_cuboid2d_from_annotation(annotation, cam_name, undistort=False):
     
     # print("adding cuboid at: ", world_point)
 
+    cuboid = Cuboid(calib, world_point, width = width, length = length, height = height)
+    cuboid_points2d = cuboid.get_cuboid_points_2d(theta)
 
-    cuboid_points2d = get_cuboid_from_ground_world(world_point, calib, height, width, length, theta)
+    # cuboid_points2d = get_cuboid_from_ground_world(world_point, calib, height, width, length, theta)
 
     return cuboid_points2d
 
@@ -264,7 +331,7 @@ def is_visible(point3d:np.ndarray, cam_name:str, check_mesh:bool = True) -> bool
     calib = settings.CALIBS[cam_name]
     polygon = settings.ROI[cam_name]
     point3d = np.array(point3d).reshape(-1, 3)
-    mesh = settings.MESH
+    # mesh = settings.MESH
     camera_position = (-calib.R.T @ calib.T).flatten()
     ray_to_point = point3d - camera_position
     # ray_origins, ray_directions = get_ray_directions(point3d, calib)
