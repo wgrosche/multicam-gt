@@ -261,44 +261,70 @@ def get_cuboids_2d(world_point, obj, new=False):
 
 def click(request):
     if is_ajax(request):
-        # print("Click endpoint hit")
-        # print("POST data:", request.POST)
-
-        # try:
         x = int(float(request.POST['x']))
         y = int(float(request.POST['y']))
         obj = request_to_dict(request)
         cam = request.POST['canv'].replace("canv", "")
-        # cam = int(re.findall(r'\d+', cam)[0]) - 1
-        #
-        worker_id = request.POST['workerID']
-        dataset_name = request.POST['datasetName']
-        # print(f"Cam: {cam}")
+        
         if cam in settings.CAMS:
-
-        # if 0 <= cam < settings.NB_CAMS:
-            feet2d_h = np.array([[x], [y]])#, [1]])
-            # print("2d: ", feet2d_h, "cam: ", cam, "calib: ", settings.CALIBS[settings.CAMS[cam]])
+            feet2d_h = np.array([[x], [y]])
+            
             if settings.FLAT_GROUND:
                 calib = settings.CALIBS[cam]
                 K0, R0, T0, dist = calib.K, calib.R, calib.T, calib.dist
                 world_point = geometry.reproject_to_world_ground_batched(feet2d_h.T, K0, R0, T0, dist, height=-0.301)
             else:
                 world_point = geometry.project_2d_points_to_mesh(
-                    feet2d_h, settings.CALIBS[cam], settings.MESH)#undistort=settings.UNDISTORTED_FRAMES)
+                    feet2d_h, settings.CALIBS[cam], settings.MESH)
+
             if "person_id" not in obj or obj["person_id"] == "":
                 obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset_name=dataset_name)
 
-            # print("World point:", world_point)
             rectangles = get_cuboids_2d(world_point[0], obj)
-            # print("Rectangles:", rectangles)
             rect_json = json.dumps(rectangles)
             
-            
-            #
             return HttpResponse(rect_json, content_type="application/json")
 
-        return HttpResponse("OK")
+# def click(request):
+#     if is_ajax(request):
+#         # print("Click endpoint hit")
+#         # print("POST data:", request.POST)
+
+#         # try:
+#         x = int(float(request.POST['x']))
+#         y = int(float(request.POST['y']))
+#         obj = request_to_dict(request)
+#         cam = request.POST['canv'].replace("canv", "")
+#         # cam = int(re.findall(r'\d+', cam)[0]) - 1
+#         #
+#         worker_id = request.POST['workerID']
+#         dataset_name = request.POST['datasetName']
+#         # print(f"Cam: {cam}")
+#         if cam in settings.CAMS:
+
+#         # if 0 <= cam < settings.NB_CAMS:
+#             feet2d_h = np.array([[x], [y]])#, [1]])
+#             # print("2d: ", feet2d_h, "cam: ", cam, "calib: ", settings.CALIBS[settings.CAMS[cam]])
+#             if settings.FLAT_GROUND:
+#                 calib = settings.CALIBS[cam]
+#                 K0, R0, T0, dist = calib.K, calib.R, calib.T, calib.dist
+#                 world_point = geometry.reproject_to_world_ground_batched(feet2d_h.T, K0, R0, T0, dist, height=-0.301)
+#             else:
+#                 world_point = geometry.project_2d_points_to_mesh(
+#                     feet2d_h, settings.CALIBS[cam], settings.MESH)#undistort=settings.UNDISTORTED_FRAMES)
+#             if "person_id" not in obj or obj["person_id"] == "":
+#                 obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset_name=dataset_name)
+
+#             # print("World point:", world_point)
+#             rectangles = get_cuboids_2d(world_point[0], obj)
+#             # print("Rectangles:", rectangles)
+#             rect_json = json.dumps(rectangles)
+            
+            
+#             #
+#             return HttpResponse(rect_json, content_type="application/json")
+
+#         return HttpResponse("OK")
 
 
 def action(request):

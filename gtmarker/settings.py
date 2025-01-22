@@ -247,7 +247,7 @@ DELTA_SEARCH = 5
 
 # need to: establish symlinked folders for get frame size etc
 DSETNAME = "SCOUT"
-WORKER_ID = 'NEWCALIBMESH'
+# WORKER_ID = 'NEWCALIBMESH'
 DSETPATH = Path("./gtm_hit/static/gtm_hit/dset/") / DSETNAME
 SYMLINK_DEST_FRAMES = DSETPATH / "frames"
 SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')

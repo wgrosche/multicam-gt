@@ -339,6 +339,7 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
                 current_idx += 1
     
     else:
+        skip_annotations = False
         all_tracks_3d = {int(k): (np.array(v[0]), int(v[1]), int(v[2]), int(v[3])) for k,v in json.load(open(dict_path, 'r')).items()}
 
     # Create worker and dataset
