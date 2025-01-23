@@ -280,6 +280,13 @@ try:
 except FileNotFoundError:
     CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIB_SRC.iterdir()]
     #["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
+
+# Reorder CAMS according to desired order
+order = [f'cvlabrpi{i}' for i in [10,21,13,12,7,19,24,5,23,3,2,4,1,22,11,8,26,17,14,25,6,9,18,15,16]]
+assert len(order) == len(CAMS) and len(set(order)) == len(order), "Order and CAMS must have the same length and unique elements"
+CAMS = [cam for cam in order if cam in CAMS]
+
+print(f"CAMS: {CAMS}")
 print(CAMS)
 FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 #CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)

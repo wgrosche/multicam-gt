@@ -1126,12 +1126,13 @@ def merge(request):
                     
                     
                     if len(positions) > 1:
-                        distances = np.linalg.norm(np.diff(positions, axis=0), axis=1)
-                        if np.all(distances <= settings.MERGE_THRESHOLD):
+                        distance = np.linalg.norm(positions[0] - positions[1])
+                        # np.linalg.norm(np.diff(positions, axis=0), axis=1)
+                        if distance <= settings.MERGE_THRESHOLD:
                             mergeable = True
                             pos = positions.mean(axis=0)
                             to_delete_ids.update(ann.id for ann in frame_anns)
-                        elif np.all(distances > settings.MERGE_THRESHOLD) and mergeable:
+                        elif distance > settings.MERGE_THRESHOLD and mergeable:
                             break
                         else:
                             continue
