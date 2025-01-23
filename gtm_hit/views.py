@@ -263,6 +263,8 @@ def click(request):
     if is_ajax(request):
         x = int(float(request.POST['x']))
         y = int(float(request.POST['y']))
+        worker_id = request.POST['workerID']
+        dataset_name = request.POST['datasetName']
         obj = request_to_dict(request)
         cam = request.POST['canv'].replace("canv", "")
         
@@ -429,7 +431,11 @@ def changeframe(request):
             frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames')
             frame_strs = {}
             for cam in settings.CAMS:
-                pattern = f"{frames_path}/{cam}/*_{new_frame_number}.jpg"
+                # TODO: THIS IS A HACK, WON'T WORK WITH SECOND SEQUENCE
+                if cam == 'cvlabrpi11':
+                    pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 23, 0)}.jpg"
+                else:
+                    pattern = f"{frames_path}/{cam}/*_{new_frame_number}.jpg"
                 matching_files = glob.glob(pattern)
                 if matching_files:
                     frame_strs[cam] = matching_files[0].split('/')[-1]
@@ -593,21 +599,50 @@ def save_db(request):
             people = {p.person_id: p for p in Person.objects.filter(worker=worker, dataset=dataset)}
 
             # Create all annotations in bulk
-            annotations_to_create = [
-                Annotation(
-                    person=people[annotation_data['personID']],
-                    frame=frame,
-                    rectangle_id=annotation_data['rectangleID'],
-                    rotation_theta=annotation_data['rotation_theta'],
-                    Xw=annotation_data['Xw'],
-                    Yw=annotation_data['Yw'],
-                    Zw=annotation_data['Zw'],
-                    object_size_x=annotation_data['object_size'][0],
-                    object_size_y=annotation_data['object_size'][1],
-                    object_size_z=annotation_data['object_size'][2]
+            # annotations_to_create = [
+            #     Annotation(
+            #         person=people[annotation_data['personID']],
+            #         frame=frame,
+            #         rectangle_id=annotation_data['rectangleID'],
+            #         rotation_theta=annotation_data['rotation_theta'],
+            #         Xw=annotation_data['Xw'],
+            #         Yw=annotation_data['Yw'],
+            #         Zw=annotation_data['Zw'],
+            #         object_size_x=annotation_data['object_size'][0],
+            #         object_size_y=annotation_data['object_size'][1],
+            #         object_size_z=annotation_data['object_size'][2]
+            #     )
+            #     for annotation_data in data
+            # ]
+            unique_annotations = {}
+
+            for annotation_data in data:
+                unique_key = (
+                    annotation_data['personID'],
+                    frame,
+                    annotation_data['rectangleID'],
+                    annotation_data['rotation_theta'],
+                    annotation_data['Xw'],
+                    annotation_data['Yw'],
+                    annotation_data['Zw'],
+                    tuple(annotation_data['object_size']),
                 )
-                for annotation_data in data
-            ]
+                if unique_key not in unique_annotations:
+                    unique_annotations[unique_key] = Annotation(
+                        person=people[annotation_data['personID']],
+                        frame=frame,
+                        rectangle_id=annotation_data['rectangleID'],
+                        rotation_theta=annotation_data['rotation_theta'],
+                        Xw=annotation_data['Xw'],
+                        Yw=annotation_data['Yw'],
+                        Zw=annotation_data['Zw'],
+                        object_size_x=annotation_data['object_size'][0],
+                        object_size_y=annotation_data['object_size'][1],
+                        object_size_z=annotation_data['object_size'][2]
+                    )
+
+            annotations_to_create = list(unique_annotations.values())
+            
 
             # Bulk create/update annotations
             Annotation.objects.bulk_create(
@@ -766,6 +801,8 @@ def tracklet(request):
 
 def interpolate(request):
     if is_ajax(request):
+        return HttpResponse("Interpolation disabled for now", status=500)
+        return HttpResponse(json.dumps({"message":message}), content_type="application/json")
         # print(request.POST)
         try:
             #
