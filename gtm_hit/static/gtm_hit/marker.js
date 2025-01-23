@@ -1331,7 +1331,7 @@ function loader2(uri) {
               showCopyBtn()
             }
             else {
-              interpolate()
+              // interpolate()
             }
           }
           

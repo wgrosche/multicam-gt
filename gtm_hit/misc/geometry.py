@@ -373,7 +373,7 @@ def is_visible(point3d:np.ndarray, cam_name:str, check_mesh:bool = True) -> bool
         # print("Point not in ROI")
         return False
     
-    print("Point in ROI")
+    # print("Point in ROI")
     
     # Check if there’s an intersection between the ray and the mesh
     # if mesh is not None and check_mesh:
