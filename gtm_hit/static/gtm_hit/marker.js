@@ -184,7 +184,7 @@ window.onload = function () {
     url: 'changeframe',
     data: {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
-      order: 'first',
+      order: 'next',
       frameID: frame_str,
       incr: 0,
       workerID: workerID,
