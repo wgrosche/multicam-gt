@@ -46,6 +46,13 @@ python manage.py runserver 0.0.0.0:4444
 ```
 You can now access the application at http://localhost:4444
 
+Backup via:
+
+```
+pg_dump -U scout -h localhost -d scout -F c -f annotation_snapshot_280125.dump
+```
+
+```
 
 
 ### Acknowledgements

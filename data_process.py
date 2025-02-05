@@ -44,8 +44,8 @@ args = Args()
 # args.frames_path=Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/")
 # args.calibration_path=Path("/cvlabdata2/home/grosche/dev/calibration/calibrations")
 args.tracks_path=Path("/cvlabdata2/home/grosche/dev/calibration/unmerged_tracks.pkl")
-args.dict_path = "/cvlabdata2/home/grosche/dev/calibration/trajectories_weighted_mean.json"
-args.worker_id = "WILKE"
+args.dict_path = "/cvlabdata2/home/grosche/dev/calib/trajectories_weighted_mean_ground.json"
+args.worker_id = "GROUNDMEANTHRESHOLD"
 # args.dict_path = "/cvlabdata2/home/grosche/dev/calibration/traj_dict_unmerged_high_res.json"
 
 # "/cvlabdata2/home/grosche/dev/calibration/traj_dict_mean_high_res_new_calibration.json"

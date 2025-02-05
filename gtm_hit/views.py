@@ -438,10 +438,15 @@ def changeframe(request):
             for cam in settings.CAMS:
                 # TODO: THIS IS A HACK, WON'T WORK WITH SECOND SEQUENCE
                 if cam == 'cvlabrpi11':
+                    print("Loading frame: ", new_frame_number - 23, " for camera ", cam)
                     pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 23, 0)}.jpg"
+                elif cam == 'cvlabrpi22':
+                    print("Loading frame: ", new_frame_number - 10, " for camera ", cam)
+                    pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 10, 0)}.jpg"
                 else:
                     pattern = f"{frames_path}/{cam}/*_{new_frame_number}.jpg"
                 matching_files = glob.glob(pattern)
+                print(matching_files)
                 if matching_files:
                     frame_strs[cam] = matching_files[0].split('/')[-1]
             # print(frame_strs)
@@ -1085,6 +1090,7 @@ def merge(request):
                 dataset_name = request.POST['datasetName']
                 worker_id = request.POST['workerID']
 
+                print("Merging people", person_id1, person_id2)
                 # Single query to get all required objects
                 worker = Worker.objects.get(workerID=worker_id)
                 dataset = Dataset.objects.get(name=dataset_name)
@@ -1134,10 +1140,9 @@ def merge(request):
                             to_delete_ids.update(ann.id for ann in frame_anns)
                         elif distance > settings.MERGE_THRESHOLD and mergeable:
                             break
-                        else:
-                            continue
                     else:
                         pos = positions[0]
+                        to_delete_ids.update(ann.id for ann in frame_anns)
 
                     merged_annotations.append(
                         Annotation(
@@ -1156,11 +1161,19 @@ def merge(request):
                 # Bulk operations
                 if to_delete_ids:
                     Annotation.objects.filter(id__in=to_delete_ids).delete()
-                
+                print("First entry: ", merged_annotations[0].frame.id)
                 # Create in chunks
                 for chunk in range(0, len(merged_annotations), 1000):
-                    Annotation.objects.bulk_create(merged_annotations[chunk:chunk + 1000])
+                    # Annotation.objects.bulk_create(merged_annotations[chunk:chunk + 1000], ignore_conflicts=True)
+                    Annotation.objects.bulk_create(
+                        merged_annotations[chunk:chunk + 1000],
+                        update_conflicts=True,
+                        unique_fields=['frame', 'person'],
+                        update_fields=['rectangle_id', 'rotation_theta', 'Xw', 'Yw', 'Zw', 
+                                    'object_size_x', 'object_size_y', 'object_size_z']
+)
 
+                print("Saving 2d views")
                 save_2d_views_bulk(Annotation.objects.filter(person=person1))
 
                 return JsonResponse({"message": "ok"})
