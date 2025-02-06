@@ -313,12 +313,14 @@ def action(request):
 
             
             world_point = np.array([[Xw], [Yw], [Zw]]).reshape(-1, 3)
-            print("World point:", world_point[0].shape)
+            print("World point 0:", world_point)
+            print("World point 1:", world_point[0].shape)
             if not settings.FLAT_GROUND:
                 world_point = geometry.move_with_mesh_intersection(world_point)
             if world_point is None:
                 return HttpResponse("Error")
             
+            print("World point 2:", world_point)
             next_rect = get_cuboids_2d(world_point[0], obj)
 
             next_rect_json = json.dumps(next_rect)

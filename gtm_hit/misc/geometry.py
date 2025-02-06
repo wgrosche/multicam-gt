@@ -200,7 +200,7 @@ def move_with_mesh_intersection(ground_pix): #reproject to mesh
         
         # Use the nearest point function of trimesh
         closest_point, distance, _ = mesh.nearest.on_surface(ground_pix.reshape(-1, 3))
-        ground_pixel = closest_point[0]
+        ground_pixel = closest_point
     # Return the closest point and distance
     return ground_pixel
 
@@ -373,7 +373,7 @@ def is_visible(point3d:np.ndarray, cam_name:str, check_mesh:bool = True) -> bool
         # print("Point not in ROI")
         return False
     
-    print("Point in ROI")
+    # print("Point in ROI")
     
     # Check if there’s an intersection between the ray and the mesh
     # if mesh is not None and check_mesh:
