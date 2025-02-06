@@ -247,7 +247,7 @@ DELTA_SEARCH = 5
 
 # need to: establish symlinked folders for get frame size etc
 DSETNAME = "SCOUT"
-WORKER_ID = 'NEWCALIBMESH'
+# WORKER_ID = 'NEWCALIBMESH'
 DSETPATH = Path("./gtm_hit/static/gtm_hit/dset/") / DSETNAME
 SYMLINK_DEST_FRAMES = DSETPATH / "frames"
 SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
@@ -287,20 +287,29 @@ assert len(order) == len(CAMS) and len(set(order)) == len(order), "Order and CAM
 CAMS = [cam for cam in order if cam in CAMS]
 
 print(f"CAMS: {CAMS}")
+<<<<<<< HEAD
 
+=======
+print(CAMS)
+>>>>>>> f2e20b750af765c36301e5da9c5b193c13386d4e
 FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 #CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)
 NB_CAMS = len(CAMS)
 CALIBS= load_scout_calib(CALIBPATH, cameras=CAMS, calib_source_path = CALIB_SRC)
 ROTATION_THETA = np.pi/24
 UNDISTORTED_FRAMES=False
-
+MERGE_THRESHOLD = 1.0
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # MESHPATH = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply")
 EXPORT = False
 if not EXPORT:
+<<<<<<< HEAD
     MESHPATH = '/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/mesh_ground/mesh_ground_no_text.ply'#'/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply'#Path("/cvlabdata2/home/grosche/dev/calibration") \
+=======
+    MESHPATH = '/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/mesh_ground/mesh_ground_no_text.ply'
+    # MESHPATH = '/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply'#Path("/cvlabdata2/home/grosche/dev/calibration") \
+>>>>>>> f2e20b750af765c36301e5da9c5b193c13386d4e
         # / "scene_dense_texturet_decimate_1_manual_cleanup.ply"
     import trimesh
     try:

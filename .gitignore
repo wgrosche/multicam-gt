@@ -22,3 +22,5 @@ motmetrics
 logfile
 scout/*
 exports/*
+**.json
+**.dump

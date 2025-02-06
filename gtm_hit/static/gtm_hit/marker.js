@@ -184,7 +184,7 @@ window.onload = function () {
     url: 'changeframe',
     data: {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
-      order: 'first',
+      order: 'next',
       frameID: frame_str,
       incr: 0,
       workerID: workerID,
@@ -288,6 +288,7 @@ window.onload = function () {
   $(document).bind("keydown", "b", toggleOrientation);
   $(document).bind("keydown", "ctrl+s", save);
   $(document).bind("keydown", ",", copyPrevOrNext);
+  $(document).bind("keydown", "x", splitAtCurrentFrame);
   // add copy button
   
 
@@ -599,6 +600,10 @@ function getFrameStrs() {
 //   });
 // }
 
+function splitAtCurrentFrame(event) {
+
+}
+
 function onMouseUp(event) {
   if (!mouseDown || !selectedBox) return;
   
@@ -691,10 +696,10 @@ function mainClick(e) {
         const personID = msg[0].personID;
         identities[rid] = personID;
         validation[personID] = true;
-        saveRect(msg, personID);
       } else {
         chosen_rect = indof;
       }
+      saveRect(msg, msg[0].personID);
       update();
     }
   });
@@ -1326,7 +1331,7 @@ function loader2(uri) {
               showCopyBtn()
             }
             else {
-              interpolate()
+              // interpolate()
             }
           }
           
