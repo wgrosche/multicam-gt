@@ -674,6 +674,11 @@ def save_db(request):
     else:
         return HttpResponse("Error")
 
+class NumpyJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if np.isnan(obj):
+            return -1
+        return super().default(obj)
 
 def load_db(request):
     print("Loading Database")
@@ -687,17 +692,38 @@ def load_db(request):
             worker_id = request.POST['workerID']
             dataset_name = request.POST['datasetName']
 
-            # print('this is frame:', frame_id)
-            # print('this is worker:', worker_id)
-            # print('this is dataset:', dataset_name)
+            print('this is frame:', frame_id)
+            print('this is worker:', worker_id)
+            print('this is dataset:', dataset_name)
             frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES, dataset__name=dataset_name)
             # 
             retjson = []
             camviews = View.objects.all()
 
             retjson = serialize_frame_annotations(frame)
+            def nan_to_none(obj):
+                if isinstance(obj, float) and np.isnan(obj):
+                    return -1
+                return obj
+            
 
-            return HttpResponse(json.dumps(retjson), content_type="application/json")
+            # Or for nested dictionaries:
+            def replace_nan(obj):
+                if isinstance(obj, dict):
+                    return {k: replace_nan(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [replace_nan(x) for x in obj]
+                elif isinstance(obj, float) and np.isnan(obj):
+                    return None
+                return obj
+
+            retjson = replace_nan(retjson)
+
+            print(retjson[:10])
+            print(retjson[1170:1180])
+            print("Database query return length: ", len(retjson))
+
+            return HttpResponse(json.dumps(retjson, default=nan_to_none), content_type="application/json")
 
 
         except (Person.DoesNotExist, MultiViewFrame.DoesNotExist, FileNotFoundError, KeyError):

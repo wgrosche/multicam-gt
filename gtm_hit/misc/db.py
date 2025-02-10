@@ -160,7 +160,7 @@ def save_2d_views_bulk(annotations, batch_size=1000):
             annotation2dviews_to_create,
             update_conflicts=True,
             unique_fields=['view', 'annotation'],
-            update_fields=['x1', 'y1', 'x2', 'y2']
+            update_fields=['x1', 'y1', 'x2', 'y2', 'cuboid_points']
         )
 
 

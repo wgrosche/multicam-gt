@@ -252,7 +252,7 @@ DSETPATH = Path("./gtm_hit/static/gtm_hit/dset/") / DSETNAME
 SYMLINK_DEST_FRAMES = DSETPATH / "frames"
 SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
 CALIBPATH = DSETPATH / "calibrations"
-CALIB_SRC = Path("/cvlabscratch/home/engilber/dev/calibration/data/calib_test_2/initial_calibration/")
+CALIB_SRC = Path("/cvlabdata2/home/grosche/dev/calib/initial_calibration")
 # CALIB_SRC = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/calibrations/calibrations")
 FPS = 1 # framerate of input video (note, assumes 10fps base)
 NUM_FRAMES = 12000
@@ -316,7 +316,7 @@ from gtm_hit.misc.geometry import get_polygon_from_points_3d
 
 
 
-ROIjson = json.load(open('/cvlabdata2/home/grosche/dev/calibration/ROI_annotated_polygon_4.json'))
+ROIjson = json.load(open('/cvlabdata2/home/grosche/dev/calibration/ROI_annotated_polygon_3.json'))
 
 ROI = {}
 # for cam_name, polygon in ROIjson['points_3d'].items():

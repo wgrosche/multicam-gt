@@ -1296,6 +1296,7 @@ function loader2(uri) {
       },
       dataType: 'json',
       success: function(annotations) {
+        console.log("Loading annotations")
           boxesLoaded = false;
           clean();
           let maxID = 0;
@@ -1306,8 +1307,10 @@ function loader2(uri) {
           }
 
           annotations.forEach(ann => {
+              // console.log(ann.cuboid)
               const rid = ann.rectangleID;
               const pid = ann.person_id;
+              
               maxID = Math.max(maxID, pid);
               
               if (!rectsID.includes(rid)) {
@@ -1318,7 +1321,9 @@ function loader2(uri) {
               }
               
               identities[rid] = pid;
-              // console.log(ann);
+              
+              // if (ann.cuboid) { console.log(ann); }
+              
               boxes[ann.cameraID][pid] = ann;
               validation[pid] = (uri !== "loadprev");
           });

@@ -302,10 +302,12 @@ def get_cuboid2d_from_annotation(annotation, cam_name, undistort=False):
     if not is_visible(world_point, cam_name, check_mesh=True):
         return None
     
-    # print("adding cuboid at: ", world_point)
+    
+    
 
     cuboid = Cuboid(calib, world_point, width = width, length = length, height = height)
     cuboid_points2d = cuboid.get_cuboid_points_2d(theta)
+    # print("adding cuboid: ", cuboid_points2d, " at: ", world_point)
 
     # cuboid_points2d = get_cuboid_from_ground_world(world_point, calib, height, width, length, theta)
 
@@ -356,7 +358,7 @@ def is_visible(point3d:np.ndarray, cam_name:str, check_mesh:bool = True) -> bool
     Checks if a 3D point is visible in the camera frame.
     """
     calib = settings.CALIBS[cam_name]
-    polygon = settings.ROI[cam_name]
+    
     point3d = np.array(point3d).reshape(-1, 3)
     # mesh = settings.MESH
     camera_position = (-calib.R.T @ calib.T).flatten()
@@ -369,10 +371,12 @@ def is_visible(point3d:np.ndarray, cam_name:str, check_mesh:bool = True) -> bool
         return False
     
     # check if point in ROI
-    if not is_point_in_polygon(polygon, point3d):
-        # print("Point not in ROI")
-        return False
-    
+    if settings.ROI:
+        polygon = settings.ROI[cam_name]
+        if not is_point_in_polygon(polygon, point3d):
+            print("Point not in ROI")
+            return False
+        
     # print("Point in ROI")
     
     # Check if there’s an intersection between the ray and the mesh

@@ -97,6 +97,7 @@ from ..models import Annotation2DView
 def serialize_frame_annotations(frame):
     annotations = (Annotation2DView.objects
         .filter(annotation__frame=frame)
+        # .exclude(cuboid_points=None)
         .select_related('annotation', 'annotation__person', 'view', 'annotation__frame')
         .values(
             'annotation__rectangle_id',

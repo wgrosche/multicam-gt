@@ -43,9 +43,9 @@ class Args:
 args = Args()
 # args.frames_path=Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/")
 # args.calibration_path=Path("/cvlabdata2/home/grosche/dev/calibration/calibrations")
-args.tracks_path=Path("/cvlabdata2/home/grosche/dev/calibration/unmerged_tracks.pkl")
+# args.tracks_path=Path("/cvlabdata2/home/grosche/dev/calibration/unmerged_tracks.pkl")
 args.dict_path = "/cvlabdata2/home/grosche/dev/calib/trajectories_weighted_mean_ground.json"
-args.worker_id = "GROUNDMEANTHRESHOLD"
+args.worker_id = "MERGEDMESH"
 # args.dict_path = "/cvlabdata2/home/grosche/dev/calibration/traj_dict_unmerged_high_res.json"
 
 # "/cvlabdata2/home/grosche/dev/calibration/traj_dict_mean_high_res_new_calibration.json"
@@ -60,6 +60,9 @@ args.worker_id = "GROUNDMEANTHRESHOLD"
 # )
 
 
-preprocess_scout_data_from_dict(hdf5_template = args.hdf5_template, worker_id=args.worker_id,
-                          dataset_name=args.dataset_name, dict_path = args.dict_path
-                          )
+preprocess_scout_data_from_dict(
+    hdf5_template = args.hdf5_template, 
+    worker_id=args.worker_id,
+    dataset_name=args.dataset_name, 
+    dict_path = args.dict_path
+    )
