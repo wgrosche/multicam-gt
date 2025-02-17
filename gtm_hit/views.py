@@ -157,17 +157,18 @@ def frame(request, dataset_name, workerID):
         except Dataset.DoesNotExist:
             return HttpResponseNotFound("Dataset not found")
 
-        frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/', dataset_name, '/frames')
+        # frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/', dataset_name, '/frames')
         
 
         # Create a dictionary of frame strings for each camera
-        frame_strs = {}
-        for cam in settings.CAMS:
-            pattern = f"{frames_path}/{cam}/*_{frame_number}.jpg"
-            matching_files = glob.glob(pattern)
-            # print(matching_files)
-            if matching_files:
-                frame_strs[cam] = matching_files[0].split('/')[-1]
+        frame_strs = settings.FRAME_PATH_DICT[frame_number]
+        # for cam in settings.CAMS:
+        #     pattern = f"{frames_path}/{cam}/*_{frame_number}.jpg"
+        #     matching_files = glob.glob(pattern)
+        #     # print(matching_files)
+        #     if matching_files:
+        #         frame_strs[cam] = matching_files[0].split('/')[-1]
+
         # print(frame_strs)
         # context['cams'] = json.dumps(settings.CAMS)
         # print(context['cams'])
@@ -266,6 +267,7 @@ def get_cuboids_2d(world_point, obj, new=False):
 
 def click(request):
     if is_ajax(request):
+        # Extract and validate parameters
         x = int(float(request.POST['x']))
         y = int(float(request.POST['y']))
         worker_id = request.POST['workerID']
@@ -275,7 +277,18 @@ def click(request):
         
         if cam in settings.CAMS:
             feet2d_h = np.array([[x], [y]])
-            
+
+            # Check if the annotation is locked
+            try:
+                annotation = Annotation.objects.get(
+                    person_id=obj["person_id"], frame__worker__workerID=worker_id, frame__dataset__name=dataset_name
+                )
+                if annotation.locked:
+                    return HttpResponse(status=403, content="Annotation is locked and cannot be modified.")
+            except Annotation.DoesNotExist:
+                pass  # Annotation doesn't exist, so we can proceed
+
+            # Process the annotation normally
             if settings.FLAT_GROUND:
                 calib = settings.CALIBS[cam]
                 K0, R0, T0, dist = calib.K, calib.R, calib.T, calib.dist
@@ -285,12 +298,40 @@ def click(request):
                     feet2d_h, settings.CALIBS[cam], settings.MESH)
 
             if "person_id" not in obj or obj["person_id"] == "":
-                obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset_name=dataset_name)
+                obj["person_id"] = get_next_available_id(worker_id=worker_id, dataset_name=dataset_name)
 
             rectangles = get_cuboids_2d(world_point[0], obj)
             rect_json = json.dumps(rectangles)
-            
             return HttpResponse(rect_json, content_type="application/json")
+
+
+# def click(request):
+#     if is_ajax(request):
+#         x = int(float(request.POST['x']))
+#         y = int(float(request.POST['y']))
+#         worker_id = request.POST['workerID']
+#         dataset_name = request.POST['datasetName']
+#         obj = request_to_dict(request)
+#         cam = request.POST['canv'].replace("canv", "")
+        
+#         if cam in settings.CAMS:
+#             feet2d_h = np.array([[x], [y]])
+            
+#             if settings.FLAT_GROUND:
+#                 calib = settings.CALIBS[cam]
+#                 K0, R0, T0, dist = calib.K, calib.R, calib.T, calib.dist
+#                 world_point = geometry.reproject_to_world_ground_batched(feet2d_h.T, K0, R0, T0, dist, height=-0.301)
+#             else:
+#                 world_point = geometry.project_2d_points_to_mesh(
+#                     feet2d_h, settings.CALIBS[cam], settings.MESH)
+
+#             if "person_id" not in obj or obj["person_id"] == "":
+#                 obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset_name=dataset_name)
+
+#             rectangles = get_cuboids_2d(world_point[0], obj)
+#             rect_json = json.dumps(rectangles)
+            
+#             return HttpResponse(rect_json, content_type="application/json")
 
 # def click(request):
 #     if is_ajax(request):
@@ -433,22 +474,50 @@ def changeframe(request):
                 new_frame_number = 0
             # print("new_frame_number: ", new_frame_number)
             # Get frame strings for each camera
-            frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames')
-            frame_strs = {}
-            for cam in settings.CAMS:
-                # TODO: THIS IS A HACK, WON'T WORK WITH SECOND SEQUENCE
-                if cam == 'cvlabrpi11':
-                    print("Loading frame: ", new_frame_number - 23, " for camera ", cam)
-                    pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 23, 0)}.jpg"
-                elif cam == 'cvlabrpi22':
-                    print("Loading frame: ", new_frame_number - 10, " for camera ", cam)
-                    pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 10, 0)}.jpg"
-                else:
-                    pattern = f"{frames_path}/{cam}/*_{new_frame_number}.jpg"
-                matching_files = glob.glob(pattern)
-                print(matching_files)
-                if matching_files:
-                    frame_strs[cam] = matching_files[0].split('/')[-1]
+            # frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames')
+            # # frame_strs = {}
+            # # Perform a single glob for all cameras
+            # pattern = f"{frames_path}/*/*_*.jpg"
+            # all_files = glob.glob(pattern)
+
+            # Create a dictionary mapping (camera, frame_number) -> filename
+            # frame_dict = {}
+            # for file_path in all_files:
+            #     parts = file_path.split('/')
+            #     cam = parts[-2]  # Extract camera name from the directory structure
+            #     filename = parts[-1]
+            #     frame_number = int(filename.split('_')[-1].split('.')[0])  # Extract frame number
+            #     frame_dict[(cam, frame_number)] = filename
+
+            # Generate frame_strs based on adjusted frame numbers
+            # frame_strs = {}
+            # for cam in settings.CAMS:
+            #     if cam == 'cvlabrpi11':
+            #         adjusted_frame = max(new_frame_number - 23, 0)
+            #     elif cam == 'cvlabrpi22':
+            #         adjusted_frame = max(new_frame_number - 10, 0)
+            #     else:
+            #         adjusted_frame = new_frame_number
+                
+            #     frame_strs[cam] = frame_dict.get((cam, adjusted_frame), None)
+
+            frame_strs = settings.FRAME_PATH_DICT[new_frame_number]
+
+            # pattern = f"{frames_path}/{cam}/*_{new_frame_number}.jpg"
+            # for cam in settings.CAMS:
+            #     # TODO: THIS IS A HACK, WON'T WORK WITH SECOND SEQUENCE
+            #     if cam == 'cvlabrpi11':
+            #         print("Loading frame: ", new_frame_number - 23, " for camera ", cam)
+            #         pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 23, 0)}.jpg"
+            #     elif cam == 'cvlabrpi22':
+            #         print("Loading frame: ", new_frame_number - 10, " for camera ", cam)
+            #         pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 10, 0)}.jpg"
+            #     else:
+            #         pattern = f"{frames_path}/{cam}/*_{new_frame_number}.jpg"
+            #     matching_files = glob.glob(pattern)
+            #     print(matching_files)
+            #     if matching_files:
+            #         frame_strs[cam] = matching_files[0].split('/')[-1]
             # print(frame_strs)
             response = {
                 'frame': str(new_frame_number),
@@ -887,39 +956,83 @@ def cp_prev_or_next_annotation(request):
             return HttpResponse("Error",status=500)
         
 def timeview(request):
-    
     if is_ajax(request):
-        # print('retrieving timeview')
         try:
-            #
             worker_id = request.POST['workerID']
             person_id = int(float(request.POST['personID']))
             frame_id = int(float(request.POST['frameID']))
             view_id = int(float(request.POST['viewID']))
-            dataset_name=request.POST['datasetName']
-            # print('looking for frame: ', frame_id)
-            # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
+            dataset_name = request.POST['datasetName']
 
-            frame_id_start = max(0, frame_id - settings.TIMEWINDOW)
-            frame_id_end =  min(frame_id + settings.TIMEWINDOW, settings.NUM_FRAMES)
-            
-            # Filter the Annotation2DView objects using the calculated frame range and the Person object
-            annotation2dviews = Annotation2DView.objects.filter(
-                annotation__frame__frame_id__gte=frame_id_start,
-                annotation__frame__frame_id__lte=frame_id_end,
+            # Get first and last frame for this person
+            first_last_frames = Annotation2DView.objects.filter(
                 annotation__frame__worker__workerID=worker_id,
                 annotation__frame__dataset__name=dataset_name,
                 annotation__person__person_id=person_id,
-                view__view_id = view_id,
-                annotation__frame__undistorted = settings.UNDISTORTED_FRAMES
+                view__view_id=view_id,
+                annotation__frame__undistorted=settings.UNDISTORTED_FRAMES
+            ).aggregate(
+                first_frame=models.Min('annotation__frame__frame_id'),
+                last_frame=models.Max('annotation__frame__frame_id')
+            )
+
+            # Get the window frames
+            frame_id_start = max(0, frame_id - settings.TIMEWINDOW)
+            frame_id_end = min(frame_id + settings.TIMEWINDOW, settings.NUM_FRAMES)
+
+            # Get all frames including first and last
+            annotation2dviews = Annotation2DView.objects.filter(
+                models.Q(annotation__frame__frame_id__gte=frame_id_start,
+                        annotation__frame__frame_id__lte=frame_id_end) |
+                models.Q(annotation__frame__frame_id__in=[first_last_frames['first_frame'], 
+                                                        first_last_frames['last_frame']]),
+                annotation__frame__worker__workerID=worker_id,
+                annotation__frame__dataset__name=dataset_name,
+                annotation__person__person_id=person_id,
+                view__view_id=view_id,
+                annotation__frame__undistorted=settings.UNDISTORTED_FRAMES
             ).order_by('annotation__frame__frame_id')
-            # print("annotation2dviews: ", annotation2dviews)
-            timeviews =  serialize_annotation2dviews(annotation2dviews)
-            # 
-            # print("timeviews: ", timeviews)
+
+            timeviews = serialize_annotation2dviews(annotation2dviews)
             return HttpResponse(json.dumps(timeviews), content_type="application/json")
+
         except KeyError:
             return HttpResponse("Error")
+   
+# def timeview(request):
+    
+#     if is_ajax(request):
+#         # print('retrieving timeview')
+#         try:
+#             #
+#             worker_id = request.POST['workerID']
+#             person_id = int(float(request.POST['personID']))
+#             frame_id = int(float(request.POST['frameID']))
+#             view_id = int(float(request.POST['viewID']))
+#             dataset_name=request.POST['datasetName']
+#             # print('looking for frame: ', frame_id)
+#             # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
+
+#             frame_id_start = max(0, frame_id - settings.TIMEWINDOW)
+#             frame_id_end =  min(frame_id + settings.TIMEWINDOW, settings.NUM_FRAMES)
+            
+#             # Filter the Annotation2DView objects using the calculated frame range and the Person object
+#             annotation2dviews = Annotation2DView.objects.filter(
+#                 annotation__frame__frame_id__gte=frame_id_start,
+#                 annotation__frame__frame_id__lte=frame_id_end,
+#                 annotation__frame__worker__workerID=worker_id,
+#                 annotation__frame__dataset__name=dataset_name,
+#                 annotation__person__person_id=person_id,
+#                 view__view_id = view_id,
+#                 annotation__frame__undistorted = settings.UNDISTORTED_FRAMES
+#             ).order_by('annotation__frame__frame_id')
+#             # print("annotation2dviews: ", annotation2dviews)
+#             timeviews =  serialize_annotation2dviews(annotation2dviews)
+#             # 
+#             # print("timeviews: ", timeviews)
+#             return HttpResponse(json.dumps(timeviews), content_type="application/json")
+#         except KeyError:
+#             return HttpResponse("Error")
 
 import numpy as np
 
@@ -957,21 +1070,25 @@ def serve_frame(request):
         camera_name = int(request.POST['camera_name'])
         # print(camera_name)
         camera_name = settings.CAMS[camera_name]
-        frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames', camera_name)
+        # frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames', camera_name)
         
         # os.path.join(settings.DSETPATH,'frames', camera_name)
-        pattern = f"{frames_path}/*_{frame_number}.jpg"
+        # pattern = f"{frames_path}/*_{frame_number}.jpg"
         # print(pattern)
-        matching_files = glob.glob(pattern)
+        # matching_files = glob.glob(pattern)
         # print(matching_files)
-        if matching_files:
-            response = {
-            'frame_string': '/'+ os.path.join(*matching_files[0].split('/')[-7:])
-            }
+        # if matching_files:
+        #     response = {
+        #     'frame_string': '/'+ os.path.join(*matching_files[0].split('/')[-7:])
+        #     }
             # print("Timeview: ", response)
 
+            # return HttpResponse(json.dumps(response))
+        if settings.FRAME_PATH_DICT[frame_number][camera_name]:
+            response = {
+                'frame_string': settings.FRAME_PATH_DICT[frame_number][camera_name]
+                }
             return HttpResponse(json.dumps(response))
-        
         else:
             print(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
             return HttpResponse(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")

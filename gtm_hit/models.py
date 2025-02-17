@@ -75,6 +75,7 @@ class Annotation(models.Model):
     person = models.ForeignKey(Person, on_delete=models.CASCADE)
     creation_method = models.TextField(default="existing_annotation")
     validated = models.BooleanField(default=True)
+    locked = models.BooleanField(default=False)  # New field to lock the annotation
     class Meta:
         unique_together = ('frame', 'person')
     rectangle_id = models.CharField(max_length=100)
@@ -104,6 +105,7 @@ class Annotation(models.Model):
 class Annotation2DView(models.Model):
     view = models.ForeignKey(View, on_delete=models.CASCADE)
     annotation = models.ForeignKey(Annotation, related_name="twod_views", on_delete=models.CASCADE)
+    locked = models.BooleanField(default=False)  # New field to lock the 2D annotation
     class Meta:
         unique_together = ('view', 'annotation')
     x1 = models.FloatField(null=True)

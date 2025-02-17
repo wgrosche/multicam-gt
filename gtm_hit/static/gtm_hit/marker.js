@@ -242,7 +242,7 @@ window.onload = function () {
 
         if (useUndistorted == "True") undistort_frames_path = "undistorted_";
 
-        imgArray[index].src = '/static/gtm_hit/dset/' + dset_name + '/' + undistort_frames_path + 'frames/' + camName + '/' + frameStrs[camName];
+        imgArray[index].src = frameStrs[camName];//'/static/gtm_hit/dset/' + dset_name + '/' + undistort_frames_path + 'frames/' + camName + '/' + frameStrs[camName];
       })
 
       // // Load the top view after initial setup
@@ -1470,7 +1470,7 @@ function changeFrame(order, increment) {
           if (useUndistorted=="True") undistort_frames_path="undistorted_"
           activeCameras.forEach((camName) =>{
             const index = cameraPaths.indexOf(camName);
-            imgArray[index].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName + '/' + frameStrs[camName];
+            imgArray[index].src = frameStrs[camName];//'/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName + '/' + frameStrs[camName];
           })
           // for (var i = 0; i < nb_cams; i++) {
           //     imgArray[i].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
@@ -2114,7 +2114,7 @@ async function load_frame(frame_string) {
   var frameStrs = JSON.parse('{{ frame_strs|safe }}');
   
   for (var i = 0; i < nb_cams; i++) {
-      var imgSrc = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
+      var imgSrc = frameStrs[camName[i]];//'/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
       const loadedImg = await loadImage(imgSrc);
       if (loadedImg !== null) {
           imgArray[i].src = imgSrc;

@@ -45,7 +45,7 @@ args = Args()
 # args.calibration_path=Path("/cvlabdata2/home/grosche/dev/calibration/calibrations")
 # args.tracks_path=Path("/cvlabdata2/home/grosche/dev/calibration/unmerged_tracks.pkl")
 args.dict_path = "/cvlabdata2/home/grosche/dev/calib/trajectories_weighted_mean_ground.json"
-args.worker_id = "MERGEDMESH"
+args.worker_id = "SCIPIO"
 # args.dict_path = "/cvlabdata2/home/grosche/dev/calibration/traj_dict_unmerged_high_res.json"
 
 # "/cvlabdata2/home/grosche/dev/calibration/traj_dict_mean_high_res_new_calibration.json"

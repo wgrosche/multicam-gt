@@ -328,3 +328,72 @@ for cam_name, polygon in ROIjson['points_2d'].items():
     K0, R0, T0, dist = CALIBS[cam_name].K, CALIBS[cam_name].R, CALIBS[cam_name].T, CALIBS[cam_name].dist
     polygon_3d = reproject_to_world_ground_batched(ground_pix, K0, R0, T0, dist)
     ROI[cam_name] = get_polygon_from_points_3d(polygon_3d)
+
+
+OFFSETS = {'cvlabrpi11': 23, 'cvlabrpi22': 10}
+import re
+def get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS, local_path = None):
+    """
+    Create dictionary of frame paths for each camera
+    """
+    if local_path is None:
+        lookup_path = frame_path
+    else:
+        lookup_path = local_path
+    frame_path_dict = {}
+    # Use os.scandir for efficient directory traversal
+    for cam_folder in os.scandir(lookup_path):
+        cam_name = cam_folder.name
+        if cam_folder.is_dir():
+            for file in os.scandir(cam_folder.path):
+                if file.is_file() and file.name.endswith(".jpg"):
+                    match = re.search(r"_(\d+)\.jpg$", file.name)
+                    if match:
+                        index = int(match.group(1))
+                        
+                        adjusted_index = max(0, index + OFFSETS.get(cam_name, 0))
+
+                        if adjusted_index != index:
+                            print("Offsetting frame index by {0} for camera {1}".format(OFFSETS.get(cam_name, 0), cam_name))
+                        if adjusted_index not in frame_path_dict:
+                            frame_path_dict[adjusted_index] = {}
+                        root_stub = '/static' + cam_folder.path.split("/static")[1]
+                        frame_path_dict[adjusted_index][cam_name] = os.path.join(root_stub, file.name)
+
+    return frame_path_dict
+
+FRAME_PATH_DICT = get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS)
+
+# Make a local copy of the dataset
+# Firefox link to make local image accessible by modifying: about:config
+# http://kb.mozillazine.org/Links_to_local_pages_do_not_work
+# import shutil
+# from tqdm import tqdm
+
+# path_to_local_copy = Path("/cvlabscratch/home/engilber/datasets/SCOUT/local_copy_seq_2")
+
+# max_frame = max(FRAMENUMBER_TO_PATH.keys())
+
+# for frame_num in tqdm(range(0, max_frame + 1, 10)):
+
+# max_frame = max(FRAMENUMBER_TO_PATH.keys())
+
+# for frame_num in tqdm(range(0, max_frame + 1, 10)):
+#     # Only process if the frame number is present in the dictionary.
+#     if frame_num not in FRAMENUMBER_TO_PATH:
+#         continue
+#     # Iterate over each camera's frame path for the current frame number.
+#     for cam, src_path in FRAMENUMBER_TO_PATH[frame_num].items():
+#         # Create a subfolder for the camera if it doesn't already exist.
+#         cam_folder = path_to_local_copy / cam
+#         cam_folder.mkdir(parents=True, exist_ok=True)
+#         # Define the destination path with the original file name.
+#         src = Path(src_path)
+#         dst = cam_folder / src.name
+
+#         # Skip copying if the destination file already exists.
+#         if dst.exists():
+#             continue
+
+#         # Copy the file to the local subfolder.
+#         shutil.copy(src, dst)
