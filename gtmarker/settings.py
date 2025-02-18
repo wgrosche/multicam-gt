@@ -15,7 +15,7 @@ from pathlib import Path
 import numpy as np
 import shutil
 from gtm_hit.misc.wildtrack_calib import load_calibrations
-from gtm_hit.misc.utils import read_calibs, get_frame_size
+from gtm_hit.misc.utils import read_calibs, get_frame_size, get_frame_path_dict
 from gtm_hit.misc.scout_calib import load_scout_calib
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -108,7 +108,7 @@ DATABASES = {
         'USER': 'scout',
         'PASSWORD': '',
         'HOST': 'localhost',
-        'PORT': '',
+        'PORT': '5433',
     }
 }
 DATA_UPLOAD_MAX_NUMBER_FIELDS = None
@@ -246,11 +246,11 @@ DELTA_SEARCH = 5
 # NB_CAMS = len(CAMS)
 
 # need to: establish symlinked folders for get frame size etc
-DSETNAME = "SCOUT"
+DSETNAME = "SCOUT2"
 # WORKER_ID = 'NEWCALIBMESH'
 DSETPATH = Path("./gtm_hit/static/gtm_hit/dset/") / DSETNAME
 SYMLINK_DEST_FRAMES = DSETPATH / "frames"
-SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
+SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_2')
 CALIBPATH = DSETPATH / "calibrations"
 CALIB_SRC = Path("/cvlabscratch/home/engilber/dev/calibration/data/calib_test_2/initial_calibration/")
 # CALIB_SRC = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/calibrations/calibrations")
@@ -287,11 +287,6 @@ assert len(order) == len(CAMS) and len(set(order)) == len(order), "Order and CAM
 CAMS = [cam for cam in order if cam in CAMS]
 
 print(f"CAMS: {CAMS}")
-<<<<<<< HEAD
-
-=======
-print(CAMS)
->>>>>>> f2e20b750af765c36301e5da9c5b193c13386d4e
 FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 #CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)
 NB_CAMS = len(CAMS)
@@ -304,12 +299,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # MESHPATH = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply")
 EXPORT = False
 if not EXPORT:
-<<<<<<< HEAD
     MESHPATH = '/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/mesh_ground/mesh_ground_no_text.ply'#'/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply'#Path("/cvlabdata2/home/grosche/dev/calibration") \
-=======
-    MESHPATH = '/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/mesh_ground/mesh_ground_no_text.ply'
-    # MESHPATH = '/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply'#Path("/cvlabdata2/home/grosche/dev/calibration") \
->>>>>>> f2e20b750af765c36301e5da9c5b193c13386d4e
         # / "scene_dense_texturet_decimate_1_manual_cleanup.ply"
     import trimesh
     try:
@@ -336,3 +326,38 @@ for cam_name, polygon in ROIjson['points_2d'].items():
     K0, R0, T0, dist = CALIBS[cam_name].K, CALIBS[cam_name].R, CALIBS[cam_name].T, CALIBS[cam_name].dist
     polygon_3d = reproject_to_world_ground_batched(ground_pix, K0, R0, T0, dist)
     ROI[cam_name] = get_polygon_from_points_3d(polygon_3d)
+
+
+FRAMENUMBER_TO_PATH = get_frame_path_dict(DSETNAME, 'gtm_hit/static/gtm_hit/dset/{dset}/frames/{cam}/', CAMS)
+
+# Make a local copy of the dataset
+# Firefox link to make local image accessible by modifying: about:config
+# http://kb.mozillazine.org/Links_to_local_pages_do_not_work
+# import shutil
+# from tqdm import tqdm
+
+# path_to_local_copy = Path("/cvlabscratch/home/engilber/datasets/SCOUT/local_copy_seq_2")
+
+# max_frame = max(FRAMENUMBER_TO_PATH.keys())
+
+# for frame_num in tqdm(range(0, max_frame + 1, 10)):
+#     # Only process if the frame number is present in the dictionary.
+#     if frame_num not in FRAMENUMBER_TO_PATH:
+#         continue
+#     # Iterate over each camera's frame path for the current frame number.
+#     for cam, src_path in FRAMENUMBER_TO_PATH[frame_num].items():
+#         # Create a subfolder for the camera if it doesn't already exist.
+#         cam_folder = path_to_local_copy / cam
+#         cam_folder.mkdir(parents=True, exist_ok=True)
+        
+#         # Define the destination path with the original file name.
+#         src = Path(src_path)
+#         dst = cam_folder / src.name
+        
+#         # Skip copying if the destination file already exists.
+#         if dst.exists():
+#             continue
+        
+#         # Copy the file to the local subfolder.
+#         shutil.copy(src, dst)
+

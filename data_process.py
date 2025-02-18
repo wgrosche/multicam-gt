@@ -22,7 +22,7 @@ class Args:
                  tracks_path="",
                 #  input_path="gtm_hit/static/gtm_hit/labels/json_output",
                  worker_id=None, #settings.WORKER_ID,
-                 hdf5_template = "/cvlabdata2/home/grosche/dev/calibration/sync_frame_seq_1/{camera}",
+                 hdf5_template = "/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/bytetrack_results/sync_frame_seq_2/{camera}",
                 #  hdf5_template = "/cvlabscratch/home/engilber/dev/calibration/data/calib_test_2/initial_calibration/{camera}",
                  dataset_name=settings.DSETNAME, 
                  range_start=settings.FRAME_START,
@@ -44,8 +44,8 @@ args = Args()
 # args.frames_path=Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/")
 # args.calibration_path=Path("/cvlabdata2/home/grosche/dev/calibration/calibrations")
 args.tracks_path=Path("/cvlabdata2/home/grosche/dev/calibration/unmerged_tracks.pkl")
-args.dict_path = "/cvlabscratch/home/engilber/dev/calibration/scout/trajectories_weighted_mean.json" #trajectories_optim_iou.json"
-args.worker_id = "WEIGHTEDMEAN"
+args.dict_path = "/cvlabscratch/home/engilber/dev/calibration/scout/trajectories_optim_iou_sync_frame_seq_2.json" #trajectories_optim_iou.json" trajectories_weighted_mean_sync_frame_seq_2.json
+args.worker_id = "SEQ2OPTIM"
 # args.dict_path = "/cvlabdata2/home/grosche/dev/calibration/traj_dict_unmerged_high_res.json"
 
 # "/cvlabdata2/home/grosche/dev/calibration/traj_dict_mean_high_res_new_calibration.json"

@@ -259,36 +259,36 @@ window.onload = function () {
   });
 
   // Additional key bindings
-  $(document).bind('keydown', "backspace", backSpace);
-  $(document).bind('keydown', "left", leftLarge);
-  $(document).bind('keydown', "right", rightLarge);
-  $(document).bind('keydown', "up", upLarge);
-  $(document).bind('keydown', "down", downLarge);
-  $(document).bind('keydown', "a", left);
-  $(document).bind('keydown', "d", right);
-  $(document).bind('keydown', "w", up);
-  $(document).bind('keydown', "s", down);
-  $(document).bind('keydown', "i", increaseHeight);
-  $(document).bind('keydown', "k", decreaseHeight);
-  $(document).bind('keydown', "o", increaseWidth);
-  $(document).bind('keydown', "u", decreaseWidth);
-  $(document).bind('keydown', "l", increaseLength);
-  $(document).bind('keydown', "j", decreaseLength);
-  $(document).bind('keydown', "e", rotateCW);
-  $(document).bind('keydown', "q", rotateCCW);
-  $(document).bind('keydown', "tab", tab);
-  $(document).bind('keydown', "space", space);
-  $(document).bind("keydown", "v", validate);
-  $(document).bind("keydown", "z", zoomControl);
-  $(document).bind("keydown", "g", toggleGround);
-  $(document).bind("keydown", "c", toggleCuboid);
-  $(document).bind("keydown", "h", toggleUnselected);
-  $(document).bind("keydown", "n", keyPrevFrame);
-  $(document).bind("keydown", "m", keyNextFrame);
-  $(document).bind("keydown", "b", toggleOrientation);
-  $(document).bind("keydown", "ctrl+s", save);
-  $(document).bind("keydown", ",", copyPrevOrNext);
-  $(document).bind("keydown", "x", splitAtCurrentFrame);
+  $(document).bind('keydown', "4", backSpace); // num 4
+  $(document).bind('keydown', "q", leftLarge); // left
+  $(document).bind('keydown', "d", rightLarge); // right
+  $(document).bind('keydown', "z", upLarge); // up
+  $(document).bind('keydown', "s", downLarge); // down
+  $(document).bind('keydown', "ctrl+q", left); // a
+  $(document).bind('keydown', "ctrl+d", right); // d
+  $(document).bind('keydown', "ctrl+z", up); // w
+  $(document).bind('keydown', "ctrl+s", down); // s
+  // $(document).bind('keydown', "i", increaseHeight);
+  // $(document).bind('keydown', "k", decreaseHeight);
+  // $(document).bind('keydown', "o", increaseWidth);
+  // $(document).bind('keydown', "u", decreaseWidth);
+  // $(document).bind('keydown', "l", increaseLength);
+  // $(document).bind('keydown', "j", decreaseLength);
+  // $(document).bind('keydown', "e", rotateCW);
+  // $(document).bind('keydown', "q", rotateCCW);
+  // $(document).bind('keydown', "tab", tab);
+  // $(document).bind('keydown', "space", space);
+  // $(document).bind("keydown", "v", validate);
+  $(document).bind("keydown", "g", zoomControl); // f
+  // $(document).bind("keydown", "g", toggleGround);
+  $(document).bind("keydown", "t", toggleCuboid); // c
+  $(document).bind("keydown", "r", toggleUnselected); // h
+  $(document).bind("keydown", "a", keyPrevFrame); // n
+  $(document).bind("keydown", "e", keyNextFrame); // m
+  // $(document).bind("keydown", "b", toggleOrientation);
+  $(document).bind("keydown", "f", save); // ctrl+s
+  $(document).bind("keydown", "c", copyPrevOrNext); // ,
+  $(document).bind("keydown", "x", splitAtCurrentFrame); // x
   // add copy button
   
 
@@ -299,11 +299,22 @@ window.onload = function () {
 };
 
 function onMouseDown(event) {
+  if (event.button !== 0) return;
+  
   let tracklet = [];
   mouseDown = true;
   const { offsetX, offsetY } = event;
-  var mousex = offsetX * frame_size[0] / this.clientWidth;
-  var mousey = offsetY * frame_size[1] / this.clientHeight;
+  // Get canvas context to access current transform state
+  const ctx = this.getContext('2d');
+  const transform = ctx.getTransform();
+  // First convert the DOM event coordinates to "canvas coordinates"
+  const canvasX = offsetX * (frame_size[0] / this.clientWidth);
+  const canvasY = offsetY * (frame_size[1] / this.clientHeight);
+  // Now invert the current zoom/pan transform so that we recover the original image coordinate
+  const invTransform = transform.inverse();
+  const origPoint = invTransform.transformPoint(new DOMPoint(canvasX, canvasY));
+  var mousex = Math.round(origPoint.x);
+  var mousey = Math.round(origPoint.y);
   // console.log('Clicked on: ', event.target.id)
   // Get the canvas index from the canvas id
   const canvasIndex = cameraPaths.indexOf(event.target.id.replace('canv', '',)); //parseInt(event.target.id.slice(4)) - 1;
@@ -496,8 +507,18 @@ function handleMergeBoxes() {
 function onMouseMove(event) {
   if (!mouseDown || !selectedBox) return;
   const { offsetX, offsetY } = event;
-  var mousex = offsetX * frame_size[0] / this.clientWidth;
-  var mousey = offsetY * frame_size[1] / this.clientHeight;
+  // Get canvas context to access current transform state
+  const ctx = this.getContext('2d');
+  const transform = ctx.getTransform();
+  // First convert the DOM event coordinates to "canvas coordinates"
+  const canvasX = offsetX * (frame_size[0] / this.clientWidth);
+  const canvasY = offsetY * (frame_size[1] / this.clientHeight);
+  // Now invert the current zoom/pan transform so that we recover the original image coordinate
+  const invTransform = transform.inverse();
+  const origPoint = invTransform.transformPoint(new DOMPoint(canvasX, canvasY));
+  var mousex = Math.round(origPoint.x);
+  var mousey = Math.round(origPoint.y);
+  
   const { rectID, _ } = selectedBox;
   const canvasIndex = cameraPaths.indexOf(event.target.id.replace('canv', '',));
   const pid = identities[rectID];
@@ -608,8 +629,14 @@ function onMouseUp(event) {
   if (!mouseDown || !selectedBox) return;
   
   const { offsetX, offsetY } = event;
-  var xCorr = Math.round(offsetX * frame_size[0] / this.clientWidth);
-  var yCorr = Math.round(offsetY * frame_size[1] / this.clientHeight);
+  const ctx = this.getContext('2d');
+  const transform = ctx.getTransform();
+  const canvasX = offsetX * (frame_size[0] / this.clientWidth);
+  const canvasY = offsetY * (frame_size[1] / this.clientHeight);
+  const invTransform = transform.inverse();
+  const origPoint = invTransform.transformPoint(new DOMPoint(canvasX, canvasY));
+  var xCorr = Math.round(origPoint.x);
+  var yCorr = Math.round(origPoint.y);
   
   const { rectID, canvasIndex } = selectedBox;
   const pid = identities[rectID];
@@ -660,9 +687,18 @@ function onMouseUp(event) {
 function mainClick(e) {
   e.preventDefault();
   const { offsetX, offsetY } = e;
-  var xCorr = Math.round(offsetX * frame_size[0] / this.clientWidth);
-  var yCorr = Math.round(offsetY * frame_size[1] / this.clientHeight);
-  
+  // Get canvas context to access current transform state
+  const ctx = this.getContext('2d');
+  const transform = ctx.getTransform();
+  // First convert the DOM event coordinates to “canvas coordinates” (i.e. the coordinates used when drawing without zoom)
+  // Here frame_size holds the image dimensions while this.clientWidth is the displayed canvas width.
+  const canvasX = offsetX * (frame_size[0] / this.clientWidth);
+  const canvasY = offsetY * (frame_size[1] / this.clientHeight);
+  // Now invert the current zoom/pan transform so that we recover the original image coordinate.
+  const invTransform = transform.inverse();
+  const origPoint = invTransform.transformPoint(new DOMPoint(canvasX, canvasY));
+  var xCorr = Math.round(origPoint.x);
+  var yCorr = Math.round(origPoint.y);
 
   var pid = identities[rectsID[chosen_rect]];
   if (e.altKey) {
@@ -671,8 +707,8 @@ function mainClick(e) {
   // let box = boxes[0][pid];
   // if (!box) return;
   // box["personID"] = pid;
-  if (zoomOn)
-    zoomOut();
+  // if (zoomOn)
+  //   zoomOut();
   //post
   $.ajax({
     method: "POST",
@@ -726,33 +762,41 @@ function getTracklet(e) {
       for (var i = 0; i < nb_cams; i++) {
         var c = document.getElementById("canv" + cameraPaths[i]);
         var ctx = c.getContext("2d");
+        
+        // Get current transform scale to adjust sizes
+        const scale = ctx.getTransform().a;
+        
         ctx.strokeStyle = "chartreuse";
-        ctx.lineWidth = "2";
+        ctx.lineWidth = 2 / scale;
         ctx.strokeStyle = "red";
-        ctx.font = "11px Arial";
+        const fontSize = 20 / scale;
+        ctx.font = `${fontSize}px Arial`;
         ctx.fillStyle = "red";
+        
         const dataList = msg[i];
         if (dataList==undefined) continue;
+        
         ctx.beginPath();
         ctx.moveTo(dataList[0][1][0], dataList[0][1][1]);
-        ctx.fillText(dataList[0][0], dataList[0][1][0], dataList[0][1][1] - 5);
+        ctx.fillText(dataList[0][0], dataList[0][1][0], dataList[0][1][1] - (5/scale));
         for (let i = 1; i < dataList.length; i++) {
           ctx.lineTo(dataList[i][1][0], dataList[i][1][1]);
-          ctx.fillText(dataList[i][0], dataList[i][1][0], dataList[i][1][1] - 5);
+          ctx.fillText(dataList[i][0], dataList[i][1][0], dataList[i][1][1] - (5/scale));
         }
         ctx.stroke();
         ctx.closePath()
         
         if (toggleTrackletClick) {
           for (let i = 1; i < dataList.length; i++) {
-              ctx.beginPath();
+              const markerSize = 6 / scale;
+              const offset = markerSize / 2;
+              ctx.beginPath(); 
               ctx.fillStyle = "green";
-              ctx.fillRect(dataList[i][1][0] - 3, dataList[i][1][1] - 3, 6, 6);
+              ctx.fillRect(dataList[i][1][0] - offset, dataList[i][1][1] - offset, markerSize, markerSize);
               ctx.stroke();
               ctx.closePath();
           }
         }
-        
       }
     }
   });
@@ -1429,57 +1473,228 @@ function clean() {
   update();
 }
 
+// Add these variables at the top with other global variables
+const PRELOAD_FRAMES = 3; // Number of frames to preload in each direction
+const preloadedImages = new Map(); // Cache for preloaded images
+const prefload_increment = 10;
 
+
+// Add these variables at the top
+let localDirectoryHandle = "/Users/engilber/work/dataset/local_copy_seq_2";
+let useLocalFiles = true;
+
+// Add this new function to handle preloading
+function preloadFrames(currentFrame, frameStrings) {
+    const framesToPreload = [];
+    // Get frame numbers before current frame
+    // for (let i = 1; i <= PRELOAD_FRAMES; i++) {
+    //     framesToPreload.push(parseInt(currentFrame) - i * prefload_increment);
+    // }
+    // Get frame numbers after current frame
+    for (let i = 1; i <= PRELOAD_FRAMES; i++) {
+        framesToPreload.push(parseInt(currentFrame) + i * prefload_increment);
+    }
+
+    // Preload frames
+    framesToPreload.forEach(frameNum => {
+        // Skip if already preloaded
+        if (preloadedImages.has(frameNum)) return;
+
+        // Request frame strings for this frame
+        $.ajax({
+            method: "POST",
+            url: 'changeframe',
+            data: {
+                csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+                order: frameNum > currentFrame ? 'next' : 'prev',
+                frameID: currentFrame,
+                incr: Math.abs(frameNum - currentFrame),
+                workerID: workerID,
+                datasetName: dset_name
+            },
+            dataType: "json",
+            success: function(msg) {
+                const frameImages = new Map();
+                
+                // Preload images for each active camera
+                activeCameras.forEach((camName) => {
+                    const img = new Image();
+                    const index = cameraPaths.indexOf(camName);
+                    let path;
+                    if (useLocalFiles) {
+                        path = `file://${localDirectoryHandle}/${camName}/${msg.frame_strs[camName]}`;
+                    } else {
+                        path = '/static/gtm_hit/dset/' + dset_name + '/' +
+                               (useUndistorted == "True" ? "undistorted_" : "") +
+                               'frames/' + camName + '/' + msg.frame_strs[camName];
+                    }
+                    img.src = path;
+                    frameImages.set(camName, img);
+                });
+
+                preloadedImages.set(frameNum, {
+                    frameStrings: msg.frame_strs,
+                    images: frameImages
+                });
+            }
+        });
+    });
+}
+
+
+// Modify the changeFrame function to use preloaded images
 function changeFrame(order, increment) {
-  if(boxesLoaded) saveCurrentlySelected();
+  // if(boxesLoaded) saveCurrentlySelected();
   if (nblabeled >= to_label) {
       return true;
   }
-  boxesLoaded=false;
-  $.ajax({
-      method: "POST",
-      url: 'changeframe',
-      data: {
-          csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
-          order: order,
-          frameID: frame_str,
-          incr: increment,
-          workerID: workerID,
-          datasetName: dset_name
-      },
-      dataType: "json",
-      success: function (msg) {
-          frame_str = msg['frame'];
-          nblabeled = msg['nblabeled'];
-          frameStrs = msg['frame_strs']
-          if (nblabeled >= to_label) {
-              var button = document.getElementById("changeF");
-              button.href = "/gtm_hit/" + dset_name + "/"+ workerID + "/processFrame";
-              button.text = "Finish";
+  boxesLoaded = false;
+
+  // Calculate target frame number
+  const currentFrame = parseInt(frame_str);
+  const targetFrame = order === 'next' ? 
+      currentFrame + increment : 
+      currentFrame - increment;
+
+  // Check if we have this frame preloaded
+  if (preloadedImages.has(targetFrame)) {
+      const preloadedData = preloadedImages.get(targetFrame);
+      
+      // Use the preloaded images
+      frame_str = targetFrame.toString();
+      frameStrs = preloadedData.frameStrings;
+      
+      loadcount = 0;
+      $("#loader").show();
+      $("#frameID").html("Frame ID: " + frame_str + "&nbsp;&nbsp;");
+
+      // Set the preloaded images
+      activeCameras.forEach((camName) => {
+          const index = cameraPaths.indexOf(camName);
+          const preloadedImg = preloadedData.images.get(camName);
+          imgArray[index].src = preloadedImg.src;
+      });
+
+      // Clean up used preloaded data
+      preloadedImages.delete(targetFrame);
+
+
+      prev_chosen_identity = identities[rectsID[chosen_rect]];
+      clean();
+      load();
+      showCopyBtn();
+      // Start preloading next set of frames
+      // preloadFrames(targetFrame, frameStrs);
+  } else {
+      // Fall back to original AJAX call if frames weren't preloaded
+      $.ajax({
+          method: "POST",
+          url: 'changeframe',
+          data: {
+              csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+              order: order,
+              frameID: frame_str,
+              incr: increment,
+              workerID: workerID,
+              datasetName: dset_name
+          },
+          dataType: "json",
+          success: function (msg) {
+              frame_str = msg['frame'];
+              nblabeled = msg['nblabeled'];
+              frameStrs = msg['frame_strs']
+              if (nblabeled >= to_label) {
+                  var button = document.getElementById("changeF");
+                  button.href = "/gtm_hit/" + dset_name + "/"+ workerID + "/processFrame";
+                  button.text = "Finish";
+              }
+              loadcount = 0;
+              $("#loader").show();
+              fstr = parseInt(frame_str);
+              $("#frameID").html("Frame ID: " + fstr.toString() + "&nbsp;&nbsp;");
+              
+              if (useUndistorted=="True") undistort_frames_path="undistorted_"
+              // activeCameras.forEach((camName) =>{
+              //   const index = cameraPaths.indexOf(camName);
+              //   imgArray[index].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName + '/' + frameStrs[camName];
+              // })
+              // Load images without using await
+              activeCameras.forEach((camName) => {
+                const index = cameraPaths.indexOf(camName);
+                if (useLocalFiles) {
+                    // Construct local file path
+                    imgArray[index].src = `file://${localDirectoryHandle}/${camName}/${frameStrs[camName]}`;
+                } else {
+                    // Use server path as fallback
+                    imgArray[index].src = '/static/gtm_hit/dset/' + dset_name + '/' +
+                        (useUndistorted == "True" ? "undistorted_" : "") +
+                        'frames/' + camName + '/' + frameStrs[camName];
+                }
+            });
+          },
+          complete: function (msg) {
+              prev_chosen_identity = identities[rectsID[chosen_rect]];
+              clean();
+              load();
+              showCopyBtn();
+              // Add preloading after loading current frame
+              // preloadFrames(frame_str, frameStrs);
           }
-          loadcount = 0;
-          $("#loader").show();
-          fstr = parseInt(frame_str);
-          $("#frameID").html("Frame ID: " + fstr.toString() + "&nbsp;&nbsp;");
-          
-          if (useUndistorted=="True") undistort_frames_path="undistorted_"
-          activeCameras.forEach((camName) =>{
-            const index = cameraPaths.indexOf(camName);
-            imgArray[index].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName + '/' + frameStrs[camName];
-          })
-          // for (var i = 0; i < nb_cams; i++) {
-          //     imgArray[i].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
-          //     console.log(imgArray[i].src)
-          // }
-      },
-      complete: function (msg) {
-          prev_chosen_identity= identities[rectsID[chosen_rect]];
-          clean()
-          load();
-          showCopyBtn()
-      }
-  });
+      });
+  }
 }
+
+
+// function changeFrame(order, increment) {
+//   // if(boxesLoaded) saveCurrentlySelected();
+//   if (nblabeled >= to_label) {
+//       return true;
+//   }
+//   boxesLoaded=false;
+//   $.ajax({
+//       method: "POST",
+//       url: 'changeframe',
+//       data: {
+//           csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+//           order: order,
+//           frameID: frame_str,
+//           incr: increment,
+//           workerID: workerID,
+//           datasetName: dset_name
+//       },
+//       dataType: "json",
+//       success: function (msg) {
+//           frame_str = msg['frame'];
+//           nblabeled = msg['nblabeled'];
+//           frameStrs = msg['frame_strs']
+//           if (nblabeled >= to_label) {
+//               var button = document.getElementById("changeF");
+//               button.href = "/gtm_hit/" + dset_name + "/"+ workerID + "/processFrame";
+//               button.text = "Finish";
+//           }
+//           loadcount = 0;
+//           $("#loader").show();
+//           fstr = parseInt(frame_str);
+//           $("#frameID").html("Frame ID: " + fstr.toString() + "&nbsp;&nbsp;");
+          
+//           if (useUndistorted=="True") undistort_frames_path="undistorted_"
+//           activeCameras.forEach((camName) =>{
+//             const index = cameraPaths.indexOf(camName);
+//             imgArray[index].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName + '/' + frameStrs[camName];
+//           })
+//           // for (var i = 0; i < nb_cams; i++) {
+//           //     imgArray[i].src = '/static/gtm_hit/dset/'+dset_name+'/'+undistort_frames_path+'frames/' + camName[i] + '/' + frameStrs[camName[i]];
+//           //     console.log(imgArray[i].src)
+//           // }
+//       },
+//       complete: function (msg) {
+//           prev_chosen_identity= identities[rectsID[chosen_rect]];
+//           clean()
+//           load();
+//           showCopyBtn()
+//       }
+//   });
+// }
 
 
 function next() {
@@ -1678,23 +1893,25 @@ function drawDot(event) {
 }
 
 function drawLine(ctx, v1, v2) {
-  // console.log('vertices', v1, v2)
   if (!v1?.[0] || !v1?.[1] || !v2?.[0] || !v2?.[1]) return;
+  
+  // Get current transform scale to adjust line width
+  const scale = ctx.getTransform().a;
+  
   ctx.beginPath();
   ctx.strokeStyle = "pink";
-  ctx.lineWidth = "2";
+  ctx.lineWidth = 2 / scale; // Adjust line width based on zoom
   ctx.moveTo(v1[0], v1[1]);
   ctx.lineTo(v2[0], v2[1]);
   ctx.stroke();
   ctx.closePath();
 }
 
-
 function drawCuboid(ctx, vertices) {
   // Draw lines for the base rectangle
   drawLine(ctx, vertices[0], vertices[1]);
   drawLine(ctx, vertices[1], vertices[3]);
-  drawLine(ctx, vertices[2], vertices[3]);
+  drawLine(ctx, vertices[2], vertices[3]); 
   drawLine(ctx, vertices[2], vertices[0]);
 
   // Draw lines for the top rectangle
@@ -1711,14 +1928,17 @@ function drawCuboid(ctx, vertices) {
 
   //draw direction
   if (vertices.length>8){
-  drawLine(ctx, vertices[8], vertices[9]);
+    drawLine(ctx, vertices[8], vertices[9]);
 
-  // mark the base point
-  ctx.beginPath();
-  ctx.fillStyle = "red";
-  ctx.fillRect(vertices[8][0] - 5, vertices[8][1] - 5, 10, 10);
-  ctx.stroke();
-  ctx.closePath();
+    // mark the base point with scale-adjusted size
+    const scale = ctx.getTransform().a;
+    const size = 5 / scale;
+    
+    ctx.beginPath();
+    ctx.fillStyle = "red";
+    ctx.fillRect(vertices[8][0] - size, vertices[8][1] - size, size * 2, size * 2);
+    ctx.stroke();
+    ctx.closePath();
   }
 }
 
@@ -1758,19 +1978,11 @@ function drawRect() {
     for (var r = 0; r < rectsID.length; r++) {
       var field = boxes[key][identities[rectsID[r]]];
       if (field == undefined) continue;
-      // console.log({
 
-      //     key: key,
-      //     boxes : boxes[key],
-      //     // rectId: rectsID[r],
-      //     identity: identities[rectsID[r]],
-      //     field: field
-      // });
-
-      
       if (field.y1 != -1 && field.y2 != -1 && field.x1 != -1) {
         var c = document.getElementById("canv" + (cameraPaths[field.cameraID]));
         var ctx = c.getContext("2d");
+        const scale = ctx.getTransform().a;
         
         //show only selected 
         if (!(r == chosen_rect) && !toggle_unselected) continue;
@@ -1781,11 +1993,11 @@ function drawRect() {
         var h = field.y2 - field.y1;
         if (selectedBoxes.some(selected => rectsID[r] === selected.rectID)) {
           ctx.strokeStyle = "magenta";  // Distinct color for merge-selected boxes
-          ctx.lineWidth = "5";
+          ctx.lineWidth = 5 / scale;
         }
         else if (r == chosen_rect) {
           ctx.strokeStyle = "cyan";
-          ctx.lineWidth = "4";
+          ctx.lineWidth = 4 / scale;
           heightR += (field.y2 - field.y1) * field.ratio;
           widthR += (field.x2 - field.x1) * field.ratio;
           sumH += 1;
@@ -1798,27 +2010,29 @@ function drawRect() {
             ctx.strokeStyle = "yellow";
 
           if (field.annotation_complete) ctx.strokeStyle = "green";
-          ctx.lineWidth = "4";
+          ctx.lineWidth = 4 / scale;
         }
         
-        
-
         ctx.beginPath();
         ctx.rect(field.x1, field.y1, w, h);
-
         ctx.stroke();
         ctx.closePath();
 
+        // Scale the center point marker size
+        const markerSize = 10 / scale;
         ctx.beginPath();
         ctx.fillStyle = "green";
-        ctx.fillRect(field.xMid - 5, field.y1 - 5, 10, 10);
+        ctx.fillRect(field.xMid - markerSize/2, field.y1 - markerSize/2, markerSize, markerSize);
         ctx.stroke();
         ctx.closePath();
 
+        // Scale the ID background rectangle
+        const idBoxHeight = 20 / scale;
+        const idBoxWidth = 50 / scale;
         ctx.beginPath();
         ctx.fillStyle = "black";
         if (field.annotation_complete) ctx.fillStyle = "green";
-        ctx.fillRect(field.x1, field.y1 - 27, 50, 20);
+        ctx.fillRect(field.x1, field.y1 - (27/scale), idBoxWidth, idBoxHeight);
         ctx.stroke();
         ctx.closePath();
 
@@ -1826,11 +2040,12 @@ function drawRect() {
           ctx.fillStyle = "cyan";
         } else {
           ctx.fillStyle = "white";
-          
         }
-        ctx.font = "20px Arial";
-
-        ctx.fillText("ID:" + identities[field.rectangleID], field.x1, field.y1 - 10);
+        
+        // Scale the font size
+        const fontSize = 20 / scale;
+        ctx.font = `${fontSize}px Arial`;
+        ctx.fillText("ID:" + identities[field.rectangleID], field.x1, field.y1 - (10/scale));
       }
     }
   }
@@ -1850,7 +2065,6 @@ function drawRect() {
       $("#pLength").text(-1);
       $("#pID").text(-1);
     }
-
 
   } else {
     $("#pHeight").text(-1);
@@ -1941,6 +2155,8 @@ function zoomIn() {
     var originY = r.y1 - 12.5 * c.height / (100 * zoomRatio);
     zoomState[i].translateX += -originX; //* zoomRatio;
     zoomState[i].translateY += -originY;// * zoomRatio;
+
+    console.log(i, zoomState[i].scale, zoomState[i].translateX, zoomState[i].translateY);
 
     // Apply transformations
     var ctx = c.getContext('2d');

@@ -197,7 +197,7 @@ def load_trajectories_3d_as_dict(
         camera:str, 
         calibration:Dict[str, Calibration], 
         mesh:Trimesh, 
-        hdf5_template:Optional[str] = "/cvlabdata2/home/grosche/dev/calibration/sync_frame_seq_1/{camera}",
+        hdf5_template:Optional[str] = "/cvlabdata2/home/grosche/dev/calibration/sync_frame_seq_2/{camera}",
         frame_range:range = range(settings.FRAME_START, settings.FRAME_END, settings.FRAME_SKIP),
         ) -> Dict[str, List[Tuple[np.ndarray, int, int, int]]]:
 
@@ -322,7 +322,7 @@ def preprocess_scout_data_from_dict(hdf5_template:str,
         traj_dict_3d = {}
 
         for camera in settings.CAMS:
-            traj_dict_3d[camera] = (load_trajectories_3d_as_dict('sync_frame_seq_1', 
+            traj_dict_3d[camera] = (load_trajectories_3d_as_dict('sync_frame_seq_2', 
                                                                 camera, 
                                                                 settings.CALIBS, 
                                                                 settings.MESH, 

@@ -119,3 +119,14 @@ html, body {
 .selected-for-merge {
   border: 2px solid yellow !important;
 }
+
+.fixed-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: white;
+  z-index: 1000;
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+}

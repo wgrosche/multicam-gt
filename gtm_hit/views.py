@@ -349,7 +349,13 @@ def action(request):
             print("World point 0:", world_point)
             print("World point 1:", world_point[0].shape)
             if not settings.FLAT_GROUND:
-                world_point = geometry.move_with_mesh_intersection(world_point)
+                try:
+                    world_point = geometry.move_with_mesh_intersection(world_point)
+                except Exception as e:
+                    print(f"Warning: Value could not be checked with mesh: {e}")
+                    print("Using original value, instead.")
+                    
+
             if world_point is None:
                 return HttpResponse("Error")
             
@@ -433,24 +439,12 @@ def changeframe(request):
             new_frame_number = min(max(int(frame_number) + inc, 0), settings.NUM_FRAMES - 1)
             if order == 'first':
                 new_frame_number = 0
-            # print("new_frame_number: ", new_frame_number)
-            # Get frame strings for each camera
-            frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames')
+            # Get frame strings for each camera using the precomputed dictionary from settings
             frame_strs = {}
+            frame_mapping = settings.FRAMENUMBER_TO_PATH.get(new_frame_number, {})
             for cam in settings.CAMS:
-                # TODO: THIS IS A HACK, WON'T WORK WITH SECOND SEQUENCE
-                if cam == 'cvlabrpi11':
-                    print("Loading frame: ", new_frame_number - 23, " for camera ", cam)
-                    pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 23, 0)}.jpg"
-                elif cam == 'cvlabrpi22':
-                    print("Loading frame: ", new_frame_number - 10, " for camera ", cam)
-                    pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 10, 0)}.jpg"
-                else:
-                    pattern = f"{frames_path}/{cam}/*_{new_frame_number}.jpg"
-                matching_files = glob.glob(pattern)
-                print(matching_files)
-                if matching_files:
-                    frame_strs[cam] = matching_files[0].split('/')[-1]
+                if cam in frame_mapping:
+                    frame_strs[cam] = os.path.basename(frame_mapping[cam])
             # print(frame_strs)
             response = {
                 'frame': str(new_frame_number),
@@ -468,6 +462,28 @@ def changeframe(request):
             return HttpResponse("Error")
     else:
         return HttpResponse("Error")
+
+            #         new_frame_number = min(max(int(frame_number) + inc, 0), settings.NUM_FRAMES - 1)
+            # if order == 'first':
+            #     new_frame_number = 0
+            # # print("new_frame_number: ", new_frame_number)
+            # # Get frame strings for each camera
+            # frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames')
+            # frame_strs = {}
+            # for cam in settings.CAMS:
+            #     # TODO: THIS IS A HACK, WON'T WORK WITH SECOND SEQUENCE
+            #     if cam == 'cvlabrpi11':
+            #         # print("Loading frame: ", new_frame_number - 38, " for camera ", cam)
+            #         pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 38, 0)}.jpg"
+            #     elif cam == 'cvlabrpi22':
+            #         # print("Loading frame: ", new_frame_number - 16, " for camera ", cam)
+            #         pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 16, 0)}.jpg"
+            #     else:
+            #         pattern = f"{frames_path}/{cam}/*_{new_frame_number}.jpg"
+            #     matching_files = glob.glob(pattern)
+            #     # print(matching_files)
+            #     if matching_files:
+            #         frame_strs[cam] = matching_files[0].split('/')[-1]
 
 def get_rect(closest):
     rects = []
