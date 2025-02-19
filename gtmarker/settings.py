@@ -332,35 +332,89 @@ for cam_name, polygon in ROIjson['points_2d'].items():
 
 OFFSETS = {'cvlabrpi11': 23, 'cvlabrpi22': 10}
 import re
-def get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS, local_path = None):
+# def get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS, local_path = None):
+#     """
+#     Create dictionary of frame paths for each camera
+#     """
+#     if local_path is None:
+#         lookup_path = frame_path
+#     else:
+#         lookup_path = local_path
+#     frame_path_dict = {}
+#     # Use os.scandir for efficient directory traversal
+#     for cam_folder in os.scandir(lookup_path):
+#         cam_name = cam_folder.name
+#         if cam_folder.is_dir():
+#             for file in os.scandir(cam_folder.path):
+#                 if file.is_file() and file.name.endswith(".jpg"):
+#                     match = re.search(r"_(\d+)\.jpg$", file.name)
+#                     if match:
+#                         index = int(match.group(1))
+                        
+#                         adjusted_index = max(0, index + OFFSETS.get(cam_name, 0))
+
+#                         if adjusted_index != index:
+#                             print("Offsetting frame index by {0} for camera {1}".format(OFFSETS.get(cam_name, 0), cam_name))
+#                         if adjusted_index not in frame_path_dict:
+#                             frame_path_dict[adjusted_index] = {}
+#                         root_stub = '/static' + cam_folder.path.split("/static")[1]
+#                         frame_path_dict[adjusted_index][cam_name] = os.path.join(root_stub, file.name)
+
+#     return frame_path_dict
+import cv2 as cv2
+def get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS, local_path = None, cache_path="frame_path_cache.json"):
     """
-    Create dictionary of frame paths for each camera
+    Create dictionary of frame paths for each camera, excluding frames that are duplicates
+    of their predecessor within the same camera sequence. Results are cached for faster subsequent loads.
     """
+    # Try to load from cache first
+    if os.path.exists(cache_path):
+        with open(cache_path, 'r') as f:
+            return json.load(f)
+
     if local_path is None:
         lookup_path = frame_path
     else:
         lookup_path = local_path
+        
     frame_path_dict = {}
-    # Use os.scandir for efficient directory traversal
+    last_images = {}
+    
     for cam_folder in os.scandir(lookup_path):
         cam_name = cam_folder.name
         if cam_folder.is_dir():
-            for file in os.scandir(cam_folder.path):
-                if file.is_file() and file.name.endswith(".jpg"):
-                    match = re.search(r"_(\d+)\.jpg$", file.name)
-                    if match:
-                        index = int(match.group(1))
-                        
-                        adjusted_index = max(0, index + OFFSETS.get(cam_name, 0))
+            sorted_files = sorted(
+                [f for f in os.scandir(cam_folder.path) if f.is_file() and f.name.endswith(".jpg")],
+                key=lambda x: int(re.search(r"_(\d+)\.jpg$", x.name).group(1))
+            )
+            
+            for file in sorted_files:
+                match = re.search(r"_(\d+)\.jpg$", file.name)
+                if match:
+                    index = int(match.group(1))
+                    adjusted_index = max(0, index + OFFSETS.get(cam_name, 0))
+                    
+                    current_img = cv2.imread(file.path)
+                    if cam_name in last_images:
+                        if np.array_equal(current_img, last_images[cam_name]):
+                            continue
+                            
+                    last_images[cam_name] = current_img
+                    
+                    if adjusted_index != index:
+                        print(f"Offsetting frame index by {OFFSETS.get(cam_name, 0)} for camera {cam_name}")
+                    if adjusted_index not in frame_path_dict:
+                        frame_path_dict[adjusted_index] = {}
+                    root_stub = '/static' + cam_folder.path.split("/static")[1]
+                    frame_path_dict[adjusted_index][cam_name] = os.path.join(root_stub, file.name)
 
-                        if adjusted_index != index:
-                            print("Offsetting frame index by {0} for camera {1}".format(OFFSETS.get(cam_name, 0), cam_name))
-                        if adjusted_index not in frame_path_dict:
-                            frame_path_dict[adjusted_index] = {}
-                        root_stub = '/static' + cam_folder.path.split("/static")[1]
-                        frame_path_dict[adjusted_index][cam_name] = os.path.join(root_stub, file.name)
+    # Save to cache
+    with open(cache_path, 'w') as f:
+        json.dump(frame_path_dict, f)
 
     return frame_path_dict
+
+
 
 FRAME_PATH_DICT = get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS)
 
