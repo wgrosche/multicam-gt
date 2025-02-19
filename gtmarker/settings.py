@@ -363,6 +363,7 @@ import re
 
 #     return frame_path_dict
 import cv2 as cv2
+from tqdm import tqdm
 def get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS, local_path = None, cache_path="frame_path_cache.json"):
     """
     Create dictionary of frame paths for each camera, excluding frames that are duplicates
@@ -384,17 +385,20 @@ def get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams 
     for cam_folder in os.scandir(lookup_path):
         cam_name = cam_folder.name
         if cam_folder.is_dir():
+            # print(f"Processing camera {cam_name}")
             sorted_files = sorted(
                 [f for f in os.scandir(cam_folder.path) if f.is_file() and f.name.endswith(".jpg")],
                 key=lambda x: int(re.search(r"_(\d+)\.jpg$", x.name).group(1))
             )
             
-            for file in sorted_files:
+            for file in tqdm(sorted_files, desc=f"Processing camera {cam_name}"):
                 match = re.search(r"_(\d+)\.jpg$", file.name)
                 if match:
                     index = int(match.group(1))
-                    adjusted_index = max(0, index + OFFSETS.get(cam_name, 0))
                     
+                    adjusted_index = max(0, index + OFFSETS.get(cam_name, 0))
+                    if adjusted_index % 10 != 0:
+                        continue
                     current_img = cv2.imread(file.path)
                     if cam_name in last_images:
                         if np.array_equal(current_img, last_images[cam_name]):

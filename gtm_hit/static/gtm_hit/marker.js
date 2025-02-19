@@ -933,9 +933,9 @@ function backSpace() {
     if (chosen_rect == rectsID.length) {
       chosen_rect--;
     }
-    if (zoomOn) {
-      zoomOut();
-    }
+    // if (zoomOn) {
+    //   zoomOut();
+    // }
     update();
   }
   return false;
