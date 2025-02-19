@@ -146,7 +146,7 @@ def project_2d_points_to_mesh(points_2d, calib, mesh, VERBOSE=False, min_z=-0.5,
     # Use NumPy to efficiently process the intersections
 
     # Filter intersections by depth and z-coordinates in a single pass
-    valid_mask = (depths > min_cam_dist) & (locations[:, 2] < max_z) & (locations[:, 2] > min_z)
+    valid_mask = (depths > min_cam_dist) & (locations[:, 2] < max_z) #& (locations[:, 2] > min_z)
     
     if VERBOSE: 
         print(f"ALL points: {locations}")
