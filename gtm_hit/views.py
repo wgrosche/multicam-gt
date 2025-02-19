@@ -277,7 +277,8 @@ def click(request):
         
         if cam in settings.CAMS:
             feet2d_h = np.array([[x], [y]])
-
+            if "person_id" not in obj or obj["person_id"] == "":
+                obj["person_id"] = get_next_available_id(worker_id=worker_id, dataset_name=dataset_name)
             # Check if the annotation is locked
             try:
                 annotation = Annotation.objects.get(
@@ -297,8 +298,7 @@ def click(request):
                 world_point = geometry.project_2d_points_to_mesh(
                     feet2d_h, settings.CALIBS[cam], settings.MESH)
 
-            if "person_id" not in obj or obj["person_id"] == "":
-                obj["person_id"] = get_next_available_id(worker_id=worker_id, dataset_name=dataset_name)
+            
 
             rectangles = get_cuboids_2d(world_point[0], obj)
             rect_json = json.dumps(rectangles)
@@ -961,6 +961,7 @@ def cp_prev_or_next_annotation(request):
     #set_trace()
     if is_ajax(request):
         try:
+            print("Copying over person")
             person_id = int(float(request.POST['personID']))
             frame_id = int(float(request.POST['frameID']))
             worker_id = request.POST['workerID']

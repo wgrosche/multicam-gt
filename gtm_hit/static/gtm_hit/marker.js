@@ -260,13 +260,13 @@ window.onload = function () {
 
   // Additional key bindings
   $(document).bind('keydown', "4", backSpace); // num 4
-  $(document).bind('keydown', "q", leftLarge); // left
+  $(document).bind('keydown', "a", leftLarge); // left
   $(document).bind('keydown', "d", rightLarge); // right
-  $(document).bind('keydown', "z", upLarge); // up
+  $(document).bind('keydown', "w", upLarge); // up
   $(document).bind('keydown', "s", downLarge); // down
-  $(document).bind('keydown', "ctrl+q", left); // a
+  $(document).bind('keydown', "ctrl+a", left); // a
   $(document).bind('keydown', "ctrl+d", right); // d
-  $(document).bind('keydown', "ctrl+z", up); // w
+  $(document).bind('keydown', "ctrl+w", up); // w
   $(document).bind('keydown', "ctrl+s", down); // s
   // $(document).bind('keydown', "i", increaseHeight);
   // $(document).bind('keydown', "k", decreaseHeight);
@@ -279,15 +279,18 @@ window.onload = function () {
   // $(document).bind('keydown', "tab", tab);
   // $(document).bind('keydown', "space", space);
   // $(document).bind("keydown", "v", validate);
-  $(document).bind("keydown", "g", zoomControl); // f
+  $(document).bind("keydown", "z", zoomControl); // f
   // $(document).bind("keydown", "g", toggleGround);
-  $(document).bind("keydown", "t", toggleCuboid); // c
+  $(document).bind("keydown", "c", toggleCuboid); // c
   $(document).bind("keydown", "r", toggleUnselected); // h
-  $(document).bind("keydown", "a", keyPrevFrame); // n
+  $(document).bind("keydown", "q", keyPrevFrame); // n
   $(document).bind("keydown", "e", keyNextFrame); // m
+  $(document).bind("keydown", "ctrl+q", keyPrevFrame); // n
+  $(document).bind("keydown", "ctrl+e", keyNextFrame); // m
   // $(document).bind("keydown", "b", toggleOrientation);
   $(document).bind("keydown", "f", save); // ctrl+s
-  $(document).bind("keydown", "c", copyPrevOrNext); // ,
+  $(document).bind("keydown", "ctrl+f", save); // ctrl+s
+  $(document).bind("keydown", "1", copyPrevOrNext); // ,
   $(document).bind("keydown", "x", splitAtCurrentFrame); // x
   // add copy button
   
@@ -322,7 +325,7 @@ function onMouseDown(event) {
   // console.log('Canvas index:', canvasIndex);
 
   // Check if any bounding box is selected
-  let threshold = 10;
+  let threshold = 10 / zoomState[canvasIndex].scale;
   for (const [personID, rectID] of Object.entries(rectsID)) {
     const pid = identities[rectID];
     const box = boxes[canvasIndex][pid];
@@ -838,7 +841,11 @@ function showCopyBtn(){
   }
 }
 function copyPrevOrNext(e) {
-  copyBtn.style.display = 'none';
+  const copyBtn = document.getElementById('copyBtn');
+    if (copyBtn) {
+        copyBtn.style.display = 'none';
+        // rest of the copy logic
+    }
   if(e)
   e.preventDefault();
   var pid = prev_chosen_identity || identities[rectsID[chosen_rect]];
