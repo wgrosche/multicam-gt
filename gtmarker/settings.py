@@ -372,7 +372,7 @@ def get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams 
     # Try to load from cache first
     if os.path.exists(cache_path):
         with open(cache_path, 'r') as f:
-            return json.load(f)
+            return {int(k): v for k, v in json.load(f).items()}
 
     if local_path is None:
         lookup_path = frame_path
@@ -422,7 +422,7 @@ def get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams 
 
 
 FRAME_PATH_DICT = get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS)
-
+print(FRAME_PATH_DICT.keys())
 # Make a local copy of the dataset
 # Firefox link to make local image accessible by modifying: about:config
 # http://kb.mozillazine.org/Links_to_local_pages_do_not_work
