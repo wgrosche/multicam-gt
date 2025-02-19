@@ -326,54 +326,65 @@ function onMouseDown(event) {
 
   // Check if any bounding box is selected
   let threshold = 10 / zoomState[canvasIndex].scale;
+  let minDist = Infinity;
+  let closestBox = null;
+  let isBasePoint = false;
+
+  // Find the closest point among all boxes
   for (const [personID, rectID] of Object.entries(rectsID)) {
     const pid = identities[rectID];
     const box = boxes[canvasIndex][pid];
-    // Cuboid Base point select (Select and prep for drag)
     if (!box.cuboid || box.cuboid.length == 0) continue;
+    
     let base_point = box.cuboid[8];
-
     let baseX = base_point[0];
     let baseY = base_point[1];
-    if (
-      mousex >= baseX - threshold &&
-      mousex <= baseX + threshold &&
-      mousey >= baseY - threshold &&
-      mousey <= baseY + threshold
-    ) {
-      selectedBox = { rectID, canvasIndex }; //select for drag
-      chosen_rect = rectsID.indexOf(rectID);
-      break;
+    
+    // Calculate distances to both points
+    const distToBase = Math.sqrt(Math.pow(mousex - baseX, 2) + Math.pow(mousey - baseY, 2));
+    const distToMid = Math.sqrt(Math.pow(mousex - box.xMid, 2) + Math.pow(mousey - box.y1, 2));
+    
+    // Update if this is the closest point so far
+    if (distToBase <= threshold && distToBase < minDist) {
+      minDist = distToBase;
+      closestBox = { rectID, pid, box };
+      isBasePoint = true;
     }
-    // Bounding Box mid point select (Select only)
-    if (
-      mousex >= box.xMid - threshold &&
-      mousex <= box.xMid + threshold &&
-      mousey >= box.y1 - threshold &&
-      mousey <= box.y1 + threshold
-    ) {
-      chosen_rect = rectsID.indexOf(rectID);
-      console.log('Selected box:', {rectID, pid, box});
+    if (distToMid <= threshold && distToMid < minDist) {
+      minDist = distToMid;
+      closestBox = { rectID, pid, box };
+      isBasePoint = false;
+    }
+  }
+
+  // Handle the closest box if one was found
+  if (closestBox) {
+    chosen_rect = rectsID.indexOf(closestBox.rectID);
+    
+    if (isBasePoint) {
+      // Select for drag if base point was closest
+      selectedBox = { rectID: closestBox.rectID, canvasIndex };
+    } else {
+      // Regular selection if mid point was closest
+      console.log('Selected box:', closestBox);
       console.log('Selected boxes:', selectedBoxes);
 
       if (event.shiftKey) {
-        // Handle shift-click selection for merge
         if (selectedBoxes.length < 2) {
-            selectedBoxes.push({rectID, pid, box});
+          selectedBoxes.push(closestBox);
         }
         if (selectedBoxes.length === 2) {
-            document.getElementById('merge-boxes').disabled = false;
+          document.getElementById('merge-boxes').disabled = false;
         }
-        
         update();
         return;
       }
+      
       selectedBoxes = [];
       update();
       getTracklet();
-      displayCrops(frame_str, pid, canvasIndex); //display crops --timeview.js
+      displayCrops(frame_str, closestBox.pid, canvasIndex);
       timeview_canv_idx = canvasIndex;
-      break;
     }
   }
   if (toggleTrackletClick) {
@@ -772,7 +783,7 @@ function getTracklet(e) {
         ctx.strokeStyle = "chartreuse";
         ctx.lineWidth = 2 / scale;
         ctx.strokeStyle = "red";
-        const fontSize = 20 / scale;
+        const fontSize = 11 / scale;
         ctx.font = `${fontSize}px Arial`;
         ctx.fillStyle = "red";
         
@@ -1394,6 +1405,12 @@ function loader2(uri) {
           personID = maxID + 1;
           boxesLoaded=true;
           $("#unsaved").html("All changes saved.");
+          
+          if (zoomOn) {
+            zoomOut();
+            zoomIn();
+          }
+
           update();
         },
         error: function (msg) {

@@ -295,6 +295,7 @@ CALIBS= load_scout_calib(CALIBPATH, cameras=CAMS, calib_source_path = CALIB_SRC)
 ROTATION_THETA = np.pi/24
 UNDISTORTED_FRAMES=False
 MERGE_THRESHOLD = 1.0
+MAX_OUTLIER_GAP = 4
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # MESHPATH = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply")

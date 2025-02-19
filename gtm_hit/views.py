@@ -1258,14 +1258,14 @@ def merge(request):
     if is_ajax(request):
         try:
             with transaction.atomic():
-                # Get input data
-                person_id1, person_id2 = map(lambda x: int(float(x)), 
-                    [request.POST['personID1'], request.POST['personID2']])
+                # Get input data; note that the outlier flag is no longer obtained from the request
+                person_id1, person_id2 = map(lambda x: int(float(x)), [request.POST['personID1'], request.POST['personID2']])
                 dataset_name = request.POST['datasetName']
                 worker_id = request.POST['workerID']
+                # Outlier flag defined in settings.py
 
-                print("Merging people", person_id1, person_id2)
-                # Single query to get all required objects
+                print(f"Starting merge process for person IDs {person_id1} and {person_id2}")
+                # Retrieve required objects in one go
                 worker = Worker.objects.get(workerID=worker_id)
                 dataset = Dataset.objects.get(name=dataset_name)
                 person1, person2 = Person.objects.filter(
@@ -1274,49 +1274,94 @@ def merge(request):
                     dataset=dataset
                 )
 
-                # Create frames lookup dict
+                print(f"Retrieved worker {worker_id} and dataset {dataset_name}")
+                # Create a lookup of frames
                 frames = {
-                    frame.frame_id: frame for frame in MultiViewFrame.objects.filter(
+                    frame.frame_id: frame
+                    for frame in MultiViewFrame.objects.filter(
                         frame_id__range=(settings.FRAME_START, settings.FRAME_END),
                         dataset=dataset,
                         worker=worker
                     )
                 }
+                print(f"Created frame lookup with {len(frames)} frames")
 
-                # Get annotations in bulk with all related data
+                # Get all annotations for both trajectories and group them by frame id
                 annotations = Annotation.objects.filter(
                     person__in=[person1, person2],
                     frame__frame_id__range=(settings.FRAME_START, settings.FRAME_END)
                 ).select_related('frame', 'person')
 
-                # Group annotations by frame efficiently
                 annotations_by_frame = defaultdict(list)
                 for ann in annotations:
                     annotations_by_frame[ann.frame.frame_id].append(ann)
+                print(f"Retrieved and grouped {len(annotations)} annotations across {len(annotations_by_frame)} frames")
 
-                merged_annotations = []
-                to_delete_ids = set()
-                mergeable = False
-
-                # Process frames in order
+                # Build a list of frame data with status and computed positions.
+                # Only "good" frames (with 2 annotations close enough) and "single" frames are valid.
+                frame_data = []
                 for frame_number in sorted(annotations_by_frame):
                     frame_anns = annotations_by_frame[frame_number]
                     positions = np.array([[ann.Xw, ann.Yw, ann.Zw] for ann in frame_anns])
-                    
-                    
-                    
-                    if len(positions) > 1:
+                    entry = {'frame_number': frame_number, 'anns': frame_anns}
+                    if len(positions) == 2:
                         distance = np.linalg.norm(positions[0] - positions[1])
-                        # np.linalg.norm(np.diff(positions, axis=0), axis=1)
                         if distance <= settings.MERGE_THRESHOLD:
-                            mergeable = True
-                            pos = positions.mean(axis=0)
-                            to_delete_ids.update(ann.id for ann in frame_anns)
-                        elif distance > settings.MERGE_THRESHOLD and mergeable:
-                            break
+                            entry['status'] = 'good'
+                            entry['pos'] = positions.mean(axis=0)
+                        else:
+                            entry['status'] = 'bad'
+                    elif len(positions) == 1:
+                        entry['status'] = 'single'
+                        entry['pos'] = positions[0]
                     else:
-                        pos = positions[0]
-                        to_delete_ids.update(ann.id for ann in frame_anns)
+                        continue
+                    frame_data.append(entry)
+                print(f"Analyzed frame data: {len(frame_data)} total frames processed")
+
+                # Extract only valid entries (good or single)
+                valid_entries = [entry for entry in frame_data if entry['status'] in ['good', 'single']]
+                if not valid_entries:
+                    return JsonResponse({"message": "No mergeable valid frames found"}, status=400)
+                print(f"Found {len(valid_entries)} valid frames for merging")
+
+                # Group valid entries into segments allowing small gaps defined by settings.MAX_OUTLIER_GAP
+                segments = []
+                current_segment = []
+                for entry in valid_entries:
+                    if not current_segment:
+                        current_segment.append(entry)
+                    else:
+                        gap = entry['frame_number'] - current_segment[-1]['frame_number'] - settings.INCREMENT
+                        if gap < settings.MAX_OUTLIER_GAP:
+                            current_segment.append(entry)
+                        else:
+                            segments.append(current_segment)
+                            current_segment = [entry]
+                if current_segment:
+                    segments.append(current_segment)
+                print(f"Grouped valid frames into {len(segments)} segments")
+
+                # Select the longest valid segment (which may be a combination of near segments)
+                longest_segment = max(segments, key=lambda seg: len(seg))
+                print(f"Selected longest segment with {len(longest_segment)} frames")
+
+                # Compute a baseline (average) position from the selected segment.
+                baseline_positions = [e['pos'] for e in longest_segment]
+                baseline = np.mean(baseline_positions, axis=0) if baseline_positions else None
+
+                merged_annotations = []
+                to_delete_ids = set()
+
+                # Process each frame in the longest segment.
+                for entry in longest_segment:
+                    frame_number = entry['frame_number']
+                    # Mark original annotations for deletion.
+                    for ann in entry['anns']:
+                        to_delete_ids.add(ann.id)
+
+                    # All frames here are valid, so use the computed position.
+                    merged_pos = entry['pos']
 
                     merged_annotations.append(
                         Annotation(
@@ -1324,31 +1369,40 @@ def merge(request):
                             frame=frames[frame_number],
                             rectangle_id=uuid.uuid4().hex,
                             rotation_theta=0,
-                            Xw=pos[0], Yw=pos[1], Zw=pos[2],
+                            Xw=merged_pos[0],
+                            Yw=merged_pos[1],
+                            Zw=merged_pos[2],
                             object_size_x=1.7,
                             object_size_y=0.6,
                             object_size_z=0.6,
                             creation_method="merged_scout_tracks"
                         )
                     )
+                print(f"Created {len(merged_annotations)} new merged annotations")
 
-                # Bulk operations
+                # Delete original annotations and bulk create the merged annotations in chunks.
                 if to_delete_ids:
+                    print(f"Deleting {len(to_delete_ids)} original annotations")
                     Annotation.objects.filter(id__in=to_delete_ids).delete()
-                print("First entry: ", merged_annotations[0].frame.id)
-                # Create in chunks
                 for chunk in range(0, len(merged_annotations), 1000):
-                    # Annotation.objects.bulk_create(merged_annotations[chunk:chunk + 1000], ignore_conflicts=True)
+                    chunk_size = min(1000, len(merged_annotations) - chunk)
+                    print(f"Bulk creating chunk of {chunk_size} annotations")
                     Annotation.objects.bulk_create(
                         merged_annotations[chunk:chunk + 1000],
                         update_conflicts=True,
                         unique_fields=['frame', 'person'],
-                        update_fields=['rectangle_id', 'rotation_theta', 'Xw', 'Yw', 'Zw', 
-                                    'object_size_x', 'object_size_y', 'object_size_z']
-)
+                        update_fields=[
+                            'rectangle_id', 'rotation_theta', 'Xw', 'Yw', 'Zw',
+                            'object_size_x', 'object_size_y', 'object_size_z'
+                        ]
+                    )
 
-                print("Saving 2d views")
+                print("Saving 2D views for merged annotations")
                 save_2d_views_bulk(Annotation.objects.filter(person=person1))
+                
+                # Log merge summary
+                summary_msg = f"Merge complete for person IDs {person_id1} and {person_id2}: created {len(merged_annotations)} merged annotations;"
+                print(summary_msg)
 
                 return JsonResponse({"message": "ok"})
 
