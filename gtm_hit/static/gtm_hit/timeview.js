@@ -135,7 +135,7 @@ async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames
 
     const cropWidth = box.x2 - box.x1;
     const cropHeight = box.y2 - box.y1;
-    const ratio = 0.5;
+    const ratio = 2;
     canvas.width = cropWidth*ratio;
     canvas.height = cropHeight*ratio;
   
@@ -151,10 +151,14 @@ async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames
       cropHeight*ratio
     );
     
+    // Calculate font size based on final display height of 150px
+    const displayScale = cropHeight / 150;
+    const fontSize = Math.round(48 * displayScale);
+    
     // Add frame number text
-    ctx.font = "16px Arial";
+    ctx.font = `${fontSize}px Arial`;
     ctx.fillStyle = "red";
-    ctx.fillText(`${cropFrame}`, 5, 20);
+    ctx.fillText(`${cropFrame}`, 5, fontSize + 4);
 
     // Highlight the current frame with a red border
     if (cropFrame === currentFrame) {
@@ -194,7 +198,7 @@ async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames
       return new Promise((resolve, reject) => {
           $.ajax({
               method: "POST",
-              url: 'serve_frame',
+              url: 'serve_frame', 
               data: {
                   csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
                   camera_name: cameraID,
@@ -202,7 +206,7 @@ async function displayCrops(frame, pid,camid, numPrevFrames = 5, numFutureFrames
               },
               dataType: "json",
               success: function (msg) {
-                  resolve(msg['frame_string']);
+                      resolve(msg['frame_string']);
               },
               error: function(xhr, status, error) {
                   reject(error);

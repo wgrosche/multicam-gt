@@ -113,7 +113,7 @@ def get_ray_directions(points_2d:np.ndarray, calib):
     return ray_origins, ray_directions
 
 
-def project_2d_points_to_mesh(points_2d, calib, mesh, VERBOSE=False, min_z=-0.5, max_z=0.5, min_cam_dist=1, z_plane=0.1):
+def project_2d_points_to_mesh(points_2d, calib, mesh, VERBOSE=False, min_z=-4, max_z=1, min_cam_dist=1, z_plane=0.1):
     # Get ray origins and directions
     ray_origins, ray_directions = get_ray_directions(points_2d, calib)
     
@@ -200,7 +200,7 @@ def move_with_mesh_intersection(ground_pix): #reproject to mesh
         
         # Use the nearest point function of trimesh
         closest_point, distance, _ = mesh.nearest.on_surface(ground_pix.reshape(-1, 3))
-        ground_pixel = closest_point[0]
+        ground_pixel = closest_point
     # Return the closest point and distance
     return ground_pixel
 
