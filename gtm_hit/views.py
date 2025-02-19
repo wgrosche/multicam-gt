@@ -944,33 +944,25 @@ def create_video(request):
 
 def serve_frame(request):
     if is_ajax(request):
-        # try:
-        frame_number = int(float(request.POST['frame_number']))
-        camera_name = int(request.POST['camera_name'])
-        # print(camera_name)
-        camera_name = settings.CAMS[camera_name]
-        frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames', camera_name)
-        
-        # os.path.join(settings.DSETPATH,'frames', camera_name)
-        pattern = f"{frames_path}/*_{frame_number}.jpg"
-        # print(pattern)
-        matching_files = glob.glob(pattern)
-        # print(matching_files)
-        if matching_files:
-            response = {
-            'frame_string': '/'+ os.path.join(*matching_files[0].split('/')[-7:])
-            }
-            # print("Timeview: ", response)
+        try:
+            frame_number = int(float(request.POST['frame_number']))
+            camera_idx = int(request.POST['camera_name'])
+            camera_name = settings.CAMS[camera_idx]
 
-            return HttpResponse(json.dumps(response))
-        
-        else:
-            print(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
-            return HttpResponse(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
-        # except:
-        #     print(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
-        #     raise Http404(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
-    # print("Error")
+            # Get frame path from precomputed mapping
+            frame_mapping = settings.FRAMENUMBER_TO_PATH.get(frame_number, {})
+            if camera_name in frame_mapping:
+                frame_path = frame_mapping[camera_name]
+                response = {
+                    'frame_string': os.path.basename(frame_path)
+                }
+                return HttpResponse(json.dumps(response))
+            else:
+                print(f"No frame found for camera {camera_name} and frame {frame_number}")
+                return HttpResponse(f"No frame found for camera {camera_name} and frame {frame_number}")
+        except:
+            print(f"Error serving frame {frame_number} for camera {camera_name}")
+            return HttpResponse("Error")
     return HttpResponse("Error")
 
 
