@@ -334,6 +334,7 @@ function onMouseDown(event) {
   for (const [personID, rectID] of Object.entries(rectsID)) {
     const pid = identities[rectID];
     const box = boxes[canvasIndex][pid];
+    // console.log(box);
     if (!box.cuboid || box.cuboid.length == 0) continue;
     
     let base_point = box.cuboid[8];

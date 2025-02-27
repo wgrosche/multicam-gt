@@ -69,6 +69,8 @@ class Cuboid:
         return self.cuboid_points3d
     
     def get_cuboid_points_3d_rotated(self, theta:float = 0):
+        if theta == 0:
+            return self.cuboid_points3d
         rotz = np.array([[np.cos(theta),-np.sin(theta),0],
                         [np.sin(theta), np.cos(theta),0],
                         [            0,             0,1]])
@@ -374,7 +376,7 @@ def is_visible(point3d:np.ndarray, cam_name:str, check_mesh:bool = True) -> bool
     if settings.ROI:
         polygon = settings.ROI[cam_name]
         if not is_point_in_polygon(polygon, point3d):
-            print("Point not in ROI")
+            # print("Point not in ROI")
             return False
         
     # print("Point in ROI")

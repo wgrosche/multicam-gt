@@ -93,75 +93,214 @@ def find_closest_annotations_to(person:Person,
 #         update_fields=['x1', 'y1', 'x2', 'y2']
 #     )
 from django.db import transaction
+import time
 
 @transaction.atomic
-def save_2d_views_bulk(annotations, batch_size=1000):
-    # Refresh the queryset to ensure we have current data
-    annotations = annotations.select_related().all()
-    
-    # Verify all annotations exist
-    annotation_ids = set(annotations.values_list('id', flat=True))
-    
-    # bulk create View objects
+def save_2d_views_bulk(annotations, batch_size=1000, annotation2dviews_data = None):
+    start_time = time.time()
+
+    # Pre-calculate camera calibrations timing
+    t1 = time.time()
+    camera_calibs = {
+        cam_idx: settings.CALIBS[settings.CAMS[cam_idx]]
+        for cam_idx in range(settings.NB_CAMS)
+    }
+    print(f"Camera calibration setup took: {time.time() - t1:.3f}s")
+
+    # View creation timing
+    t2 = time.time()
     views_to_create = [View(view_id=i) for i in range(settings.NB_CAMS)]
     View.objects.bulk_create(views_to_create, ignore_conflicts=True)
+    views = {v.view_id: v for v in View.objects.all()}
+    print(f"View creation took: {time.time() - t2:.3f}s")
 
-    views = View.objects.filter(view_id__in=range(settings.NB_CAMS))
+    # 2D view processing timing
+    t3 = time.time()
     annotation2dviews_to_create = []
-
-    pbar = tqdm(annotations, total=len(annotations))
+    if annotation2dviews_data is None:
     
-    # Rest of your code remains the same
+        for annotation in annotations:
+            for cam_idx in range(settings.NB_CAMS):
+                cuboid = geometry.get_cuboid2d_from_annotation(
+                    annotation,
+                    settings.CAMS[cam_idx],
+                    settings.UNDISTORTED_FRAMES,
+                )
+                p1, p2 = ([-1, -1], [-1, -1]) if cuboid is None else geometry.get_bounding_box(cuboid)
+                annotation2dview = Annotation2DView(
+                    view=views[cam_idx],
+                    annotation=annotation,
+                    x1=p1[0], y1=p1[1],
+                    x2=p2[0], y2=p2[1]
+                )
+                if cuboid is not None:
+                    annotation2dview.set_cuboid_points_2d(cuboid)
+                annotation2dviews_to_create.append(annotation2dview)
 
-    for i, annotation in enumerate(pbar):
-        pbar.set_description(f"Processing annotation {i} of {len(annotations)} into 2D")
-        for cam_idx in range(settings.NB_CAMS):
-            cuboid = geometry.get_cuboid2d_from_annotation(
-                    annotation, 
-                    settings.CAMS[cam_idx], 
-                    settings.UNDISTORTED_FRAMES
-                    )
-            if cuboid is None:
-                p1 = [-1, -1]
-                p2 = [-1, -1]
-            else:
-                p1, p2 = geometry.get_bounding_box(cuboid)
+            # Bulk create when batch size reached
+            if len(annotation2dviews_to_create) >= batch_size:
+                Annotation2DView.objects.bulk_create(
+                    annotation2dviews_to_create,
+                    update_conflicts=True,
+                    unique_fields=['view', 'annotation'],
+                    update_fields=['x1', 'y1', 'x2', 'y2', 'cuboid_points']
+                )
+                annotation2dviews_to_create = []
+        print(f"2D view processing took: {time.time() - t3:.3f}s")
 
-            annotation2dview = Annotation2DView(
-                view=views[cam_idx],
-                annotation=annotation,
-                x1=p1[0],
-                y1=p1[1],
-                x2=p2[0],
-                y2=p2[1]
-            )
-            
-            if cuboid is not None:
-                annotation2dview.set_cuboid_points_2d(cuboid)
-            # print(annotation2dviews_to_create)
-            annotation2dviews_to_create.append(annotation2dview)
+    else:
 
-        # Bulk create when batch size is reached
-        if len(annotation2dviews_to_create) >= batch_size:
-            print(f"Saving batch of {len(annotation2dviews_to_create)} 2D Views...")
-            print(f"Sample of annotation2dviews_to_create: {[ann.x1 for ann in annotation2dviews_to_create[:3]]}")
-            Annotation2DView.objects.bulk_create(
-                annotation2dviews_to_create,
-                update_conflicts=True,
-                unique_fields=['view', 'annotation'],
-                update_fields=['x1', 'y1', 'x2', 'y2', 'cuboid_points']
-            )
-            annotation2dviews_to_create = []
+        for annotation in annotations:
+            ann_data_2d = annotation2dviews_data[annotation.person.person_id]
+            for datapoint in ann_data_2d:
+                cuboid = datapoint['cuboid']
+                annotation2dview = Annotation2DView(
+                    view=views[datapoint['cameraID']],
+                    annotation=annotation,
+                    x1=datapoint['x1'], y1=datapoint['y1'],
+                    x2=datapoint['x2'], y2=datapoint['y2']
+                )
+                if cuboid is not None:
+                    annotation2dview.set_cuboid_points_2d(cuboid)
+                annotation2dviews_to_create.append(annotation2dview)
 
-    # Save any remaining annotations
+    # Final batch creation timing
+    t4 = time.time()
     if annotation2dviews_to_create:
-        # print(f"Saving final batch of {len(annotation2dviews_to_create)} 2D Views...")
         Annotation2DView.objects.bulk_create(
             annotation2dviews_to_create,
             update_conflicts=True,
             unique_fields=['view', 'annotation'],
             update_fields=['x1', 'y1', 'x2', 'y2', 'cuboid_points']
         )
+    print(f"Final batch creation took: {time.time() - t4:.3f}s")
+
+    print(f"Total 2D view operation took: {time.time() - start_time:.3f}s")
+
+# @transaction.atomic
+# def save_2d_views_bulk(annotations, batch_size=1000):
+#     # Pre-calculate camera calibrations and store in memory
+#     camera_calibs = {
+#         cam_idx: settings.CALIBS[settings.CAMS[cam_idx]] 
+#         for cam_idx in range(settings.NB_CAMS)
+#     }
+
+#     # Bulk create views once if they don't exist
+#     views_to_create = [View(view_id=i) for i in range(settings.NB_CAMS)]
+#     View.objects.bulk_create(views_to_create, ignore_conflicts=True)
+#     views = {v.view_id: v for v in View.objects.all()}
+
+#     # Process annotations in batches
+#     annotation2dviews_to_create = []
+#     for annotation in annotations:
+#         # Calculate all camera views for this annotation at once
+#         for cam_idx in range(settings.NB_CAMS):
+#             cuboid = geometry.get_cuboid2d_from_annotation(
+#                 annotation,
+#                 settings.CAMS[cam_idx],
+#                 settings.UNDISTORTED_FRAMES,
+#                 # calib=camera_calibs[cam_idx]  # Pass pre-calculated calibration
+#             )
+            
+#             p1, p2 = ([-1, -1], [-1, -1]) if cuboid is None else geometry.get_bounding_box(cuboid)
+            
+#             annotation2dview = Annotation2DView(
+#                 view=views[cam_idx],
+#                 annotation=annotation,
+#                 x1=p1[0], y1=p1[1],
+#                 x2=p2[0], y2=p2[1]
+#             )
+#             if cuboid is not None:
+#                 annotation2dview.set_cuboid_points_2d(cuboid)
+            
+#             annotation2dviews_to_create.append(annotation2dview)
+
+#         # Bulk create when batch size reached
+#         if len(annotation2dviews_to_create) >= batch_size:
+#             Annotation2DView.objects.bulk_create(
+#                 annotation2dviews_to_create,
+#                 update_conflicts=True,
+#                 unique_fields=['view', 'annotation'],
+#                 update_fields=['x1', 'y1', 'x2', 'y2', 'cuboid_points']
+#             )
+#             annotation2dviews_to_create = []
+
+#     # Handle remaining items
+#     if annotation2dviews_to_create:
+#         Annotation2DView.objects.bulk_create(
+#             annotation2dviews_to_create,
+#             update_conflicts=True,
+#             unique_fields=['view', 'annotation'],
+#             update_fields=['x1', 'y1', 'x2', 'y2', 'cuboid_points']
+#         )
+
+# def save_2d_views_bulk(annotations, batch_size=1000):
+#     # Refresh the queryset to ensure we have current data
+#     annotations = annotations.select_related().all()
+    
+#     # Verify all annotations exist
+#     annotation_ids = set(annotations.values_list('id', flat=True))
+    
+#     # bulk create View objects
+#     views_to_create = [View(view_id=i) for i in range(settings.NB_CAMS)]
+#     View.objects.bulk_create(views_to_create, ignore_conflicts=True)
+
+#     views = View.objects.filter(view_id__in=range(settings.NB_CAMS))
+#     annotation2dviews_to_create = []
+
+#     pbar = tqdm(annotations, total=len(annotations))
+    
+#     # Rest of your code remains the same
+
+#     for i, annotation in enumerate(pbar):
+#         pbar.set_description(f"Processing annotation {i} of {len(annotations)} into 2D")
+#         for cam_idx in range(settings.NB_CAMS):
+#             cuboid = geometry.get_cuboid2d_from_annotation(
+#                     annotation, 
+#                     settings.CAMS[cam_idx], 
+#                     settings.UNDISTORTED_FRAMES
+#                     )
+#             if cuboid is None:
+#                 p1 = [-1, -1]
+#                 p2 = [-1, -1]
+#             else:
+#                 p1, p2 = geometry.get_bounding_box(cuboid)
+
+#             annotation2dview = Annotation2DView(
+#                 view=views[cam_idx],
+#                 annotation=annotation,
+#                 x1=p1[0],
+#                 y1=p1[1],
+#                 x2=p2[0],
+#                 y2=p2[1]
+#             )
+            
+#             if cuboid is not None:
+#                 annotation2dview.set_cuboid_points_2d(cuboid)
+#             # print(annotation2dviews_to_create)
+#             annotation2dviews_to_create.append(annotation2dview)
+
+#         # Bulk create when batch size is reached
+#         if len(annotation2dviews_to_create) >= batch_size:
+#             print(f"Saving batch of {len(annotation2dviews_to_create)} 2D Views...")
+#             print(f"Sample of annotation2dviews_to_create: {[ann.x1 for ann in annotation2dviews_to_create[:3]]}")
+#             Annotation2DView.objects.bulk_create(
+#                 annotation2dviews_to_create,
+#                 update_conflicts=True,
+#                 unique_fields=['view', 'annotation'],
+#                 update_fields=['x1', 'y1', 'x2', 'y2', 'cuboid_points']
+#             )
+#             annotation2dviews_to_create = []
+
+#     # Save any remaining annotations
+#     if annotation2dviews_to_create:
+#         # print(f"Saving final batch of {len(annotation2dviews_to_create)} 2D Views...")
+#         Annotation2DView.objects.bulk_create(
+#             annotation2dviews_to_create,
+#             update_conflicts=True,
+#             unique_fields=['view', 'annotation'],
+#             update_fields=['x1', 'y1', 'x2', 'y2', 'cuboid_points']
+#         )
 
 
 def save_2d_views(annotation):
