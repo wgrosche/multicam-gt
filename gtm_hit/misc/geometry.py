@@ -83,11 +83,20 @@ class Cuboid:
         cuboid_points3d_world = cuboid_points3d_rot + self.world_point.T
         return cuboid_points3d_world
 
-    def get_cuboid_points_2d(self, theta:float = 0):
+    def get_cuboid_points_2d(self, theta:float = 0, calib=None):
+        if calib is None:
+            calib = self.calib
         cuboid_points3d_world = self.get_cuboid_points_3d_world(theta)
-        cuboid_points2d = get_projected_points(cuboid_points3d_world, self.calib)
+        cuboid_points2d = get_projected_points(cuboid_points3d_world, calib)
 
         return cuboid_points2d
+
+    def get_bbox(self, theta:float = 0, calib=None, ):
+        if calib is None:
+            calib = self.calib
+        cuboid_points2d = self.get_cuboid_points_2d(theta, calib)
+        bbox = get_bounding_box(cuboid_points2d)
+        return bbox
 
 
 def get_ray_directions(points_2d:np.ndarray, calib):
@@ -189,7 +198,26 @@ def project_2d_points_to_mesh(points_2d, calib, mesh, VERBOSE=False, min_z=-4, m
     return ground_points#.tolist()
 
 
-def move_with_mesh_intersection(ground_pix): #reproject to mesh
+def find_nearest_using_intersection(point_3d, mesh):
+    #Generate ray assuming vertical ray comming straight down with x,y coordinates of 3d_point
+    ray_origin = np.array([[point_3d[0], point_3d[1], 2]])
+    ray_direction = np.array([[0, 0, -1]])
+    #Find intersection with mesh
+
+    locations, index_ray, index_tri = mesh.ray.intersects_location(
+        ray_origins=ray_origin,
+        ray_directions=ray_direction,
+        multiple_hits=False
+    )
+
+    # Check if there are no intersections
+    if len(locations) == 0:
+        return point_3d.reshape(-1, 3)
+    # Return the closest point and distance
+
+    return locations
+
+def move_with_mesh_intersection(ground_pix, use_intersection=True): #reproject to mesh
     """
     Finds the closest point on the mesh to ground_pix
     
@@ -200,9 +228,12 @@ def move_with_mesh_intersection(ground_pix): #reproject to mesh
     else:
         mesh = settings.MESH
         
-        # Use the nearest point function of trimesh
-        closest_point, distance, _ = mesh.nearest.on_surface(ground_pix.reshape(-1, 3))
-        ground_pixel = closest_point
+        if use_intersection:
+            ground_pixel = find_nearest_using_intersection(ground_pix.squeeze(), mesh)
+        else:
+            # Use the nearest point function of trimesh
+            closest_point, distance, _ = mesh.nearest.on_surface(ground_pix.reshape(-1, 3))
+            ground_pixel = closest_point
     # Return the closest point and distance
     return ground_pixel
 
@@ -249,6 +280,10 @@ def get_projected_points(points3d,
     # if points2d == (None, None):
     #     raise ValueError("Could not project points to image plane.")
     points2d = np.squeeze(points2d)
+
+    if len(points2d.shape) == 1:
+        points2d = points2d.reshape(-1, 2)
+    
     points2d = [tuple(p) for p in points2d]
     return points2d
 

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from collections import defaultdict
 from curses.textpad import rectangle
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib.auth import authenticate, login, logout
@@ -26,6 +27,7 @@ import random
 import glob
 import numpy as np
 from gtm_hit.misc import geometry
+from gtm_hit.misc.autoalign import auto_align_bbox
 from gtm_hit.misc.db import *
 from gtm_hit.misc.serializer import *
 from gtm_hit.misc.utils import convert_rect_to_dict, request_to_dict, process_action
@@ -271,6 +273,8 @@ def click(request):
         # Extract and validate parameters
         x = int(float(request.POST['x']))
         y = int(float(request.POST['y']))
+        frame_id = int(float(request.POST['frameID']))
+
         worker_id = request.POST['workerID']
         dataset_name = request.POST['datasetName']
         obj = request_to_dict(request)
@@ -278,20 +282,10 @@ def click(request):
         
         if cam in settings.CAMS:
             feet2d_h = np.array([[x], [y]])
-            if "person_id" not in obj or obj["person_id"] == "":
-                obj["person_id"] = get_next_available_id(worker_id=worker_id, dataset_name=dataset_name)
-            # Check if the annotation is locked
-            try:
-                annotation = Annotation.objects.get(
-                    person_id=obj["person_id"], frame__worker__workerID=worker_id, frame__dataset__name=dataset_name
-                )
-                if annotation.locked:
-                    return HttpResponse(status=403, content="Annotation is locked and cannot be modified.")
-            except Annotation.DoesNotExist:
-                pass  # Annotation doesn't exist, so we can proceed
 
-            # Process the annotation normally
-            if settings.FLAT_GROUND:
+            if "autoalign" in request.POST and request.POST['autoalign'] == "true":
+                world_point = auto_align_bbox(None, frame_id, settings.POSE_MODEL, settings.MESH, settings.CALIBS, points2d=feet2d_h, camera_id=cam).reshape(-1, 3)
+            elif settings.FLAT_GROUND:
                 calib = settings.CALIBS[cam]
                 K0, R0, T0, dist = calib.K, calib.R, calib.T, calib.dist
                 world_point = geometry.reproject_to_world_ground_batched(feet2d_h.T, K0, R0, T0, dist, height=-0.301)
@@ -388,8 +382,8 @@ def action(request):
 
             
             world_point = np.array([[Xw], [Yw], [Zw]]).reshape(-1, 3)
-            print("World point 0:", world_point)
-            print("World point 1:", world_point[0].shape)
+            # print("World point 0:", world_point)
+            # print("World point 1:", world_point[0].shape)
             if not settings.FLAT_GROUND:
                 try:
                     world_point = geometry.move_with_mesh_intersection(world_point)
@@ -401,7 +395,8 @@ def action(request):
             if world_point is None:
                 return HttpResponse("Error")
             
-            print("World point 2:", world_point)
+            # print("World point 2:", world_point)
+            
             next_rect = get_cuboids_2d(world_point[0], obj)
 
             next_rect_json = json.dumps(next_rect)
@@ -677,104 +672,104 @@ def delete_and_load(startframe):
 
     settings.LASTLOADED = settings.LASTLOADED + 10
 
-import time
 
-# @transaction.atomic
 # def save_db(request):
+#     #set_trace()
+    
 #     if is_ajax(request) and request.method == 'POST':
 #         try:
-#             start_time = time.time()
-            
-#             # Initial data loading
 #             data = json.loads(request.POST['data'])
 #             frame_id = request.POST['ID']
 #             worker_id = request.POST['workerID']
-#             dataset_name = request.POST['datasetName']
-            
-#             # Get/create base objects timing
-#             t1 = time.time()
+#             # Check if the frame exists or create a new frame object
 #             worker, _ = Worker.objects.get_or_create(workerID=worker_id)
-#             dataset, _ = Dataset.objects.get_or_create(name=dataset_name)
-#             views_to_create = [View(view_id=i) for i in range(settings.NB_CAMS)]
-#             View.objects.bulk_create(views_to_create, ignore_conflicts=True)
-#             views = {v.view_id: v for v in View.objects.all()}
-#             frame, _ = MultiViewFrame.objects.get_or_create(
-#                 frame_id=frame_id, worker=worker, undistorted=settings.UNDISTORTED_FRAMES, dataset=dataset)
-#             print(f"Base object creation took: {time.time() - t1:.3f}s")
+#             dataset_name = request.POST['datasetName']
+#             #set_trace()
+#             dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
+#             frame, created = MultiViewFrame.objects.get_or_create(
+#                 frame_id=frame_id, worker=worker,undistorted=settings.UNDISTORTED_FRAMES,dataset=dataset)
+            
+#             #delete all annotations for this frame (if not single person save)
+#             if len(data)>1:
+#                 Annotation.objects.filter(frame=frame).delete()
 
-#             # Get existing annotations timing
-#             t2 = time.time()
-#             existing_annotations = {
-#                 (ann.person.person_id, ann.rectangle_id): ann 
-#                 for ann in Annotation.objects.filter(frame=frame).select_related('person')
-#             }
-#             print(f"Getting existing annotations took: {time.time() - t2:.3f}s")
-
-#             # Person creation timing
-#             t3 = time.time()
+#             # First create all Person objects in bulk
 #             people_to_create = [
-#                 Person(person_id=d['personID'], worker=worker, dataset=dataset)
-#                 for d in data
+#                 Person(person_id=annotation_data['personID'], worker=worker, dataset=dataset)
+#                 for annotation_data in data
 #             ]
 #             Person.objects.bulk_create(people_to_create, ignore_conflicts=True)
+
+#             # Get all persons at once
 #             people = {p.person_id: p for p in Person.objects.filter(worker=worker, dataset=dataset)}
-#             print(f"Person creation took: {time.time() - t3:.3f}s")
 
-#             # Process annotations timing
-#             t4 = time.time()
-#             to_create = {}
-#             to_create_2d = []
-#             to_delete_ids = []
+#             # Create all annotations in bulk
+#             # annotations_to_create = [
+#             #     Annotation(
+#             #         person=people[annotation_data['personID']],
+#             #         frame=frame,
+#             #         rectangle_id=annotation_data['rectangleID'],
+#             #         rotation_theta=annotation_data['rotation_theta'],
+#             #         Xw=annotation_data['Xw'],
+#             #         Yw=annotation_data['Yw'],
+#             #         Zw=annotation_data['Zw'],
+#             #         object_size_x=annotation_data['object_size'][0],
+#             #         object_size_y=annotation_data['object_size'][1],
+#             #         object_size_z=annotation_data['object_size'][2]
+#             #     )
+#             #     for annotation_data in data
+#             # ]
+#             unique_annotations = {}
+
 #             for annotation_data in data:
-#                 # import pdb; pdb.set_trace()
-#                 key = (annotation_data['personID'])
-#                 if key in existing_annotations:
-#                     existing = existing_annotations[key]
-#                     if has_changes(existing, annotation_data):
-#                         to_delete_ids.append(existing.id)
-#                         # to_create.append(create_annotation_obj(annotation_data, people, frame))
-#                         del existing_annotations[key]
-#                     else:
-#                         del existing_annotations[key]
-#                         continue
-#                 # else:
-#                 if key not in to_create:
-#                     annotation = create_annotation_obj(annotation_data, people, frame)
-#                     to_create[key] = annotation
-                    
-#                 if annotation_data['cuboid']:
-#                     annotation_2d = create_annotation_obj_2d(annotation_data, to_create[key], views)
-#                     to_create_2d.append(annotation_2d)
-                
-#             print(f"Processing annotations took: {time.time() - t4:.3f}s")
+#                 unique_key = (
+#                     annotation_data['personID'],
+#                     frame,
+#                     annotation_data['rectangleID'],
+#                     annotation_data['rotation_theta'],
+#                     annotation_data['Xw'],
+#                     annotation_data['Yw'],
+#                     annotation_data['Zw'],
+#                     tuple(annotation_data['object_size']),
+#                 )
+#                 if unique_key not in unique_annotations:
+#                     unique_annotations[unique_key] = Annotation(
+#                         person=people[annotation_data['personID']],
+#                         frame=frame,
+#                         rectangle_id=annotation_data['rectangleID'],
+#                         rotation_theta=annotation_data['rotation_theta'],
+#                         Xw=annotation_data['Xw'],
+#                         Yw=annotation_data['Yw'],
+#                         Zw=annotation_data['Zw'],
+#                         object_size_x=annotation_data['object_size'][0],
+#                         object_size_y=annotation_data['object_size'][1],
+#                         object_size_z=annotation_data['object_size'][2]
+#                     )
 
-#             # Deletion timing
-#             t5 = time.time()
-#             if to_delete_ids:
-#                 Annotation.objects.filter(id__in=to_delete_ids).delete()
-#             if existing_annotations:
-#                 Annotation.objects.filter(id__in=[a.id for a in existing_annotations.values()]).delete()
-#             print(f"Deletion operations took: {time.time() - t5:.3f}s")
+#             annotations_to_create = list(unique_annotations.values())
+            
 
-#             # Creation and 2D views timing
-#             t6 = time.time()
+#             # Bulk create/update annotations
+#             Annotation.objects.bulk_create(
+#                 annotations_to_create,
+#                 update_conflicts=True,
+#                 unique_fields=['person', 'frame'],
+#                 update_fields=['rectangle_id', 'rotation_theta', 'Xw', 'Yw', 'Zw', 
+#                             'object_size_x', 'object_size_y', 'object_size_z']
+#             )
 
-#             if to_create:
-#                 # created_annotations = None
-#                 created_annotations = Annotation.objects.bulk_create(list(to_create.values()), batch_size=10000, update_conflicts=True, update_fields=['Xw', 'Yw', 'Zw', 'rotation_theta'], unique_fields=['person', 'frame'])
-#                 # if to_create_2d:
-#                 #     Annotation2DView.objects.bulk_create(to_create_2d, batch_size=10000)
-#                 # else:
-#                 save_2d_views_bulk(created_annotations, annotation2dviews_to_create = to_create_2d)
-#             print(f"Creation and 2D views took: {time.time() - t6:.3f}s")
+#             # Bulk create 2D views
+#             save_2d_views_bulk(Annotation.objects.filter(frame=frame))
 
-#             print(f"Total operation took: {time.time() - start_time:.3f}s")
 #             return HttpResponse("Saved")
 
 #         except KeyError:
 #             return HttpResponse("Error")
-#     return HttpResponse("Error")
-from collections import defaultdict
+
+#     else:
+#         return HttpResponse("Error")
+
+
 @transaction.atomic
 def save_db(request):
     if is_ajax(request) and request.method == 'POST':
@@ -791,14 +786,22 @@ def save_db(request):
 
             # Get existing annotations
             existing_annotations = {
-                (ann.person.person_id, ann.rectangle_id): ann 
+                ann.person.person_id: ann 
                 for ann in Annotation.objects.filter(frame=frame).select_related('person')
             }
 
+            # Group data by personID since we now have multiple views per person
+            data_by_person = {}
+            for box_data in data:
+                person_id = box_data['personID']
+                if person_id not in data_by_person:
+                    data_by_person[person_id] = []
+                data_by_person[person_id].append(box_data)
+
             # Create people objects
             people_to_create = [
-                Person(person_id=d['personID'], worker=worker, dataset=dataset)
-                for d in data
+                Person(person_id=pid, worker=worker, dataset=dataset)
+                for pid in data_by_person.keys()
             ]
             Person.objects.bulk_create(people_to_create, ignore_conflicts=True)
             people = {p.person_id: p for p in Person.objects.filter(worker=worker, dataset=dataset)}
@@ -807,21 +810,29 @@ def save_db(request):
             to_create = []
             to_create_2d = defaultdict(list)
             to_delete_ids = []
-            # import pdb; pdb.set_trace()
-            for annotation_data in data:
-                key = (annotation_data['personID'], annotation_data['rectangleID'])
-                if key in existing_annotations:
+            
+            # Process each person's data
+            for person_id, person_boxes in data_by_person.items():
+                # Use first box with 3D data for creating the annotation
+                annotation_data = next((box for box in person_boxes if 'Xw' in box and 'Yw' in box and 'Zw' in box), None)
+                if not annotation_data:
+                    continue
+                
+                if person_id in existing_annotations:
                     # Update if changed
-                    existing = existing_annotations[key]
+                    existing = existing_annotations[person_id]
                     if has_changes(existing, annotation_data):
                         to_delete_ids.append(existing.id)
                         to_create.append(create_annotation_obj(annotation_data, people, frame))
-                        to_create_2d[annotation_data['personID']].append(annotation_data)
-                    del existing_annotations[key]
+                        to_create_2d[person_id].extend(person_boxes)
+                    del existing_annotations[person_id]
                 else:
                     # Create new
                     to_create.append(create_annotation_obj(annotation_data, people, frame))
-                    to_create_2d[annotation_data['personID']].append(annotation_data)
+                    to_create_2d[person_id].extend(person_boxes)
+                
+                # Add all boxes for this person to to_create_2d
+                
 
             # Delete remaining old annotations and changed ones
             if to_delete_ids:
@@ -832,11 +843,12 @@ def save_db(request):
             # Bulk create new/changed annotations
             if to_create:
                 Annotation.objects.bulk_create(to_create, batch_size=1000)
-                save_2d_views_bulk(Annotation.objects.filter(frame=frame), annotation2dviews_data=None)
+                save_2d_views_bulk(Annotation.objects.filter(frame=frame), annotation2dviews_data=to_create_2d)
 
-            return HttpResponse("Saved")
+#             return HttpResponse("Saved")
 
-        except KeyError:
+        except KeyError as e:
+            print(f"KeyError in save_db: {e}")
             return HttpResponse("Error")
     return HttpResponse("Error")
 
@@ -878,136 +890,6 @@ def create_annotation_obj_2d(annotation_data, annotation, views):
         annotation2dview.set_cuboid_points_2d(annotation_data['cuboid'])
     return annotation2dview
 
-# def save_db(request):
-#     #set_trace()
-    
-#     if is_ajax(request) and request.method == 'POST':
-#         try:
-#             data = json.loads(request.POST['data'])
-#             frame_id = request.POST['ID']
-#             worker_id = request.POST['workerID']
-#             # Check if the frame exists or create a new frame object
-#             # worker, _ = Worker.objects.get_or_create(workerID=worker_id)
-#             # Cache worker and dataset objects
-#             worker = cache.get(f'worker_{worker_id}')
-#             if not worker:
-#                 worker, _ = Worker.objects.get_or_create(workerID=worker_id)
-#                 cache.set(f'worker_{worker_id}', worker)
-#             dataset_name = request.POST['datasetName']
-#             #set_trace()
-#             dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
-#             frame, created = MultiViewFrame.objects.get_or_create(
-#                 frame_id=frame_id, worker=worker,undistorted=settings.UNDISTORTED_FRAMES,dataset=dataset)
-            
-#             #delete all annotations for this frame (if not single person save)
-#             if len(data)>1:
-#                 Annotation.objects.filter(frame=frame).delete()
-
-#             # First create all Person objects in bulk
-#             people_to_create = [
-#                 Person(person_id=annotation_data['personID'], worker=worker, dataset=dataset)
-#                 for annotation_data in data
-#             ]
-#             Person.objects.bulk_create(people_to_create, ignore_conflicts=True)
-
-#             # Get all persons at once
-#             # people = {p.person_id: p for p in Person.objects.filter(worker=worker, dataset=dataset)}
-#             people = {
-#                         p.person_id: p for p in Person.objects.select_related('worker', 'dataset')
-#                         .filter(worker=worker, dataset=dataset)
-#                     }
-
-
-#             # Create all annotations in bulk
-#             # annotations_to_create = [
-#             #     Annotation(
-#             #         person=people[annotation_data['personID']],
-#             #         frame=frame,
-#             #         rectangle_id=annotation_data['rectangleID'],
-#             #         rotation_theta=annotation_data['rotation_theta'],
-#             #         Xw=annotation_data['Xw'],
-#             #         Yw=annotation_data['Yw'],
-#             #         Zw=annotation_data['Zw'],
-#             #         object_size_x=annotation_data['object_size'][0],
-#             #         object_size_y=annotation_data['object_size'][1],
-#             #         object_size_z=annotation_data['object_size'][2]
-#             #     )
-#             #     for annotation_data in data
-#             # ]
-#             unique_annotations = {
-#                 (d['personID'], frame, d['rectangleID'], d['rotation_theta'], 
-#                 d['Xw'], d['Yw'], d['Zw'], tuple(d['object_size'])): 
-#                 Annotation(
-#                     person=people[d['personID']],
-#                     frame=frame,
-#                     rectangle_id=d['rectangleID'],
-#                     rotation_theta=d['rotation_theta'],
-#                     Xw=d['Xw'],
-#                     Yw=d['Yw'],
-#                     Zw=d['Zw'],
-#                     object_size_x=d['object_size'][0],
-#                     object_size_y=d['object_size'][1],
-#                     object_size_z=d['object_size'][2]
-#                 )
-#                 for d in data
-#             }
-
-#             # unique_annotations = {}
-
-#             # for annotation_data in data:
-#             #     unique_key = (
-#             #         annotation_data['personID'],
-#             #         frame,
-#             #         annotation_data['rectangleID'],
-#             #         annotation_data['rotation_theta'],
-#             #         annotation_data['Xw'],
-#             #         annotation_data['Yw'],
-#             #         annotation_data['Zw'],
-#             #         tuple(annotation_data['object_size']),
-#             #     )
-#             #     if unique_key not in unique_annotations:
-#             #         unique_annotations[unique_key] = Annotation(
-#             #             person=people[annotation_data['personID']],
-#             #             frame=frame,
-#             #             rectangle_id=annotation_data['rectangleID'],
-#             #             rotation_theta=annotation_data['rotation_theta'],
-#             #             Xw=annotation_data['Xw'],
-#             #             Yw=annotation_data['Yw'],
-#             #             Zw=annotation_data['Zw'],
-#             #             object_size_x=annotation_data['object_size'][0],
-#             #             object_size_y=annotation_data['object_size'][1],
-#             #             object_size_z=annotation_data['object_size'][2]
-#             #         )
-
-#             annotations_to_create = list(unique_annotations.values())
-            
-
-#             # Bulk create/update annotations
-#             Annotation.objects.bulk_create(
-#                 annotations_to_create,
-#                 update_conflicts=True,
-#                 unique_fields=['person', 'frame'],
-#                 update_fields=['rectangle_id', 'rotation_theta', 'Xw', 'Yw', 'Zw', 
-#                             'object_size_x', 'object_size_y', 'object_size_z'], 
-#                 batch_size=1000
-#             )
-
-#             # Bulk create 2D views
-#             save_2d_views_bulk(Annotation.objects.filter(frame=frame))
-
-#             return HttpResponse("Saved")
-
-#         except KeyError:
-#             return HttpResponse("Error")
-
-#     else:
-#         return HttpResponse("Error")
-
-class NumpyJSONEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if np.isnan(obj):
-            return -1
-        return super().default(obj)
 
 def load_db(request):
     print("Loading Database")
@@ -1640,3 +1522,36 @@ def merge(request):
             print("Exception:", e)
             return JsonResponse({"message": "Error", "error": str(e)}, status=500)
     return JsonResponse({"message": "Error"}, status=400)
+
+
+
+def auto_align_current(request):
+    if is_ajax(request):
+        try:
+            obj = json.loads(request.POST["data"])
+
+            obj = process_action(obj)
+            Xw = obj["Xw"]
+            Yw = obj["Yw"]
+            Zw = obj["Zw"]
+
+            frame_id = int(float(obj['frameID']))
+
+            world_point = np.array([[Xw], [Yw], [Zw]]).reshape(-1, 3)
+            print("Auto Align World point:", world_point)
+
+            world_point = auto_align_bbox(world_point, frame_id, settings.POSE_MODEL, settings.MESH, settings.CALIBS)
+                    
+
+            if world_point is None:
+                return HttpResponse("Error")
+            
+            print("Refined World point:", world_point)
+            next_rect = get_cuboids_2d(world_point, obj)
+
+            next_rect_json = json.dumps(next_rect)
+            # 
+            return HttpResponse(next_rect_json, content_type="application/json")
+        except KeyError:
+            return HttpResponse("Error")
+    return HttpResponse("Error")
