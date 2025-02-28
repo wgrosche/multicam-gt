@@ -17,6 +17,7 @@ import shutil
 from gtm_hit.misc.wildtrack_calib import load_calibrations
 from gtm_hit.misc.utils import read_calibs, get_frame_size, get_frame_path_dict
 from gtm_hit.misc.scout_calib import load_scout_calib
+from gtm_hit.misc.autoalign import get_pose_model
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -362,3 +363,5 @@ FRAMENUMBER_TO_PATH = get_frame_path_dict(DSETNAME, 'gtm_hit/static/gtm_hit/dset
 #         # Copy the file to the local subfolder.
 #         shutil.copy(src, dst)
 
+
+POSE_MODEL = get_pose_model(model_type="light") #performance

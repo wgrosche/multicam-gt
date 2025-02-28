@@ -32,7 +32,7 @@ var rotation = [50, 230, 150, 75, 265, 340, 80];
 // [0, 244, 1920, 162, -1, -1, -1, -1]];
 // var toggle_ground;
 // var toggle_orientation;
-var to_label = 5000;
+var to_label = 12100;
 
 let mouseDown = false;
 let selectedBox = null;
@@ -289,6 +289,7 @@ window.onload = function () {
   $(document).bind("keydown", "f", save); // ctrl+s
   $(document).bind("keydown", "c", copyPrevOrNext); // ,
   $(document).bind("keydown", "x", splitAtCurrentFrame); // x
+  $(document).bind("keydown", "v", autoAlignCurrent); // v
   // add copy button
   
 
@@ -574,7 +575,7 @@ function getFrameStrs() {
     success: function (msg) {
         frame_str = msg['frame'];
         nblabeled = msg['nblabeled'];
-        frame_strs = msg['frame_strs']
+        frameStrs = msg['frame_strs']
         
         
         // if (useUndistorted=="True") undistort_frames_path="undistorted_"
@@ -663,6 +664,7 @@ function onMouseUp(event) {
           y: yCorr,
           rotation_theta: box.rotation_theta,
           object_size: box.object_size,
+          frameID: frame_str,
           canv: this.id,
           person_id: pid,
           workerID: workerID,
@@ -701,8 +703,7 @@ function mainClick(e) {
   // Get canvas context to access current transform state
   const ctx = this.getContext('2d');
   const transform = ctx.getTransform();
-  // First convert the DOM event coordinates to “canvas coordinates” (i.e. the coordinates used when drawing without zoom)
-  // Here frame_size holds the image dimensions while this.clientWidth is the displayed canvas width.
+  // First convert the DOM event coordinates to "canvas coordinates"
   const canvasX = offsetX * (frame_size[0] / this.clientWidth);
   const canvasY = offsetY * (frame_size[1] / this.clientHeight);
   // Now invert the current zoom/pan transform so that we recover the original image coordinate.
@@ -721,6 +722,13 @@ function mainClick(e) {
   // if (zoomOn)
   //   zoomOut();
   //post
+
+  if (e.ctrlKey) {
+    autoalign = "true";
+  } else {
+    autoalign = "false";
+  }
+
   $.ajax({
     method: "POST",
     url: "click",
@@ -728,6 +736,8 @@ function mainClick(e) {
       csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
       x: xCorr,
       y: yCorr,
+      frameID: frame_str,
+      autoalign: autoalign,
       canv: this.id.replace('canv', ''),
       workerID: workerID,
       datasetName: dset_name,
@@ -1191,30 +1201,39 @@ function updateSize(height, size, ind) {
 function save(e) {
   if (e) e.preventDefault();
   var dims = [];
-  for (var i = 0; i < rectsID.length; i++) {
-      var rid = rectsID[i];
-      var pid = identities[rid];
-      let box = boxes[0][pid];
-      box["personID"] = pid;
+  
+  // Loop through each camera
+  for (var camIdx = 0; camIdx < nb_cams; camIdx++) {
+    // Skip if this camera's boxes collection is empty
+    if (!boxes[camIdx]) continue;
+    
+    // Process all person IDs in this camera view
+    for (var pid in boxes[camIdx]) {
+      let box = boxes[camIdx][pid];
+      if (!box) continue;
+      
+      // Add personID explicitly to ensure it's included
+      box["personID"] = parseInt(pid);
       dims.push(box);
+    }
   }
+  
   $.ajax({
-      method: "POST",
-      url: 'save',
-      data: {
-          csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
-          data: JSON.stringify(dims),
-          ID: frame_str,
-          workerID: workerID,
-          datasetName: dset_name
-      },
+    method: "POST",
+    url: 'save',
+    data: {
+      csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+      data: JSON.stringify(dims),
+      ID: frame_str,
+      workerID: workerID,
+      datasetName: dset_name
+    },
     success: function (msg) {
       console.log(msg);
       unsavedChanges = false;
       $("#unsaved").html("All changes saved.");
     }
   });
-
 }
 
 function saveCurrentlySelected() {
@@ -2373,3 +2392,37 @@ async function load_frame(frame_string) {
 //       }
 //   });
 // }
+
+
+function autoAlignCurrent() {
+  if (chosen_rect === -1 || chosen_rect >= rectsID.length) {
+    console.error("No rectangle selected");
+    return false;
+  }
+  
+  const rectID = rectsID[chosen_rect];
+  const pid = identities[rectID];
+  
+  if (typeof pid === "undefined") {
+    console.error("No person ID associated with the selected rectangle");
+    return false;
+  }
+  
+  const box = boxes[0][pid];
+  const data = {
+    "personID": pid,
+    "rectangleID": rectID,
+    "frameID": frame_str,
+    "Xw": box["Xw"],
+    "Yw": box["Yw"],
+    "Zw": box["Zw"],
+    "rotation_theta": box["rotation_theta"],
+    "object_size": box["object_size"]
+  };
+  
+  sendAJAX("autoaligncurrent", JSON.stringify(data), rectID, rectAction, false);
+  update();
+  return false;
+}
+
+
