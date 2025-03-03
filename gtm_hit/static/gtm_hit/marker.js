@@ -335,7 +335,11 @@ function onMouseDown(event) {
   for (const [personID, rectID] of Object.entries(rectsID)) {
     const pid = identities[rectID];
     const box = boxes[canvasIndex][pid];
-    // console.log(box);
+    if (!box) {
+      console.log(`Box for pid ${pid} is not defined.`);
+      continue;
+    }
+  
     if (!box.cuboid || box.cuboid.length == 0) continue;
     
     let base_point = box.cuboid[8];
@@ -936,6 +940,10 @@ function backSpace() {
     var idPers = identities[rid];
     delete validation[idPers];
     delete identities[rid];
+    // delete from boxes
+    for (var i = 0; i < nb_cams; i++) {
+      delete boxes[i][idPers];
+    }
     //validation_dict.pop(idPers)
     //identities.pop(idRect)
     //for i in range(NB_PICTURES):

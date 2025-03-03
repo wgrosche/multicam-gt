@@ -48,7 +48,7 @@ def main():
     
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='SCOUT')
-    parser.add_argument('--worker', type=str, default='HIGHRESMESH')
+    parser.add_argument('--worker', type=str, default='SCIPIO')
     # parser.add_argument('--output', type=str, required=True, help='Output file path')
 
     args = parser.parse_args()

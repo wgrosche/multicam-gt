@@ -845,7 +845,7 @@ def save_db(request):
                 Annotation.objects.bulk_create(to_create, batch_size=1000)
                 save_2d_views_bulk(Annotation.objects.filter(frame=frame), annotation2dviews_data=to_create_2d)
 
-#             return HttpResponse("Saved")
+            return HttpResponse("Saved")
 
         except KeyError as e:
             print(f"KeyError in save_db: {e}")

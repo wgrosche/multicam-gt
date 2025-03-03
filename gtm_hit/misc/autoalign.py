@@ -481,14 +481,19 @@ def search_best_cuboid(all_feet_3d, all_feet_dist_to_camera, all_feet_scores, al
 
 
 def get_frame_path(frame_id, cam_id):
-    frame_mapping = settings.FRAMENUMBER_TO_PATH.get(frame_id, {})
-    frame_path= os.path.basename(frame_mapping[cam_id])
-    frame_path = Path(settings.DSETPATH) / "frames" / cam_id / frame_path
-
+    # frame_mapping = settings.FRAMENUMBER_TO_PATH.get(frame_id, {})
+    # frame_path= os.path.basename(frame_mapping[cam_id])
+    # frame_path = Path(settings.DSETPATH) / "frames" / cam_id / frame_path
+    # print(settings.FRAME_PATH_DICT.get(frame_id, {}).get(cam_id, {}))
+    frame_path = Path('/cvlabdata2/home/grosche/multicam-dev/multicam-gt/gtm_hit' + settings.FRAME_PATH_DICT.get(frame_id, {}).get(cam_id, ''))
+    # print(frame_path)
+    # static/gtm_hit/dset/SCOUT/frames/cvlabrpi1/cvlabrpi1_20240531_113100_12h00m00s000_65361_0.jpg
     return frame_path
 
 def get_frame(frame_id, cam_id):
-    frame_path = get_frame_path(frame_id, cam_id)    
+    
+    frame_path = get_frame_path(frame_id, cam_id)  
+    # print(frame_path)  
     frame = cv2.imread(str(frame_path))
 
     return frame
