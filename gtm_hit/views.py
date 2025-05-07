@@ -293,7 +293,8 @@ def click(request):
                 world_point = geometry.project_2d_points_to_mesh(
                     feet2d_h, settings.CALIBS[cam], settings.MESH)
 
-            
+            if "person_id" not in obj or obj["person_id"] == "":
+                obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset_name=dataset_name)
 
             rectangles = get_cuboids_2d(world_point[0], obj)
             rect_json = json.dumps(rectangles)
