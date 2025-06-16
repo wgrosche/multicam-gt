@@ -18,6 +18,10 @@ from gtm_hit.misc.wildtrack_calib import load_calibrations
 from gtm_hit.misc.utils import read_calibs, get_frame_size
 from gtm_hit.misc.scout_calib import load_scout_calib
 from gtm_hit.misc.autoalign import get_pose_model
+import re
+import cv2 as cv2
+from tqdm import tqdm
+
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,7 +43,7 @@ ALLOWED_HOSTS = ['10.90.43.13', 'pedestriantag.epfl.ch','localhost','127.0.0.1',
 INSTALLED_APPS = [
     'marker.apps.MarkerConfig',
     'gtm_hit.apps.Gtm_hitConfig',
-    #'gtm_hit',
+    # 'gtm_hit',
     'home',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -288,7 +292,11 @@ assert len(order) == len(CAMS) and len(set(order)) == len(order), "Order and CAM
 CAMS = [cam for cam in order if cam in CAMS]
 
 print(f"CAMS: {CAMS}")
-print(CAMS)
+# drop cams not found in frames
+CAMS = [cam for cam in CAMS if (SYMLINK_SOURCE_FRAMES / cam).is_dir()]
+
+print(f"CAMS after filtering missing folders: {CAMS}")
+
 FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
 #CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)
 NB_CAMS = len(CAMS)
@@ -325,6 +333,8 @@ ROI = {}
 #     ROI[cam_name] = get_polygon_from_points_3d(polygon)
 from gtm_hit.misc.geometry import reproject_to_world_ground_batched
 for cam_name, polygon in ROIjson['points_2d'].items():
+    if not cam_name in CALIBS.keys():
+        continue
     # project 2d points to 3d
     ground_pix = np.array(polygon)
     K0, R0, T0, dist = CALIBS[cam_name].K, CALIBS[cam_name].R, CALIBS[cam_name].T, CALIBS[cam_name].dist
@@ -333,97 +343,11 @@ for cam_name, polygon in ROIjson['points_2d'].items():
 
 
 OFFSETS = {'cvlabrpi11': 23, 'cvlabrpi22': 10}
-import re
-# def get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS, local_path = None):
-#     """
-#     Create dictionary of frame paths for each camera
-#     """
-#     if local_path is None:
-#         lookup_path = frame_path
-#     else:
-#         lookup_path = local_path
-#     frame_path_dict = {}
-#     # Use os.scandir for efficient directory traversal
-#     for cam_folder in os.scandir(lookup_path):
-#         cam_name = cam_folder.name
-#         if cam_folder.is_dir():
-#             for file in os.scandir(cam_folder.path):
-#                 if file.is_file() and file.name.endswith(".jpg"):
-#                     match = re.search(r"_(\d+)\.jpg$", file.name)
-#                     if match:
-#                         index = int(match.group(1))
-                        
-#                         adjusted_index = max(0, index + OFFSETS.get(cam_name, 0))
+from gtm_hit.misc.generate_frame_dict import get_frame_path_dict
+# FRAME_PATH_DICT = get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS, interval = 1, timestamped = False, force_reload=True, cache_path="frame_path_cache.json")
+FRAME_PATH_DICT = get_frame_path_dict(frame_path = SYMLINK_DEST_FRAMES, interval = 1, timestamped = False, force_reload=True, cache_path="frame_path_cache.json")
 
-#                         if adjusted_index != index:
-#                             print("Offsetting frame index by {0} for camera {1}".format(OFFSETS.get(cam_name, 0), cam_name))
-#                         if adjusted_index not in frame_path_dict:
-#                             frame_path_dict[adjusted_index] = {}
-#                         root_stub = '/static' + cam_folder.path.split("/static")[1]
-#                         frame_path_dict[adjusted_index][cam_name] = os.path.join(root_stub, file.name)
-
-#     return frame_path_dict
-import cv2 as cv2
-from tqdm import tqdm
-def get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS, local_path = None, cache_path="frame_path_cache.json"):
-    """
-    Create dictionary of frame paths for each camera, excluding frames that are duplicates
-    of their predecessor within the same camera sequence. Results are cached for faster subsequent loads.
-    """
-    # Try to load from cache first
-    if os.path.exists(cache_path):
-        with open(cache_path, 'r') as f:
-            return {int(k): v for k, v in json.load(f).items()}
-
-    if local_path is None:
-        lookup_path = frame_path
-    else:
-        lookup_path = local_path
-        
-    frame_path_dict = {}
-    last_images = {}
-    
-    for cam_folder in os.scandir(lookup_path):
-        cam_name = cam_folder.name
-        if cam_folder.is_dir():
-            # print(f"Processing camera {cam_name}")
-            sorted_files = sorted(
-                [f for f in os.scandir(cam_folder.path) if f.is_file() and f.name.endswith(".jpg")],
-                key=lambda x: int(re.search(r"_(\d+)\.jpg$", x.name).group(1))
-            )
-            
-            for file in tqdm(sorted_files, desc=f"Processing camera {cam_name}"):
-                match = re.search(r"_(\d+)\.jpg$", file.name)
-                if match:
-                    index = int(match.group(1))
-                    
-                    adjusted_index = max(0, index + OFFSETS.get(cam_name, 0))
-                    if adjusted_index % 10 != 0:
-                        continue
-                    current_img = cv2.imread(file.path)
-                    if cam_name in last_images:
-                        if np.array_equal(current_img, last_images[cam_name]):
-                            continue
-                            
-                    last_images[cam_name] = current_img
-                    
-                    if adjusted_index != index:
-                        print(f"Offsetting frame index by {OFFSETS.get(cam_name, 0)} for camera {cam_name}")
-                    if adjusted_index not in frame_path_dict:
-                        frame_path_dict[adjusted_index] = {}
-                    root_stub = '/static' + cam_folder.path.split("/static")[1]
-                    frame_path_dict[adjusted_index][cam_name] = os.path.join(root_stub, file.name)
-
-    # Save to cache
-    with open(cache_path, 'w') as f:
-        json.dump(frame_path_dict, f)
-
-    return frame_path_dict
-
-
-
-FRAME_PATH_DICT = get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS)
-print(FRAME_PATH_DICT.keys())
+# print(FRAME_PATH_DICT.keys())
 # Make a local copy of the dataset
 # Firefox link to make local image accessible by modifying: about:config
 # http://kb.mozillazine.org/Links_to_local_pages_do_not_work

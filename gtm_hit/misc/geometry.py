@@ -11,20 +11,6 @@ from matplotlib.path import Path as mplpath
 
 Calibration = namedtuple('Calibration', ['K', 'R', 'T', 'view_id'])
 
-
-# class CuboidVertexEnum(IntEnum):
-#     FrontTopRight = 0
-#     FrontTopLeft = 1
-#     RearTopRight = 2
-#     RearTopLeft = 3
-#     FrontBottomRight = 4
-#     FrontBottomLeft = 5
-#     RearBottomRight = 6
-#     RearBottomLeft = 7
-#     Base = 8
-#     Direction=9
-#     CUBOID_VERTEX_COUNT = 10
-
 class Cuboid:
     def __init__(self, calib:CameraParams, 
                  world_point:np.ndarray, 

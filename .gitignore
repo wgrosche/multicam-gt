@@ -24,3 +24,4 @@ scout/*
 exports/*
 **.json
 **.dump
+*.jpg
