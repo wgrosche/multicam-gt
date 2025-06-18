@@ -1,0 +1,17 @@
+name: insightface-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pip
+  - numpy
+  - opencv
+  - matplotlib
+  - scipy
+  - scikit-learn
+  - pytorch
+  - torchvision
+  - pip:
+      - insightface
+      - dlib

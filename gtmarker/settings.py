@@ -345,7 +345,7 @@ for cam_name, polygon in ROIjson['points_2d'].items():
 OFFSETS = {'cvlabrpi11': 23, 'cvlabrpi22': 10}
 from gtm_hit.misc.generate_frame_dict import get_frame_path_dict
 # FRAME_PATH_DICT = get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS, interval = 1, timestamped = False, force_reload=True, cache_path="frame_path_cache.json")
-FRAME_PATH_DICT = get_frame_path_dict(frame_path = SYMLINK_DEST_FRAMES, interval = 1, timestamped = False, force_reload=True, cache_path="frame_path_cache.json")
+FRAME_PATH_DICT = get_frame_path_dict(frame_path = SYMLINK_DEST_FRAMES, interval = 1, timestamped = False, force_reload=True, cache_path="utility/frame_path_cache.json")
 
 # print(FRAME_PATH_DICT.keys())
 # Make a local copy of the dataset

@@ -40,7 +40,7 @@ def process_camera_folder(cam_folder_path, cam_name, interval, offsets, regex_pa
 def get_frame_path_dict(
     frame_path=settings.SYMLINK_DEST_FRAMES,
     local_path=None,
-    cache_path="interpolate_cache.json",
+    cache_path="utility/interpolate_cache.json",
     interval=10,
     force_reload: bool = True,
     timestamped:bool = False

@@ -7,40 +7,53 @@ from PIL import Image
 import torch
 from typing import List, Tuple, Dict, Any
 
-# Option 1: Use MTCNN (PyTorch-based, lightweight)
-try:
-    from facenet_pytorch import MTCNN
-    mtcnn = MTCNN(keep_all=True, device='cpu')# if torch.cuda.is_available() else 'cpu')
-    face_detector_type = "mtcnn"
-    print("Using MTCNN for face detection")
-except ImportError:
-    mtcnn = None
-    face_detector_type = None
+# Option 0: Insightface
+# try:
+import insightface
+insightmodel = insightface.app.FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
+insightmodel.prepare(ctx_id=0, det_size=(1920, 1920))  # ctx_id=0 for CPU
+face_detector_type = "insight"
+print("Using insightface for face detection")
+# except ImportError:
+#     print('AHHHHH')
+#     insightmodel = None
+#     face_detector_type = None
 
-# Option 2: Use ultralytics YOLOv8 (if MTCNN not available)
-if mtcnn is None:
-    try:
-        from ultralytics import YOLO
-        # This will download the model on first use
-        yolo_model = YOLO('yolov8n-face.pt')  # or 'yolov8s-face.pt' for better accuracy
-        face_detector_type = "yolo"
-        print("Using YOLOv8 for face detection")
-    except ImportError:
-        yolo_model = None
+# # Option 1: Use MTCNN (PyTorch-based, lightweight)
+# if insightmodel is None:
+#     try:
+#         from facenet_pytorch import MTCNN
+#         mtcnn = MTCNN(keep_all=True, device='cpu')# if torch.cuda.is_available() else 'cpu')
+#         face_detector_type = "mtcnn"
+#         print("Using MTCNN for face detection")
+#     except ImportError:
+#         mtcnn = None
+#         face_detector_type = None
 
-# Option 3: MediaPipe (lightweight, CPU-optimized)
-if mtcnn is None and 'yolo_model' not in locals():
-    try:
-        import mediapipe as mp
-        mp_face_detection = mp.solutions.face_detection
-        mp_drawing = mp.solutions.drawing_utils
-        mediapipe_detector = mp_face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5)
-        face_detector_type = "mediapipe"
-        print("Using MediaPipe for face detection")
-    except ImportError:
-        mediapipe_detector = None
-        face_detector_type = "opencv"  # fallback
-        print("Falling back to OpenCV face detection")
+# # Option 2: Use ultralytics YOLOv8 (if MTCNN not available)
+# if mtcnn is None:
+#     try:
+#         from ultralytics import YOLO
+#         # This will download the model on first use
+#         yolo_model = YOLO('yolov8n-face.pt')  # or 'yolov8s-face.pt' for better accuracy
+#         face_detector_type = "yolo"
+#         print("Using YOLOv8 for face detection")
+#     except ImportError:
+#         yolo_model = None
+
+# # Option 3: MediaPipe (lightweight, CPU-optimized)
+# if mtcnn is None and 'yolo_model' not in locals():
+#     try:
+#         import mediapipe as mp
+#         mp_face_detection = mp.solutions.face_detection
+#         mp_drawing = mp.solutions.drawing_utils
+#         mediapipe_detector = mp_face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5)
+#         face_detector_type = "mediapipe"
+#         print("Using MediaPipe for face detection")
+#     except ImportError:
+#         mediapipe_detector = None
+#         face_detector_type = "opencv"  # fallback
+#         print("Falling back to OpenCV face detection")
 
 def load_frame_data(frame_id: int, json_path: str = "/cvlabdata2/home/grosche/multicam-dev/multicam-gt/sequence_01_testing_annotations.json") -> Dict[str, Any]:
     """Load frame data from JSON file."""
@@ -63,7 +76,7 @@ def static_path_to_absolute(static_path: str) -> str:
     Converts a Django /static/... path to an absolute path on the filesystem.
     """
     relative = static_path.lstrip("/").replace("static/", "", 1)
-    project_root = os.path.abspath(os.path.join(__file__, ".."))  # or hardcode base path
+    project_root = os.path.abspath(os.path.join(__file__, "../.."))  # or hardcode base path
     return os.path.join(project_root, "gtm_hit", "static", relative)
 
 # Initialize dlib predictor (you'll need to download the model file)
@@ -91,7 +104,29 @@ def get_rects_in_bbox(image: np.ndarray, bbox: List[List[int]]) -> List:
     roi = image[y1:y2, x1:x2]
     
     try:
-        if face_detector_type == "mtcnn" and mtcnn is not None:
+        if face_detector_type == 'insight' and insightmodel is not None:
+            return get_faces_insightface(roi, x1, y1)
+        elif face_detector_type == "mtcnn" and mtcnn is not None:
+            return get_faces_mtcnn(roi, x1, y1)
+        elif face_detector_type == "yolo" and 'yolo_model' in globals():
+            return get_faces_yolo(roi, x1, y1)
+        elif face_detector_type == "mediapipe" and 'mediapipe_detector' in globals():
+            return get_faces_mediapipe(roi, x1, y1)
+        else:
+            return get_faces_opencv(roi, x1, y1)
+    
+    except Exception as e:
+        print(f"Face detection failed: {e}")
+        return []
+    
+def get_rects_in_image(image: np.ndarray) -> List:
+    """Get face rectangles within a specific bounding box using available detector."""
+    x1, y1 = 0, 0
+    roi = image
+    try:
+        if face_detector_type == "insight" and insightmodel is not None:
+            return get_faces_insightface(roi, x1, y1)
+        elif face_detector_type == "mtcnn" and mtcnn is not None:
             return get_faces_mtcnn(roi, x1, y1)
         elif face_detector_type == "yolo" and 'yolo_model' in globals():
             return get_faces_yolo(roi, x1, y1)
@@ -175,6 +210,36 @@ def get_faces_mediapipe(roi: np.ndarray, offset_x: int, offset_y: int) -> List:
     
     return rects
 
+
+def get_faces_insightface(roi: np.ndarray, offset_x: int, offset_y: int) -> List[List[int]]:
+    """
+    Detect faces using InsightFace and return bounding boxes in full image coordinates.
+    
+    Parameters:
+        roi (np.ndarray): Region of interest image (BGR).
+        offset_x (int): Horizontal offset of ROI in original image.
+        offset_y (int): Vertical offset of ROI in original image.
+    
+    Returns:
+        List[List[int]]: List of bounding boxes [x1, y1, x2, y2] in full image coordinates.
+    """
+    # InsightFace expects RGB images
+    roi_rgb = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
+
+    faces = insightmodel.get(roi_rgb)
+
+    rects = []
+    for face in faces:
+        x1, y1, x2, y2 = face.bbox.astype(int)
+        rects.append([
+            x1 + offset_x,
+            y1 + offset_y,
+            x2 + offset_x,
+            y2 + offset_y
+        ])
+    
+    return rects
+
 def get_faces_opencv(roi: np.ndarray, offset_x: int, offset_y: int) -> List:
     """Fallback: Detect faces using OpenCV Haar Cascades."""
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -243,28 +308,53 @@ def get_faceline(landmarks: List) -> List:
     
     return routes
 
-def blur_paste(routes: List, img: np.ndarray, blur_strength: int = 51) -> np.ndarray:
-    """Apply blur to face regions defined by contour routes."""
-    mask = np.zeros_like(img)
+# def blur_paste(routes: List, img: np.ndarray, blur_strength: int = 51) -> np.ndarray:
+#     """Apply blur to face regions defined by contour routes."""
+#     mask = np.zeros_like(img)
     
+#     for landmarks in routes:
+#         # Create convex hull for better face coverage
+#         hull = cv2.convexHull(np.array(landmarks))
+#         cv2.fillPoly(mask, [hull], (255, 255, 255))
+    
+#     # Ensure odd kernel size
+#     if blur_strength % 2 == 0:
+#         blur_strength += 1
+    
+#     # Create blurred version of entire image
+#     blurred_region = cv2.GaussianBlur(img, (blur_strength, blur_strength), 21)
+    
+#     # Combine original and blurred using mask
+#     result_img = cv2.bitwise_and(img, cv2.bitwise_not(mask))
+#     result_img = cv2.bitwise_or(result_img, cv2.bitwise_and(blurred_region, mask))
+    
+#     return result_img
+def blur_paste(routes: List, img: np.ndarray, blur_strength: int = 31) -> np.ndarray:
+    """Apply soft blur to face regions defined by contour routes."""
+    mask = np.zeros(img.shape[:2], dtype=np.uint8)
+
     for landmarks in routes:
-        # Create convex hull for better face coverage
         hull = cv2.convexHull(np.array(landmarks))
-        cv2.fillPoly(mask, [hull], (255, 255, 255))
-    
+        cv2.fillPoly(mask, [hull], 255)
+
+    # Feather the mask edges to soften the transition
+    feathered_mask = cv2.GaussianBlur(mask, (15, 15), 5)
+
     # Ensure odd kernel size
     if blur_strength % 2 == 0:
         blur_strength += 1
-    
-    # Create blurred version of entire image
-    blurred_region = cv2.GaussianBlur(img, (blur_strength, blur_strength), 21)
-    
-    # Combine original and blurred using mask
-    result_img = cv2.bitwise_and(img, cv2.bitwise_not(mask))
-    result_img = cv2.bitwise_or(result_img, cv2.bitwise_and(blurred_region, mask))
-    
-    return result_img
 
+    # Blur the entire image
+    blurred = cv2.GaussianBlur(img, (blur_strength, blur_strength), 10)
+
+    # Normalize feathered mask to [0, 1] for blending
+    alpha = feathered_mask.astype(np.float32) / 255.0
+    alpha = cv2.merge([alpha] * 3)
+
+    # Blend images using alpha mask
+    blended = (img.astype(np.float32) * (1 - alpha) + blurred.astype(np.float32) * alpha).astype(np.uint8)
+
+    return blended
 def apply_gaussian_blur(image: np.ndarray, bbox: List[List[int]], blur_strength: int = 15) -> np.ndarray:
     """Apply simple Gaussian blur to entire bounding box region."""
     x1, y1 = bbox[0]
@@ -335,12 +425,31 @@ def apply_advanced_face_blur(image: np.ndarray, bbox: List[List[int]], blur_stre
         print(f"Advanced face blur failed, falling back to bbox blur: {e}")
         return apply_gaussian_blur(image, bbox, blur_strength // 3)
 
+def apply_advanced_face_blur_whole(image: np.ndarray, bbox: List[List[int]], blur_strength: int = 51) -> np.ndarray:
+    """Apply advanced face blur using the best available face detector and landmark-based masking."""
+    # Detect faces within the bounding box
+    rects = get_rects_in_image(image)
+    
+    if not rects:
+        # No faces detected, fall back to bbox blur
+        print("No faces detected in bbox, not blurring")
+        return image#apply_gaussian_blur(image, bbox, blur_strength // 3)
+    
+    # Get landmarks if available
+    if predictor is not None:
+        landmarks = get_landmarks(image, rects)
+        if landmarks:
+            # Use landmark-based precise blurring
+            routes = get_faceline(landmarks)
+            return blur_paste(routes, image, blur_strength)
+    return image
 
 def blur_faces_in_frame(frame_id: int, 
                        output_dir: str = "blurred_images",
                        blur_method: str = "advanced",
                        blur_strength: int = 51,
-                       json_path: str = "/cvlabdata2/home/grosche/multicam-dev/multicam-gt/sequence_01_testing_annotations.json"):
+                       json_path: str = "/cvlabdata2/home/grosche/multicam-dev/multicam-gt/sequence_01_testing_annotations.json",
+                       whole_image:bool = False):
     """
     Blur faces in all camera views for a given frame.
     
@@ -386,13 +495,16 @@ def blur_faces_in_frame(frame_id: int,
                 if img is None:
                     print(f"Failed to load image: {img_path}")
                     continue
-                
-                # Apply blurring to all bounding boxes
-                for track_id, bbox in bboxes:
-                    if blur_method == "advanced":
-                        img = apply_advanced_face_blur(img, bbox, blur_strength)
-                    else:
-                        img = apply_gaussian_blur(img, bbox, blur_strength)
+                if whole_image:
+                    img = apply_advanced_face_blur_whole(img, blur_strength)
+
+                else:
+                    # Apply blurring to all bounding boxes
+                    for track_id, bbox in bboxes:
+                        if blur_method == "advanced":
+                            img = apply_advanced_face_blur(img, bbox, blur_strength)
+                        else:
+                            img = apply_gaussian_blur(img, bbox, blur_strength)
                 
                 # Save blurred image
                 cam_dir = os.path.join(output_dir, cam_id)
@@ -431,8 +543,9 @@ if __name__ == "__main__":
 
     blur_faces_batch(
         frame_ids=[i for i in range(12000)],
-        output_dir="blurred_images",
+        output_dir="blurred_images_whole",
         blur_method="advanced",
         blur_strength=15,
-        json_path="/cvlabdata2/home/grosche/multicam-dev/multicam-gt/sequence_01_annotations.json"
+        json_path="/cvlabdata2/home/grosche/multicam-dev/multicam-gt/sequence_01_annotations.json",
+        whole_image = True
     )
