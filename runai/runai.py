@@ -126,3 +126,24 @@ def runGrid(c, full_cmd, autoname=True, detectron=False, test=False, sleep=False
 
 
 
+
+"""
+runai submit --name test -i registry.rcp.epfl.ch/cvlab-unit-grosche/blur:v0.1 --gpu 1 --large-shm -e LDAP_USERNAME=grosche -e LDAP_UID=260305 -e LDAP_GROUPNAME=cvlab-unit -e LDAP_GID=11166 --pvc cvlab-scratch:/cvlabscratch --interactive --command -- "pip install onnxruntime-gpu==1.21.0 /bin/bash -ic "sleep 3600"
+
+
+runai submit --name test -i registry.rcp.epfl.ch/cvlab-unit-grosche/blur:v0.1 --gpu 1 --large-shm -e LDAP_USERNAME=grosche -e LDAP_UID=260305 -e LDAP_GROUPNAME=cvlab-unit -e LDAP_GID=11166 --pvc cvlab-scratch:/cvlabscratch --command -- pip install onnxruntime && python blur_faces.py
+
+
+runai submit \
+  --name test \
+  --image registry.rcp.epfl.ch/cvlab-unit-grosche/blur:v0.1 \
+  --gpu 1 \
+  --large-shm \
+  -e LDAP_USERNAME=grosche \
+  -e LDAP_UID=260305 \
+  -e LDAP_GROUPNAME=cvlab-unit \
+  -e LDAP_GID=11166 \
+  --pvc cvlab-scratch:/cvlabscratch \
+  --interactive \
+  --command -- /bin/bash -ic "pip install onnxruntime-gpu --upgrade && sleep 3600"
+"""

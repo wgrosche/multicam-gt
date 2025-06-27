@@ -214,7 +214,7 @@ def as_martin(dataset, worker, sequence:str = 'sequence_01', testing:bool = Fals
             if track['frame_min'] <= frame_id <= track['frame_max']:
                 annotations.append(generate_frame_annotation_for_track(track, frame_id, timestamp_global = ts))
         return {
-            "frame_id": frame_id,
+            "frame_id": frame_id, #TODO adjust output frame id by offset
             "timestamp_ms": ts * 1000,
             "annotations": [annotation for annotation in annotations if annotation is not None]
         }
@@ -242,7 +242,12 @@ def visualise_export(dictionary:dict):
 
 
 
+"""
+single frame file format
+frame_id.json = {cam_name:{id:bbox, ...}, ..., "world_coord":{id:3dpoint, ...}}
 
+
+"""
 def main():
     
     parser = argparse.ArgumentParser()

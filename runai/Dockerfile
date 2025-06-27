@@ -1,10 +1,18 @@
 # Use NVIDIA's CUDA-enabled PyTorch base image
-FROM nvcr.io/nvidia/pytorch:24.03-py3
+FROM nvcr.io/nvidia/pytorch:25.05-py3
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+
+ARG LDAP_USERNAME
+ARG LDAP_UID
+ARG LDAP_GROUPNAME
+ARG LDAP_GID
+RUN groupadd ${LDAP_GROUPNAME} --gid ${LDAP_GID}
+RUN useradd -m -s /bin/bash -g ${LDAP_GROUPNAME} -u ${LDAP_UID} ${LDAP_USERNAME}
+
 
 # Install OS-level dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -42,6 +50,10 @@ RUN pip install \
 # Copy project files into the container (optional)
 # COPY . /workspace
 COPY ../pre_and_post/blur_faces.py /workspace
+
+RUN chown -R ${LDAP_USERNAME}:${LDAP_GROUPNAME} /workspace
+
+USER ${LDAP_USERNAME}
 
 ENTRYPOINT ["python", "blur_faces.py"]
 
