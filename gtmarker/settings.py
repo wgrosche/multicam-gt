@@ -21,6 +21,7 @@ from gtm_hit.misc.autoalign import get_pose_model
 import re
 import cv2 as cv2
 from tqdm import tqdm
+import json
 
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -98,14 +99,6 @@ WSGI_APPLICATION = 'gtmarker.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/1.10/ref/settings/#databases
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-#     }
-# }
-#
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -117,23 +110,6 @@ DATABASES = {
     }
 }
 DATA_UPLOAD_MAX_NUMBER_FIELDS = None
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': 'mydatabase', # This is where you put the name of the db file. 
-#                  # If one doesn't exist, it will be created at migration time.
-#     }
-# }
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-#         'NAME': 'pedestriantag',
-#         'USER': 'pedestriantag',
-#         'PASSWORD': 'lAzyLift96',
-#         'HOST': 'localhost',
-#         'PORT': '',
-#     }
-# }
 
 # Password validation
 # https://docs.djangoproject.com/en/1.10/ref/settings/#auth-password-validators
@@ -171,101 +147,33 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.10/howto/static-files/
 
-print(BASE_DIR) 
 STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join('gtm_hit/static')
-
-#STATICFILES_DIRS = (os.path.join(BASE_DIR, 'gtm_hit'),)
-
-# Additional locations of static files
-#STATICFILES_DIRS = [
-#location of your application, should not be public web accessible 
-# os.path.join(BASE_DIR, '/home/static/'),
-# os.path.join(BASE_DIR, '/gtm_him/static/'),
-# os.path.join(BASE_DIR, '/marker/static/')
-#]
-
+STATIC_ROOT = Path('gtm_hit/static')
 SAVES = '/labels/'
 
 # Constants
-#
-# f_rect = open('./marker/static/marker/cst.txt', 'r')
-# lines = f_rect.readlines()
-# f_rect.close()
-# NB_WIDTH = int(lines[2].split()[1])
-# NB_HEIGHT = int(lines[3].split()[1])
-# NB_RECT = NB_WIDTH * NB_HEIGHT
-# MAN_RAY = float(lines[4].split()[1])
-# MAN_HEIGHT = float(lines[5].split()[1])
-# REDUCTION = float(lines[6].split()[1])
-# NB_CAMS = int(lines[9].split()[1])
-
 DELTA_SEARCH = 5
 
-#TEMPLATES[0]['OPTIONS']['context_processors'].append("marker.context_processors.rectangles_processor")
-
-# try:
-#     rectangles_file = './marker/static/marker/rectangles.pom'#480x1440.pom'
-#     f_rect = open(rectangles_file, 'r')
-#     lines = f_rect.readlines()
-#     f_rect.close()
-#     if lines[0].split()[0] != "WIDTH":
-#         messagebox.showerror("Error","Incorrect file header")
-#     else:
-#         NB_WIDTH = int(lines[2].split()[1])
-#         NB_HEIGHT = int(lines[3].split()[1])
-#         NB_RECT = NB_WIDTH * NB_HEIGHT
-#         MAN_RAY = float(lines[4].split()[1])
-#         MAN_HEIGHT = float(lines[5].split()[1])
-#         REDUCTION = float(lines[6].split()[1])
-#         NB_CAMS = int(lines[9].split()[1])
-#         incr = 0
-#         test = []
-#         FIND_RECT = [[{} for _ in range(2913)] for _ in range(NB_CAMS)]
-#         RECT = [{} for _ in range(NB_CAMS)]
-#         for line in lines[10:]:
-#             l = line.split()
-#             cam = int(l[1])
-#             id_rect = int(l[2])
-#             if l[3] != "notvisible":
-#                 a, b, c, d = l[3:]
-#                 a = int(a)
-#                 b = int(b)
-#                 c = int(c)
-#                 d = int(d)
-#                 ratio = 180/(d-b)
-#                 if d < 5000:
-#                     if abs(c - a) < abs(d - b):
-#                         RECT[cam][id_rect] = (a, b, c, d,ratio)
-#                         FIND_RECT[cam][d][(a + c) // 2] = id_rect
-#         # NB_CAMS = 4
-# except FileNotFoundError:
-#         print("Error: Rectangle file not found")
-
-
-
-# DSETNAME = "rayon4"
-# CAMS = ["cam1","cam2","cam3","cam4"]
-# FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
-# CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)
-# NB_CAMS = len(CAMS)
-
-# need to: establish symlinked folders for get frame size etc
 DSETNAME = "SCOUT"
-# WORKER_ID = 'NEWCALIBMESH'
-DSETPATH = Path("./gtm_hit/static/gtm_hit/dset/") / DSETNAME
+SEQUENCE = 'sequence_01'
+
+# Paths
+# TODO: Set this path yourself
+SYMLINK_BASE = Path('/cvlabscratch') / 'datasets' / 'SCOUT'
+
+DSETPATH = STATIC_ROOT / "gtm_hit" / "dset" / DSETNAME
 SYMLINK_DEST_FRAMES = DSETPATH / "frames"
-SYMLINK_SOURCE_FRAMES = Path('/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1')
+SYMLINK_SOURCE_FRAMES = SYMLINK_BASE / 'images' / SEQUENCE
 CALIBPATH = DSETPATH / "calibrations"
-CALIB_SRC = Path("/cvlabdata2/home/grosche/dev/calib/initial_calibration")
-# CALIB_SRC = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/sync_frame_seq_1/calibrations/calibrations")
+CALIB_SRC = SYMLINK_BASE / 'calibrations'/ SEQUENCE
+
 FPS = 1 # framerate of input video (note, assumes 10fps base)
 NUM_FRAMES = 12000
 FRAME_START = 0
 FRAME_END = FRAME_START + NUM_FRAMES
 HEIGHT = 1.8
-RADIUS = 0.5 #person radius
-FLAT_GROUND = False#True # Whether or not to use the mesh for dataset generation and annotation
+RADIUS = 0.5 # person radius
+FLAT_GROUND = False # Whether or not to use the mesh for dataset generation and annotation
 FRAME_SKIP = int(float(10 / FPS))
 TIMEWINDOW = 5 * FRAME_SKIP # cropped frames loaded when selecting a bounding box (on either side)
 
@@ -279,7 +187,7 @@ UNLABELED = list(range(0,NBFRAMES,INCREMENT))
 STEPL = 0.02
 MOVE_STEP = 0.02 #same as stepl vidis ovoDA
 SIZE_CHANGE_STEP=0.03
-# NOTE: run data creation with full cameras before bed!
+
 try:
     CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIBPATH.iterdir()]
 except FileNotFoundError:
@@ -346,41 +254,6 @@ OFFSETS = {'cvlabrpi11': 23, 'cvlabrpi22': 10}
 from gtm_hit.misc.generate_frame_dict import get_frame_path_dict
 # FRAME_PATH_DICT = get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS, interval = 1, timestamped = False, force_reload=True, cache_path="frame_path_cache.json")
 FRAME_PATH_DICT = get_frame_path_dict(frame_path = SYMLINK_DEST_FRAMES, interval = 1, timestamped = False, force_reload=True, cache_path="utility/frame_path_cache.json")
-
-# print(FRAME_PATH_DICT.keys())
-# Make a local copy of the dataset
-# Firefox link to make local image accessible by modifying: about:config
-# http://kb.mozillazine.org/Links_to_local_pages_do_not_work
-# import shutil
-# from tqdm import tqdm
-
-# path_to_local_copy = Path("/cvlabscratch/home/engilber/datasets/SCOUT/local_copy_seq_2")
-
-# max_frame = max(FRAMENUMBER_TO_PATH.keys())
-
-# for frame_num in tqdm(range(0, max_frame + 1, 10)):
-
-# max_frame = max(FRAMENUMBER_TO_PATH.keys())
-
-# for frame_num in tqdm(range(0, max_frame + 1, 10)):
-#     # Only process if the frame number is present in the dictionary.
-#     if frame_num not in FRAMENUMBER_TO_PATH:
-#         continue
-#     # Iterate over each camera's frame path for the current frame number.
-#     for cam, src_path in FRAMENUMBER_TO_PATH[frame_num].items():
-#         # Create a subfolder for the camera if it doesn't already exist.
-#         cam_folder = path_to_local_copy / cam
-#         cam_folder.mkdir(parents=True, exist_ok=True)
-#         # Define the destination path with the original file name.
-#         src = Path(src_path)
-#         dst = cam_folder / src.name
-
-#         # Skip copying if the destination file already exists.
-#         if dst.exists():
-#             continue
-
-#         # Copy the file to the local subfolder.
-#         shutil.copy(src, dst)
 
 
 POSE_MODEL = get_pose_model(model_type="light") #performance
