@@ -1,126 +1,47 @@
 """
-Spline interpolation of annotated tracks
+Spline interpolation and visualization utilities for annotated tracks.
+
+This module provides functions to:
+- Load and interpolate 3D annotation tracks using cubic splines
+- Visualize tracks and cuboids on video frames
+- Draw cuboid edges for annotation visualization
 """
 
 import os
 from pathlib import Path
 import argparse
-import json 
+import json
 import re
 from datetime import datetime, timedelta
 from typing import Union, List
+from collections import defaultdict
+
 import numpy as np
 from tqdm import tqdm
 import cv2
-import django
 from django.conf import settings
-
-
 from scipy.interpolate import CubicSpline
-
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.patches import Circle
 from itertools import combinations
 
-
-def static_path_to_absolute(static_path: str) -> str:
-    """
-    Converts a Django /static/... path to an absolute path on the filesystem.
-    """
-    relative = static_path.lstrip("/").replace("static/", "", 1)
-    project_root = os.path.abspath(os.path.join(__file__, ".."))  # or hardcode base path
-    return os.path.join(project_root, "gtm_hit", "static", relative)
-
-def get_frame_path(frame_id, cam_id):
-
-    frame_path = Path('/cvlabdata2/home/grosche/multicam-dev/multicam-gt/gtm_hit' + settings.FRAME_PATH_DICT.get(frame_id, {}).get(cam_id, ''))
-
-    return frame_path
-
-def get_frame_timestamp(frame_id, cam_id):
-    frame_path = get_frame_path(frame_id=frame_id, cam_id=cam_id)
-    filename = frame_path.name
-    parts = filename.split('_')
-    if len(parts) >= 4:
-        # Parse the timestamp part (12h40m29s994)
-        time_part = parts[3]
-        if 'h' in time_part and 'm' in time_part and 's' in time_part:
-            hours = int(time_part.split('h')[0])
-            minutes = int(time_part.split('h')[1].split('m')[0])
-            seconds_parts = time_part.split('m')[1].split('s')
-            seconds = int(seconds_parts[0])
-            milliseconds = int(seconds_parts[1]) if len(seconds_parts) > 1 else 0
-            
-            # Convert to total seconds for comparison
-            total_seconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000
-
-        return total_seconds
-    else:
-        # print("Failed to parse filename: ", filename, "frame path: ", frame_path, f" at frame {frame_id}, for {cam_id}")
-        return None
+from .utils import get_frame_timestamp, return_consensus_cams_and_time, static_path_to_absolute, get_frame
+from ..models import Worker, Dataset
     
-def get_valid_timestamp(frame_id, cameras):
-    camera_timestamps = {
-        camera_id: ts
-        for camera_id in cameras
-        if (ts := get_frame_timestamp(frame_id, camera_id)) is not None
-    }
 
-
-    consensus_cameras = []
-    resulting_timestamp = 0
-    timestamps = list(camera_timestamps.values())
-    # print(timestamps)
-    try:
-        min_time = min(timestamps)
-        max_time = max(timestamps)
-    except:
-        print(f"times: {timestamps}, cameras: {camera_timestamps}")
-    
-    # Check if all cameras are within 0.5 seconds of each other
-    if max_time - min_time <= 0.5:
-        consensus_cameras = list(camera_timestamps.keys())
-        resulting_timestamp = np.mean(list(camera_timestamps.values()))
-    else:
-        # Find the largest group of cameras within 0.5 seconds of each other
-        for camera_id, timestamp in camera_timestamps.items():
-            group = [cam for cam, time in camera_timestamps.items() 
-                        if abs(time - timestamp) <= 0.5]
-            times = [time for cam, time in camera_timestamps.items() 
-                        if abs(time - timestamp) <= 0.5]
-            if len(group) > len(consensus_cameras):
-                consensus_cameras = group
-                if times:
-                    resulting_timestamp = np.mean(times)
-                else:
-                    raise ValueError("No consensus timestamps found.")
-
-    return consensus_cameras, resulting_timestamp
-
-
-def get_valid_cameras(calibs, frame_id, ground_point, max_distance=1000):
-    from .geometry import is_visible
-    valid_cameras = [camera_id for camera_id in calibs if np.linalg.norm(ground_point + np.dot(calibs[camera_id].R.T, calibs[camera_id].T).flatten()) < max_distance]
-    valid_cameras = [camera_id for camera_id in valid_cameras if is_visible(ground_point, camera_id)]
-    return valid_cameras
-
-def return_consensus_cams_and_time(calibs, frame_id, ground_point, max_distance=1000):
-    # Extract timestamps from filenames and filter cameras based on time consensus
-    # valid_cameras = get_valid_cameras(calibs, frame_id, ground_point, max_distance=max_distance)
-
-    # if len(valid_cameras) == 0:
-    #     print(f"No valid cams for frame {frame_id} at location {ground_point}, using first camera timestamp")
-    #     return [], get_frame_timestamp(frame_id, settings.CAMS[0])
-    
-    consensus_cameras, resulting_timestamp = get_valid_timestamp(frame_id, settings.CAMS)#valid_cameras)
-
-    
-    return consensus_cameras, resulting_timestamp
 
 def load_tracks(dataset, worker, person_ids: List[int], basepath: str = None, frame_timestamps: bool = False) -> List[dict]:
     """
-    Loads tracks for multiple person_ids at once with optimized DB access.
+    Load and interpolate tracks for multiple person_ids using cubic splines.
+    Args:
+        dataset (Dataset): The dataset object.
+        worker (Worker): The worker object.
+        person_ids (List[int]): List of person IDs to load tracks for.
+        basepath (str, optional): Base path for data (unused).
+        frame_timestamps (bool, optional): Whether to use frame timestamps.
+    Returns:
+        List[dict]: List of track dictionaries (one per person_id), or None if not found.
     """
     from django.db.models import Min, Max
     from .geometry import get_projected_points, is_visible
@@ -136,7 +57,7 @@ def load_tracks(dataset, worker, person_ids: List[int], basepath: str = None, fr
     )
 
     # Group annotations by person_id
-    from collections import defaultdict
+    
     grouped = defaultdict(list)
     for row in all_annotations:
         grouped[row['person__person_id']].append(row)
@@ -231,7 +152,16 @@ def load_tracks(dataset, worker, person_ids: List[int], basepath: str = None, fr
 
 
 def draw_cuboid_edges(img, projected_pts, color=(0, 255, 0), thickness=2):
-    """Draws cuboid edges on an image."""
+    """
+    Draw cuboid edges on an image given projected 2D points.
+    Args:
+        img (np.ndarray): Image to draw on.
+        projected_pts (array-like): 2D projected cuboid points (8 corners).
+        color (tuple): RGB color for edges.
+        thickness (int): Line thickness.
+    Returns:
+        np.ndarray: Image with cuboid edges drawn.
+    """
     # Define edges by indices into the projected 2D point array
     edges = [
         (0, 1), (1, 3), (3, 2), (2, 0),  # top face
@@ -246,6 +176,16 @@ def draw_cuboid_edges(img, projected_pts, color=(0, 255, 0), thickness=2):
 
 
 def visualize_track_on_video(track, camera, output_path="output_track.mp4", fps=10):
+    """
+    Visualize a 3D track by drawing its cuboid and center on video frames and saving as a video.
+    Args:
+        track (dict): Track dictionary with interpolation and metadata.
+        camera (str): Camera name.
+        output_path (str): Path to save the output video.
+        fps (int): Frames per second for output video.
+    Returns:
+        None
+    """
     from .geometry import Cuboid
     from .geometry import get_projected_points, is_visible
     frame_range = range(track['frame_min'], track['frame_max'] + 1)
@@ -253,14 +193,8 @@ def visualize_track_on_video(track, camera, output_path="output_track.mp4", fps=
     video_writer = None
 
     for frame_id in tqdm(frame_range, desc=f"Rendering {camera} track"):
-        img_path = static_path_to_absolute(settings.FRAME_PATH_DICT.get(frame_id, {}).get(camera, None))
-        if img_path is None:
-            print(f"Frame {frame_id} missing for camera {camera}")
-            continue
-
-        img = cv2.imread(str(img_path))
+        img = get_frame(frame_id, camera)
         if img is None:
-            print(f"Failed to load image: {img_path}")
             continue
 
         world_point = track['interpolate'](get_frame_timestamp(frame_id, camera))
@@ -302,20 +236,4 @@ def visualize_track_on_video(track, camera, output_path="output_track.mp4", fps=
     else:
         print("No frames were written.")
 
-
-def main():
-    """
-    Full interpolation for a dataset for given worker. Creates a clone and interpolates
-    
-    """
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'gtmarker.settings')
-    django.setup()
-    worker = Worker.objects.get(workerID = 'SCIPIO')
-    dataset = Dataset.objects.get(name ='SCOUT')
-    track = load_tracks(dataset, worker, person_ids = [493])
-    # visualize_track_on_video(track[0], 'cvlabrpi10')
-    # print('generation complete')
-
-# if __name__ == "__main__":
-#     main()
 

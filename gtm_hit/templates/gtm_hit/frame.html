@@ -11,14 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jquery@1.12.2/dist/jquery.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.6/dist/js/bootstrap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jquery-ui@1.11.4/jquery-ui.min.js"></script>
-
-  <!-- <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" />
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
-  <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
-  <script src="http://code.jquery.com/ui/1.11.4/jquery-ui.js"></script> -->
   <script src="{% static 'gtm_hit/jquery.hotkeys.js' %}"></script>
-
-  <!-- <link rel="stylesheet" type="text/css" href="{% static 'gtm_hit/frame.css' %}" /> -->
 
   <script type="text/javascript">
     var frame_number = "{{frame_number}}";
@@ -35,9 +28,6 @@
     var useUndistorted = "{{undistort}}";
     frame_size = frame_size.substring(1, frame_size.length - 1).split(",");
   </script>
-  <!-- <script type="text/javascript">
-  console.log("cameraPaths:", cameraPaths);
-  </script> -->
   <script src="{% static 'gtm_hit/marker.js' %}?v=2"></script>
 
   <script src="{% static 'gtm_hit/timeview.js' %}"></script>
@@ -73,38 +63,6 @@
 </script>
 
 
-<!-- <script type="text/javascript">
-  document.addEventListener("DOMContentLoaded", function () {
-    const container = document.getElementById('cameraContainer');
-    cameraPaths.forEach((camName, index) => {
-
-      const canvas = document.createElement('canvas');
-      canvas.id = `canv${camName}`;
-      canvas.width = 1920;
-      canvas.height = 1080;
-      canvas.dataset.toggle = "tooltip";
-      canvas.title = `Camera ${camName}`;
-      canvas.className = "img";
-      canvas.style.padding = "0";
-      container.appendChild(canvas);
-    });
-  });
-</script> -->
-    <!-- for (let i = 1; i <= cameraPaths.length; i++) {
-      const canvas = document.createElement('canvas');
-      canvas.id = `canv${i}`;
-      canvas.width = 1920;
-      canvas.height = 1080;
-      canvas.dataset.toggle = "tooltip";
-      canvas.title = `Camera ${i}`;
-      canvas.className = "img";
-      canvas.style.padding = "0";
-      container.appendChild(canvas);
-    }
-  });
-</script> -->
-
-
 <body>
   {% include "includes_hit/navbar.html" %}
 
@@ -137,8 +95,6 @@
 
 
               </ul>
-              
-              <!-- <button class="btn toggle-infos-btn" onclick="toggleInfos()">Show Infos</button> -->
               
               <button class="btn toggle-menu-btn" onclick="toggleMenu()">Show Menu</button>
               <button id="merge-boxes" class="btn toolbar-button" disabled>

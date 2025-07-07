@@ -1,29 +1,47 @@
-from django.db import models
-# from django.core.validators import validate_comma_separated_integer_list
+"""
+GTM Hit Models - Database Models for Multi-View Annotation System
+
+This module defines the database models for the GTM Hit annotation system,
+including workers, datasets, frames, annotations, and validation codes.
+"""
+
+import json
+import numpy as np
 from django.contrib.postgres.fields import ArrayField
+from django.db import models
 from django.utils import timezone
 
-import numpy as np
-import json
-
 class Worker(models.Model):
-    workerID = models.TextField(primary_key=True,max_length=40)
+    """
+    Represents an annotation worker.
+    
+    Tracks worker progress through the annotation workflow with states:
+    -1: Initial/Reset, 0: Introduction, 1: Annotation, 2: Completion, 3: Tutorial
+    """
+    workerID = models.TextField(primary_key=True, max_length=40)
     frameNB = models.IntegerField(default=-1)
     frame_labeled = models.PositiveSmallIntegerField(default=0)
-    #validationCode = models.PositiveIntegerField(default=0)
     finished = models.BooleanField(default=False)
     state = models.IntegerField(default=-1)
     tuto = models.BooleanField(default=False)
     time_list = models.TextField(default="")
     
-    def increaseFrame(self,val):
+    def increaseFrame(self, val):
+        """Increase the number of labeled frames."""
         self.frame_labeled = self.frame_labeled + val
-    def decreaseFrame(self,val):
+        
+    def decreaseFrame(self, val):
+        """Decrease the number of labeled frames."""
         self.frame_labeled = self.frame_labeled - val
-    def setTimeList(self,x):
+        
+    def setTimeList(self, x):
+        """Set the time list as JSON string."""
         self.time_list = json.dumps(x)
+        
     def getTimeList(self):
+        """Get the time list from JSON string."""
         return json.loads(self.time_list)
+        
     def __str__(self):
         return 'Worker: ' + self.workerID
     

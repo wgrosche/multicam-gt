@@ -1,3 +1,5 @@
+from ..models import Annotation2DView
+
 def serialize_annotation2dviews(queryset):
     serialized_data = []
     for atdv in queryset:
@@ -37,61 +39,6 @@ def serialize_annotation2dviews(queryset):
         }
         serialized_data.append(serialized_view)
     return serialized_data
-
-
-# def serialize_annotation2dviews(queryset):
-#     # Process all annotations in one go using list comprehension
-#     return [{
-#         'rectangleID': atdv.annotation.rectangle_id,
-#         'cameraID': atdv.view.view_id,
-#         'person_id': atdv.annotation.person.person_id,
-#         'annotation_complete': atdv.annotation.person.annotation_complete,
-#         'validated': atdv.annotation.validated,
-#         'creation_method': atdv.annotation.creation_method,
-#         'object_size': atdv.annotation.object_size,
-#         'rotation_theta': atdv.annotation.rotation_theta,
-#         'Xw': atdv.annotation.Xw,
-#         'Yw': atdv.annotation.Yw,
-#         'Zw': atdv.annotation.Zw,
-#         'x1': atdv.x1,
-#         'y1': atdv.y1,
-#         'x2': atdv.x2,
-#         'xMid': atdv.x1+(atdv.x2-atdv.x1)/2,
-#         'y2': atdv.y2,
-#         'cuboid': [atdv.cuboid_points[i:i+2] for i in range(0, 20, 2)] if atdv.cuboid_points else None,
-#         'frameID': atdv.annotation.frame.frame_id,
-#     } for atdv in queryset]
-from ..models import Annotation2DView
-
-# def serialize_frame_annotations(frame):
-#     annotations = Annotation2DView.objects.filter(
-#         annotation__frame=frame
-#     ).select_related(
-#         'annotation',
-#         'annotation__person',
-#         'view'
-#     )
-    
-#     return [{
-#         'rectangleID': atdv.annotation.rectangle_id,
-#         'cameraID': atdv.view.view_id,
-#         'person_id': atdv.annotation.person.person_id,
-#         'annotation_complete': atdv.annotation.person.annotation_complete,
-#         'validated': atdv.annotation.validated,
-#         'creation_method': atdv.annotation.creation_method,
-#         'object_size': atdv.annotation.object_size,
-#         'rotation_theta': atdv.annotation.rotation_theta,
-#         'Xw': atdv.annotation.Xw,
-#         'Yw': atdv.annotation.Yw,
-#         'Zw': atdv.annotation.Zw,
-#         'x1': atdv.x1,
-#         'y1': atdv.y1,
-#         'x2': atdv.x2,
-#         'xMid': atdv.x1+(atdv.x2-atdv.x1)/2,
-#         'y2': atdv.y2,
-#         'cuboid': [atdv.cuboid_points[i:i+2] for i in range(0, 20, 2)] if atdv.cuboid_points else None,
-#         'frameID': atdv.annotation.frame.frame_id,
-#     } for atdv in annotations]
 
 
 def serialize_frame_annotations(frame):

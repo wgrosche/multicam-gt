@@ -7,8 +7,107 @@ from ipdb import set_trace
 import re
 from gtm_hit.misc.geometry import Calibration
 from django.conf import settings
-
+import cv2
 from pathlib import Path
+
+def static_path_to_absolute(static_path: str) -> str:
+    """
+    Converts a Django /static/... path to an absolute path on the filesystem.
+    """
+    relative = static_path.lstrip("/").replace("static/", "", 1)
+    project_root = os.path.abspath(os.path.join(__file__, ".."))  # or hardcode base path
+    return os.path.join(project_root, "gtm_hit", "static", relative)
+
+def get_frame_path(frame_id, cam_id) -> Path:
+
+    frame_path = Path(static_path_to_absolute(settings.FRAME_PATH_DICT.get(frame_id, {}).get(cam_id, '')))
+
+    return frame_path
+
+def get_frame(frame_id, cam_id):
+    img_path = get_frame_path(frame_id, cam_id)
+    if img_path is None:
+        print(f"Frame {frame_id} missing for camera {camera}")
+
+    img = cv2.imread(str(img_path))
+    if img is None:
+        print(f"Failed to load image: {img_path}")
+
+    return frame
+
+def get_frame_timestamp(frame_id, cam_id):
+    frame_path = get_frame_path(frame_id=frame_id, cam_id=cam_id)
+    filename = frame_path.name
+    parts = filename.split('_')
+    if len(parts) >= 4:
+        # Parse the timestamp part (12h40m29s994)
+        time_part = parts[3]
+        if 'h' in time_part and 'm' in time_part and 's' in time_part:
+            hours = int(time_part.split('h')[0])
+            minutes = int(time_part.split('h')[1].split('m')[0])
+            seconds_parts = time_part.split('m')[1].split('s')
+            seconds = int(seconds_parts[0])
+            milliseconds = int(seconds_parts[1]) if len(seconds_parts) > 1 else 0
+            
+            # Convert to total seconds for comparison
+            total_seconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000
+
+        return total_seconds
+    else:
+        return None
+
+def get_valid_timestamp(frame_id, cameras):
+    camera_timestamps = {
+        camera_id: ts
+        for camera_id in cameras
+        if (ts := get_frame_timestamp(frame_id, camera_id)) is not None
+    }
+
+
+    consensus_cameras = []
+    resulting_timestamp = 0
+    timestamps = list(camera_timestamps.values())
+    # print(timestamps)
+    try:
+        min_time = min(timestamps)
+        max_time = max(timestamps)
+    except:
+        print(f"times: {timestamps}, cameras: {camera_timestamps}")
+    
+    # Check if all cameras are within 0.5 seconds of each other
+    if max_time - min_time <= 0.5:
+        consensus_cameras = list(camera_timestamps.keys())
+        resulting_timestamp = np.mean(list(camera_timestamps.values()))
+    else:
+        # Find the largest group of cameras within 0.5 seconds of each other
+        for camera_id, timestamp in camera_timestamps.items():
+            group = [cam for cam, time in camera_timestamps.items() 
+                        if abs(time - timestamp) <= 0.5]
+            times = [time for cam, time in camera_timestamps.items() 
+                        if abs(time - timestamp) <= 0.5]
+            if len(group) > len(consensus_cameras):
+                consensus_cameras = group
+                if times:
+                    resulting_timestamp = np.mean(times)
+                else:
+                    raise ValueError("No consensus timestamps found.")
+
+    return consensus_cameras, resulting_timestamp
+
+
+def get_valid_cameras(calibs, frame_id, ground_point, max_distance=1000):
+    from .geometry import is_visible
+    valid_cameras = [camera_id for camera_id in calibs if np.linalg.norm(ground_point + np.dot(calibs[camera_id].R.T, calibs[camera_id].T).flatten()) < max_distance]
+    valid_cameras = [camera_id for camera_id in valid_cameras if is_visible(ground_point, camera_id)]
+    return valid_cameras
+
+def return_consensus_cams_and_time(calibs, frame_id, ground_point, max_distance=1000):
+    
+    consensus_cameras, resulting_timestamp = get_valid_timestamp(frame_id, settings.CAMS)
+
+    
+    return consensus_cameras, resulting_timestamp
+
 def request_to_dict(request):
     #set_trace()
     retdict = {}
@@ -138,15 +237,6 @@ def read_calibs(calib_filepath, camera_names):
 
         return calibs 
     
-# def get_frame_size(dset, cams, start_frame):
-#     sizes = list()
-#     for cam in cams:
-#         frame_path = "./gtm_hit/static/gtm_hit/dset/"+dset+"/frames/" + cam + "/" +str(start_frame).zfill(8) + ".jpg" 
-#         img = Image.open(frame_path)
-#         sizes.append(img.width)
-#         sizes.append(img.height)
-
-#     return sizes
 
 def get_frame_size(dset, cams, start_frame):
     sizes = list()

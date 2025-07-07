@@ -1,50 +1,56 @@
-# -*- coding: utf-8 -*-
-from collections import defaultdict
-from curses.textpad import rectangle
-from django.shortcuts import get_object_or_404, render, redirect
-from django.contrib.auth import authenticate, login, logout
-from django.template.loader import render_to_string
-from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseRedirect, HttpResponse, HttpResponseNotFound, FileResponse, Http404
-from django.core import serializers
-from django.urls import reverse
-from django.views import generic
-from django.utils import timezone
-from django.conf import settings
-from .models import Worker, ValidationCode, MultiViewFrame, View, Annotation, Annotation2DView, Person, Dataset
-from django.template import RequestContext
-from django.http import JsonResponse
-from django.db import transaction
-from django.views.decorators.csrf import csrf_exempt
-from django.core.cache import cache
-import re
+"""
+GTM Hit Views - Multi-View Annotation System
+
+This module provides Django views for the GTM Hit multi-camera annotation system.
+It handles:
+- Worker management and state transitions
+- Frame navigation and annotation workflows
+- 3D-to-2D projection and geometry utilities
+- Annotation persistence and database operations
+- AJAX endpoints for interactive annotation UI
+"""
+
+# Standard library imports
 import json
 import os
-import random as rand
-from threading import Thread
-from ipdb import set_trace
-import random
-import glob
+import re
+import uuid
+from collections import defaultdict
+
+# Third-party imports
 import numpy as np
+from django.conf import settings
+from django.db import transaction
+from django.db.models import Q
+from django.http import HttpResponse, HttpResponseNotFound, JsonResponse
+from django.shortcuts import redirect, render
+from django.template import RequestContext
+from django.utils import timezone
+
+# Local app imports
+from .models import (
+    Worker, ValidationCode, MultiViewFrame, View, Annotation, 
+    Annotation2DView, Person, Dataset
+)
 from gtm_hit.misc import geometry
 from gtm_hit.misc.autoalign import auto_align_bbox
 from gtm_hit.misc.db import *
 from gtm_hit.misc.serializer import *
 from gtm_hit.misc.utils import convert_rect_to_dict, request_to_dict, process_action
-from pprint import pprint
-import uuid
-import itertools
-from django.db.models import Q
 
-from collections import defaultdict
-
-# from gtm_hit.misc.invision.create_video import create_video as create_video_invision
+# =====================
+# Worker Management Views
+# =====================
 
 def requestID(request):
     """
-    Request ID page
+    Render the worker ID request page and handle worker ID submission.
+    Validates worker ID format and redirects to processing initialization if valid.
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: Rendered requestID page or redirect to processInit.
     """
-    
     context = RequestContext(request).flatten()
     if request.method == "POST":
         if 'wID' in request.POST:
@@ -58,9 +64,14 @@ def requestID(request):
 
 def processInit(request, dataset_name, workerID):
     """
-    Process Init page
+    Initialize a worker for a given dataset. If the worker exists and is in reset state, transition to introduction state.
+    Args:
+        request (HttpRequest): The HTTP request object.
+        dataset_name (str): Name of the dataset.
+        workerID (str): Worker identifier.
+    Returns:
+        HttpResponse: Redirect to worker's main page.
     """
-    
     context = RequestContext(request).flatten()
     try:
         w = Worker.objects.get(pk=workerID)
@@ -73,7 +84,13 @@ def processInit(request, dataset_name, workerID):
 
 def index(request, workerID, dataset_name):
     """
-    Index page
+    Render the index page for a worker and dataset.
+    Args:
+        request (HttpRequest): The HTTP request object.
+        workerID (str): Worker identifier.
+        dataset_name (str): Name of the dataset.
+    Returns:
+        HttpResponse: Rendered index page or redirect.
     """
     
     context = RequestContext(request).flatten()
@@ -88,6 +105,15 @@ def index(request, workerID, dataset_name):
         return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
 def processIndex(request, workerID, dataset_name):
+    """
+    Transition worker from introduction to tutorial state if appropriate.
+    Args:
+        request (HttpRequest): The HTTP request object.
+        workerID (str): Worker identifier.
+        dataset_name (str): Name of the dataset.
+    Returns:
+        HttpResponse: Redirect to worker's main page.
+    """
     
     context = RequestContext(request)
     try:
@@ -101,6 +127,15 @@ def processIndex(request, workerID, dataset_name):
     return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
 def dispatch(request, dataset_name, workerID):
+    """
+    Dispatch worker to the correct state page based on their current state.
+    Args:
+        request (HttpRequest): The HTTP request object.
+        dataset_name (str): Name of the dataset.
+        workerID (str): Worker identifier.
+    Returns:
+        HttpResponse: Redirect to the appropriate page for the worker's state.
+    """
     
     context = RequestContext(request)
     try:
@@ -144,6 +179,15 @@ def dispatch(request, dataset_name, workerID):
     return redirect(urlpath+'index')
 
 def frame(request, dataset_name, workerID):
+    """
+    Render the annotation frame page for a worker and dataset.
+    Args:
+        request (HttpRequest): The HTTP request object.
+        dataset_name (str): Name of the dataset.
+        workerID (str): Worker identifier.
+    Returns:
+        HttpResponse: Rendered frame page or redirect.
+    """
     context = RequestContext(request).flatten()
 
     try:
@@ -159,22 +203,7 @@ def frame(request, dataset_name, workerID):
             dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
         except Dataset.DoesNotExist:
             return HttpResponseNotFound("Dataset not found")
-
-        # frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/', dataset_name, '/frames')
-        
-
-        # Create a dictionary of frame strings for each camera
         frame_strs = settings.FRAME_PATH_DICT[frame_number]
-        # for cam in settings.CAMS:
-        #     pattern = f"{frames_path}/{cam}/*_{frame_number}.jpg"
-        #     matching_files = glob.glob(pattern)
-        #     # print(matching_files)
-        #     if matching_files:
-        #         frame_strs[cam] = matching_files[0].split('/')[-1]
-
-        # print(frame_strs)
-        # context['cams'] = json.dumps(settings.CAMS)
-        # print(context['cams'])
 
         return render(request, 'gtm_hit/frame.html', {
             'dset_name': dataset.name, 
@@ -229,14 +258,30 @@ def finish(request, workerID,dataset_name):
 
 
 def is_ajax(request):
+    """
+    Check if the request is an AJAX request.
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        bool: True if AJAX, False otherwise.
+    """
+    """Check if request is an AJAX request."""
     return request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
 
 
 def get_cuboids_2d(world_point, obj, new=False):
+    """
+    Generate 2D bounding boxes for all camera views from a 3D world point.
+    Args:
+        world_point (array-like): 3D world coordinates [x, y, z].
+        obj (dict): Object properties including size and rotation.
+        new (bool): Unused parameter (kept for compatibility).
+    Returns:
+        list: List of 2D bounding box dictionaries for each camera.
+    """
     rectangles = list()
     rect_id = str(int(world_point[0])) + "_" + str(int(world_point[1])
                                                    ) + "_" + uuid.uuid1().__str__().split("-")[0]
-    # 
 
     if "object_size" in obj:
         object_size = obj["object_size"]
@@ -244,9 +289,7 @@ def get_cuboids_2d(world_point, obj, new=False):
         object_size = [settings.HEIGHT, settings.RADIUS, settings.RADIUS]
 
     for cam_id in range(settings.NB_CAMS):
-        # 
-        # try:
-            # check if world point is in the camera FOV
+        # Check if world point is in the camera FOV
         if geometry.is_visible(world_point, settings.CAMS[cam_id], check_mesh=True):
             calib = settings.CALIBS[settings.CAMS[cam_id]]
 
@@ -254,8 +297,6 @@ def get_cuboids_2d(world_point, obj, new=False):
                                     length = object_size[2], height = object_size[0])
             cuboid = cuboid.get_cuboid_points_2d(obj.get("rotation_theta", 0))
             p1, p2 = geometry.get_bounding_box(cuboid)
-
-        # except ValueError:
         else:
             cuboid = []
             p1 = [-1, -1]
@@ -269,6 +310,13 @@ def get_cuboids_2d(world_point, obj, new=False):
     return rectangles
 
 def click(request):
+    """
+    Handle click events for annotation placement. Projects 2D click to 3D world and returns 2D cuboids for all cameras.
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: JSON with 2D cuboid data or error.
+    """
     if is_ajax(request):
         # Extract and validate parameters
         x = int(float(request.POST['x']))
@@ -301,107 +349,39 @@ def click(request):
             return HttpResponse(rect_json, content_type="application/json")
 
 
-# def click(request):
-#     if is_ajax(request):
-#         x = int(float(request.POST['x']))
-#         y = int(float(request.POST['y']))
-#         worker_id = request.POST['workerID']
-#         dataset_name = request.POST['datasetName']
-#         obj = request_to_dict(request)
-#         cam = request.POST['canv'].replace("canv", "")
-        
-#         if cam in settings.CAMS:
-#             feet2d_h = np.array([[x], [y]])
-            
-#             if settings.FLAT_GROUND:
-#                 calib = settings.CALIBS[cam]
-#                 K0, R0, T0, dist = calib.K, calib.R, calib.T, calib.dist
-#                 world_point = geometry.reproject_to_world_ground_batched(feet2d_h.T, K0, R0, T0, dist, height=-0.301)
-#             else:
-#                 world_point = geometry.project_2d_points_to_mesh(
-#                     feet2d_h, settings.CALIBS[cam], settings.MESH)
 
-#             if "person_id" not in obj or obj["person_id"] == "":
-#                 obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset_name=dataset_name)
-
-#             rectangles = get_cuboids_2d(world_point[0], obj)
-#             rect_json = json.dumps(rectangles)
-            
-#             return HttpResponse(rect_json, content_type="application/json")
-
-# def click(request):
-#     if is_ajax(request):
-#         # print("Click endpoint hit")
-#         # print("POST data:", request.POST)
-
-#         # try:
-#         x = int(float(request.POST['x']))
-#         y = int(float(request.POST['y']))
-#         obj = request_to_dict(request)
-#         cam = request.POST['canv'].replace("canv", "")
-#         # cam = int(re.findall(r'\d+', cam)[0]) - 1
-#         #
-#         worker_id = request.POST['workerID']
-#         dataset_name = request.POST['datasetName']
-#         # print(f"Cam: {cam}")
-#         if cam in settings.CAMS:
-
-#         # if 0 <= cam < settings.NB_CAMS:
-#             feet2d_h = np.array([[x], [y]])#, [1]])
-#             # print("2d: ", feet2d_h, "cam: ", cam, "calib: ", settings.CALIBS[settings.CAMS[cam]])
-#             if settings.FLAT_GROUND:
-#                 calib = settings.CALIBS[cam]
-#                 K0, R0, T0, dist = calib.K, calib.R, calib.T, calib.dist
-#                 world_point = geometry.reproject_to_world_ground_batched(feet2d_h.T, K0, R0, T0, dist, height=-0.301)
-#             else:
-#                 world_point = geometry.project_2d_points_to_mesh(
-#                     feet2d_h, settings.CALIBS[cam], settings.MESH)#undistort=settings.UNDISTORTED_FRAMES)
-#             if "person_id" not in obj or obj["person_id"] == "":
-#                 obj["person_id"] = get_next_available_id(worker_id=worker_id,dataset_name=dataset_name)
-
-#             # print("World point:", world_point)
-#             rectangles = get_cuboids_2d(world_point[0], obj)
-#             # print("Rectangles:", rectangles)
-#             rect_json = json.dumps(rectangles)
-            
-            
-#             #
-#             return HttpResponse(rect_json, content_type="application/json")
-
-#         return HttpResponse("OK")
 
 
 def action(request):
+    """
+    Handle annotation modification actions. Updates 3D annotation and regenerates 2D projections.
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: JSON with updated 2D cuboid data or error.
+    """
     if is_ajax(request):
         try:
             obj = json.loads(request.POST["data"])
-
             obj = process_action(obj)
             Xw = obj["Xw"]
             Yw = obj["Yw"]
             Zw = obj["Zw"]
-
             
             world_point = np.array([[Xw], [Yw], [Zw]]).reshape(-1, 3)
-            # print("World point 0:", world_point)
-            # print("World point 1:", world_point[0].shape)
+            
             if not settings.FLAT_GROUND:
                 try:
                     world_point = geometry.move_with_mesh_intersection(world_point)
                 except Exception as e:
                     print(f"Warning: Value could not be checked with mesh: {e}")
                     print("Using original value, instead.")
-                    
 
             if world_point is None:
                 return HttpResponse("Error")
             
-            # print("World point 2:", world_point)
-            
             next_rect = get_cuboids_2d(world_point[0], obj)
-
             next_rect_json = json.dumps(next_rect)
-            # 
             return HttpResponse(next_rect_json, content_type="application/json")
         except KeyError:
             return HttpResponse("Error")
@@ -409,13 +389,34 @@ def action(request):
 
 
 def save(request):
+    """
+    Save annotation data to the database.
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: Result of save operation.
+    """
     return save_db(request)
 
 
 def load(request):
+    """
+    Load annotation data from the database.
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: JSON with annotation data or error.
+    """
     return load_db(request)
 
 def load_previous(request):
+    """
+    Load the previous frame's annotation data for a worker.
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: JSON with previous frame annotation data or error.
+    """
     if is_ajax(request):
         try:
 
@@ -444,6 +445,14 @@ def load_previous(request):
 
 
 def read_save(frameID, workerID):
+    """
+    Read saved annotation data from file for a given frame and worker.
+    Args:
+        frameID (str): Frame identifier.
+        workerID (str): Worker identifier.
+    Returns:
+        str: JSON string of annotation data.
+    """
     # 
     filename = "./gtm_hit/static/gtm_hit/dset/"+settings.DSETNAME + \
         "/labels/" + workerID + "/" + workerID + "_" + frameID + '.json'
@@ -452,6 +461,13 @@ def read_save(frameID, workerID):
     return json.dumps(annotations)
 
 def changeframe(request):
+    """
+    Change the current frame for a worker and update their progress.
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: JSON with new frame info or error.
+    """
     context = RequestContext(request)
     if is_ajax(request):
         try:
@@ -464,7 +480,6 @@ def changeframe(request):
             timelist = worker.getTimeList()
             timelist.append(timezone.now().isoformat())
             worker.setTimeList(timelist)
-            # print("Frame Number: ", frame_number)
             if order == "next":
                 inc = int(increment)
             elif order == "prev":
@@ -477,53 +492,7 @@ def changeframe(request):
             new_frame_number = min(max(int(frame_number) + inc, 0), settings.NUM_FRAMES - 1)
             if order == 'first':
                 new_frame_number = 0
-            # print("new_frame_number: ", new_frame_number)
-            # Get frame strings for each camera
-            # frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames')
-            # # frame_strs = {}
-            # # Perform a single glob for all cameras
-            # pattern = f"{frames_path}/*/*_*.jpg"
-            # all_files = glob.glob(pattern)
-
-            # Create a dictionary mapping (camera, frame_number) -> filename
-            # frame_dict = {}
-            # for file_path in all_files:
-            #     parts = file_path.split('/')
-            #     cam = parts[-2]  # Extract camera name from the directory structure
-            #     filename = parts[-1]
-            #     frame_number = int(filename.split('_')[-1].split('.')[0])  # Extract frame number
-            #     frame_dict[(cam, frame_number)] = filename
-
-            # Generate frame_strs based on adjusted frame numbers
-            # frame_strs = {}
-            # for cam in settings.CAMS:
-            #     if cam == 'cvlabrpi11':
-            #         adjusted_frame = max(new_frame_number - 23, 0)
-            #     elif cam == 'cvlabrpi22':
-            #         adjusted_frame = max(new_frame_number - 10, 0)
-            #     else:
-            #         adjusted_frame = new_frame_number
-                
-            #     frame_strs[cam] = frame_dict.get((cam, adjusted_frame), None)
-
             frame_strs = settings.FRAME_PATH_DICT[new_frame_number]
-
-            # pattern = f"{frames_path}/{cam}/*_{new_frame_number}.jpg"
-            # for cam in settings.CAMS:
-            #     # TODO: THIS IS A HACK, WON'T WORK WITH SECOND SEQUENCE
-            #     if cam == 'cvlabrpi11':
-            #         print("Loading frame: ", new_frame_number - 23, " for camera ", cam)
-            #         pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 23, 0)}.jpg"
-            #     elif cam == 'cvlabrpi22':
-            #         print("Loading frame: ", new_frame_number - 10, " for camera ", cam)
-            #         pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 10, 0)}.jpg"
-            #     else:
-            #         pattern = f"{frames_path}/{cam}/*_{new_frame_number}.jpg"
-            #     matching_files = glob.glob(pattern)
-            #     print(matching_files)
-            #     if matching_files:
-            #         frame_strs[cam] = matching_files[0].split('/')[-1]
-            # print(frame_strs)
             response = {
                 'frame': str(new_frame_number),
                 'nblabeled': worker.frame_labeled,
@@ -541,29 +510,14 @@ def changeframe(request):
     else:
         return HttpResponse("Error")
 
-            #         new_frame_number = min(max(int(frame_number) + inc, 0), settings.NUM_FRAMES - 1)
-            # if order == 'first':
-            #     new_frame_number = 0
-            # # print("new_frame_number: ", new_frame_number)
-            # # Get frame strings for each camera
-            # frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames')
-            # frame_strs = {}
-            # for cam in settings.CAMS:
-            #     # TODO: THIS IS A HACK, WON'T WORK WITH SECOND SEQUENCE
-            #     if cam == 'cvlabrpi11':
-            #         # print("Loading frame: ", new_frame_number - 38, " for camera ", cam)
-            #         pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 38, 0)}.jpg"
-            #     elif cam == 'cvlabrpi22':
-            #         # print("Loading frame: ", new_frame_number - 16, " for camera ", cam)
-            #         pattern = f"{frames_path}/{cam}/*_{max(new_frame_number - 16, 0)}.jpg"
-            #     else:
-            #         pattern = f"{frames_path}/{cam}/*_{new_frame_number}.jpg"
-            #     matching_files = glob.glob(pattern)
-            #     # print(matching_files)
-            #     if matching_files:
-            #         frame_strs[cam] = matching_files[0].split('/')[-1]
-
 def get_rect(closest):
+    """
+    Get rectangle data for a given rectangle ID across all cameras.
+    Args:
+        closest (str): Rectangle identifier.
+    Returns:
+        list: List of rectangle data dictionaries for each camera.
+    """
     rects = []
     for i in range(settings.NB_CAMS):
         rdic = {}
@@ -583,6 +537,13 @@ def get_rect(closest):
     return rects
 
 def registerWorker(workerID):
+    """
+    Register a new worker and initialize their frame number.
+    Args:
+        workerID (str): Worker identifier.
+    Returns:
+        Worker: The created Worker object.
+    """
     w = Worker()
     w.workerID = workerID
     w.frameNB = settings.STARTFRAME % settings.NBFRAMES
@@ -592,10 +553,25 @@ def registerWorker(workerID):
 
 
 def updateWorker(workerID, state):
+    """
+    Update the state of a worker.
+    Args:
+        workerID (str): Worker identifier.
+        state (int): New state value.
+    Returns:
+        None
+    """
     w = Worker.objects.get(pk=workerID)
 
 
 def generate_code(worker):
+    """
+    Generate or retrieve a validation code for a worker.
+    Args:
+        worker (Worker): Worker object.
+    Returns:
+        str: Validation code.
+    """
     try:
         code = ValidationCode.objects.get(worker_id=worker)
     except ValidationCode.DoesNotExist:
@@ -613,6 +589,15 @@ def generate_code(worker):
 
 
 def tuto(request, workerID,dataset_name):
+    """
+    Render the tutorial page for a worker.
+    Args:
+        request (HttpRequest): The HTTP request object.
+        workerID (str): Worker identifier.
+        dataset_name (str): Name of the dataset.
+    Returns:
+        HttpResponse: Rendered tutorial page or redirect.
+    """
     context = RequestContext(request).flatten()
     
     try:
@@ -626,6 +611,15 @@ def tuto(request, workerID,dataset_name):
 
 
 def processTuto(request, workerID,dataset_name):
+    """
+    Process tutorial completion and transition worker to annotation state.
+    Args:
+        request (HttpRequest): The HTTP request object.
+        workerID (str): Worker identifier.
+        dataset_name (str): Name of the dataset.
+    Returns:
+        HttpResponse: Redirect to worker's main page.
+    """
     context = RequestContext(request)
     try:
         w = Worker.objects.get(pk=workerID)
@@ -640,6 +634,13 @@ def processTuto(request, workerID,dataset_name):
 
 
 def processFinish(request):
+    """
+    Handle finish processing for a worker (AJAX endpoint).
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: Result of finish processing.
+    """
     context = RequestContext(request)
     if request.is_ajax():
         try:
@@ -656,6 +657,13 @@ def processFinish(request):
 
 
 def delete_and_load(startframe):
+    """
+    Delete and load frames for annotation (utility function).
+    Args:
+        startframe (int): Starting frame number.
+    Returns:
+        None
+    """
     toload = settings.LASTLOADED + 10
     # 1. remove frames
     sframe = startframe
@@ -674,105 +682,18 @@ def delete_and_load(startframe):
     settings.LASTLOADED = settings.LASTLOADED + 10
 
 
-# def save_db(request):
-#     #set_trace()
-    
-#     if is_ajax(request) and request.method == 'POST':
-#         try:
-#             data = json.loads(request.POST['data'])
-#             frame_id = request.POST['ID']
-#             worker_id = request.POST['workerID']
-#             # Check if the frame exists or create a new frame object
-#             worker, _ = Worker.objects.get_or_create(workerID=worker_id)
-#             dataset_name = request.POST['datasetName']
-#             #set_trace()
-#             dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
-#             frame, created = MultiViewFrame.objects.get_or_create(
-#                 frame_id=frame_id, worker=worker,undistorted=settings.UNDISTORTED_FRAMES,dataset=dataset)
-            
-#             #delete all annotations for this frame (if not single person save)
-#             if len(data)>1:
-#                 Annotation.objects.filter(frame=frame).delete()
 
-#             # First create all Person objects in bulk
-#             people_to_create = [
-#                 Person(person_id=annotation_data['personID'], worker=worker, dataset=dataset)
-#                 for annotation_data in data
-#             ]
-#             Person.objects.bulk_create(people_to_create, ignore_conflicts=True)
-
-#             # Get all persons at once
-#             people = {p.person_id: p for p in Person.objects.filter(worker=worker, dataset=dataset)}
-
-#             # Create all annotations in bulk
-#             # annotations_to_create = [
-#             #     Annotation(
-#             #         person=people[annotation_data['personID']],
-#             #         frame=frame,
-#             #         rectangle_id=annotation_data['rectangleID'],
-#             #         rotation_theta=annotation_data['rotation_theta'],
-#             #         Xw=annotation_data['Xw'],
-#             #         Yw=annotation_data['Yw'],
-#             #         Zw=annotation_data['Zw'],
-#             #         object_size_x=annotation_data['object_size'][0],
-#             #         object_size_y=annotation_data['object_size'][1],
-#             #         object_size_z=annotation_data['object_size'][2]
-#             #     )
-#             #     for annotation_data in data
-#             # ]
-#             unique_annotations = {}
-
-#             for annotation_data in data:
-#                 unique_key = (
-#                     annotation_data['personID'],
-#                     frame,
-#                     annotation_data['rectangleID'],
-#                     annotation_data['rotation_theta'],
-#                     annotation_data['Xw'],
-#                     annotation_data['Yw'],
-#                     annotation_data['Zw'],
-#                     tuple(annotation_data['object_size']),
-#                 )
-#                 if unique_key not in unique_annotations:
-#                     unique_annotations[unique_key] = Annotation(
-#                         person=people[annotation_data['personID']],
-#                         frame=frame,
-#                         rectangle_id=annotation_data['rectangleID'],
-#                         rotation_theta=annotation_data['rotation_theta'],
-#                         Xw=annotation_data['Xw'],
-#                         Yw=annotation_data['Yw'],
-#                         Zw=annotation_data['Zw'],
-#                         object_size_x=annotation_data['object_size'][0],
-#                         object_size_y=annotation_data['object_size'][1],
-#                         object_size_z=annotation_data['object_size'][2]
-#                     )
-
-#             annotations_to_create = list(unique_annotations.values())
-            
-
-#             # Bulk create/update annotations
-#             Annotation.objects.bulk_create(
-#                 annotations_to_create,
-#                 update_conflicts=True,
-#                 unique_fields=['person', 'frame'],
-#                 update_fields=['rectangle_id', 'rotation_theta', 'Xw', 'Yw', 'Zw', 
-#                             'object_size_x', 'object_size_y', 'object_size_z']
-#             )
-
-#             # Bulk create 2D views
-#             save_2d_views_bulk(Annotation.objects.filter(frame=frame))
-
-#             return HttpResponse("Saved")
-
-#         except KeyError:
-#             return HttpResponse("Error")
-
-#     else:
-#         return HttpResponse("Error")
 
 
 @transaction.atomic
 def save_db(request):
+    """
+    Save annotation data to the database (AJAX endpoint).
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: Result of save operation.
+    """
     if is_ajax(request) and request.method == 'POST':
         try:
             data = json.loads(request.POST['data'])
@@ -854,6 +775,14 @@ def save_db(request):
     return HttpResponse("Error")
 
 def has_changes(existing, new_data):
+    """
+    Compare existing annotation with new data to determine if changes exist.
+    Args:
+        existing (Annotation): Existing annotation object.
+        new_data (dict): New annotation data.
+    Returns:
+        bool: True if changes exist, False otherwise.
+    """
     """Compare existing annotation with new data"""
     return (
         existing.rotation_theta != new_data['rotation_theta'] or
@@ -866,6 +795,15 @@ def has_changes(existing, new_data):
     )
 
 def create_annotation_obj(data, people, frame):
+    """
+    Create a new Annotation object from data.
+    Args:
+        data (dict): Annotation data.
+        people (dict): Mapping of person IDs to Person objects.
+        frame (MultiViewFrame): Frame object.
+    Returns:
+        Annotation: New annotation object.
+    """
     """Create new annotation object from data"""
     return Annotation(
         person=people[data['personID']],
@@ -881,6 +819,15 @@ def create_annotation_obj(data, people, frame):
     )
 
 def create_annotation_obj_2d(annotation_data, annotation, views):
+    """
+    Create a new Annotation2DView object from data.
+    Args:
+        annotation_data (dict): 2D annotation data.
+        annotation (Annotation): Annotation object.
+        views (dict): Mapping of camera IDs to View objects.
+    Returns:
+        Annotation2DView: New 2D annotation view object.
+    """
     annotation2dview = Annotation2DView(
             view=views[annotation_data['cameraID']],
             annotation=annotation,
@@ -893,6 +840,13 @@ def create_annotation_obj_2d(annotation_data, annotation, views):
 
 
 def load_db(request):
+    """
+    Load annotation data from the database (AJAX endpoint).
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: JSON with annotation data or error.
+    """
     print("Loading Database")
     if is_ajax(request):
         try:
@@ -944,6 +898,13 @@ def load_db(request):
     return HttpResponse("Error")
 
 def change_id(request):
+    """
+    Change the person ID for an annotation and propagate changes (AJAX endpoint).
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: Result of ID change operation.
+    """
     #set_trace()
     if is_ajax(request):
         try:
@@ -1000,6 +961,13 @@ def change_id(request):
     return HttpResponse("Error")
 
 def person_action(request):
+    """
+    Perform actions on a person (mark complete or delete) (AJAX endpoint).
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: Result of person action.
+    """
     
     if is_ajax(request):
         try:
@@ -1026,6 +994,13 @@ def person_action(request):
     return HttpResponse("Error")
 
 def tracklet(request):
+    """
+    Retrieve the tracklet (sequence of 2D views) for a person in a frame (AJAX endpoint).
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: JSON with tracklet data or error.
+    """
     
     if is_ajax(request):
         try:
@@ -1048,6 +1023,13 @@ def tracklet(request):
 
 
 def interpolate(request):
+    """
+    Interpolate annotations for a person between frames (AJAX endpoint).
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: Result of interpolation or error.
+    """
     if is_ajax(request):
         return HttpResponse("Interpolation disabled for now", status=500)
         return HttpResponse(json.dumps({"message":message}), content_type="application/json")
@@ -1071,6 +1053,13 @@ def interpolate(request):
             return HttpResponse("Error")
 
 def cp_prev_or_next_annotation(request):
+    """
+    Copy annotation from previous or next frame for a person (AJAX endpoint).
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: Result of copy operation or error.
+    """
     #set_trace()
     if is_ajax(request):
         try:
@@ -1100,6 +1089,13 @@ def cp_prev_or_next_annotation(request):
             return HttpResponse("Error",status=500)
         
 def timeview(request):
+    """
+    Retrieve time window of 2D annotation views for a person (AJAX endpoint).
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: JSON with timeview data or error.
+    """
     if is_ajax(request):
         try:
             worker_id = request.POST['workerID']
@@ -1143,44 +1139,16 @@ def timeview(request):
         except KeyError:
             return HttpResponse("Error")
    
-# def timeview(request):
-    
-#     if is_ajax(request):
-#         # print('retrieving timeview')
-#         try:
-#             #
-#             worker_id = request.POST['workerID']
-#             person_id = int(float(request.POST['personID']))
-#             frame_id = int(float(request.POST['frameID']))
-#             view_id = int(float(request.POST['viewID']))
-#             dataset_name=request.POST['datasetName']
-#             # print('looking for frame: ', frame_id)
-#             # Calculate the range of frame_ids for 5 frames before and 5 frames after the given frame
 
-#             frame_id_start = max(0, frame_id - settings.TIMEWINDOW)
-#             frame_id_end =  min(frame_id + settings.TIMEWINDOW, settings.NUM_FRAMES)
-            
-#             # Filter the Annotation2DView objects using the calculated frame range and the Person object
-#             annotation2dviews = Annotation2DView.objects.filter(
-#                 annotation__frame__frame_id__gte=frame_id_start,
-#                 annotation__frame__frame_id__lte=frame_id_end,
-#                 annotation__frame__worker__workerID=worker_id,
-#                 annotation__frame__dataset__name=dataset_name,
-#                 annotation__person__person_id=person_id,
-#                 view__view_id = view_id,
-#                 annotation__frame__undistorted = settings.UNDISTORTED_FRAMES
-#             ).order_by('annotation__frame__frame_id')
-#             # print("annotation2dviews: ", annotation2dviews)
-#             timeviews =  serialize_annotation2dviews(annotation2dviews)
-#             # 
-#             # print("timeviews: ", timeviews)
-#             return HttpResponse(json.dumps(timeviews), content_type="application/json")
-#         except KeyError:
-#             return HttpResponse("Error")
-
-import numpy as np
 
 def reset_ac_flag(request):
+    """
+    Reset the annotation_complete flag for all persons of a worker and dataset (AJAX endpoint).
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: Result of reset operation or error.
+    """
     set_trace()
     if is_ajax(request):
         try:
@@ -1194,20 +1162,26 @@ def reset_ac_flag(request):
             return HttpResponse("Error")
 
 def create_video(request):
+    """
+    (Disabled) Create a video for a worker and dataset (AJAX endpoint).
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: Message indicating functionality is removed.
+    """
     print("This Functionality is removed for testing purposes")
     return HttpResponse("This Functionality is removed for testing purposes")
-#     if is_ajax(request):
-#         try:
-#             dataset_name = request.POST['datasetName']
-#             worker_id = request.POST['workerID']
-#             create_video_invision(f"{worker_id}.mp4",15,dataset_name,worker_id)
-#             return HttpResponse(json.dumps({"message":"ok"}), content_type="application/json")
-#         except KeyError:
-#             return HttpResponse("Error")
 
 
 
 def serve_frame(request):
+    """
+    Serve a frame image path for a given frame number and camera (AJAX endpoint).
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: JSON with frame string or error.
+    """
     if is_ajax(request):
         # try:
         frame_number = int(float(request.POST['frame_number']))
@@ -1244,130 +1218,14 @@ def serve_frame(request):
 
 
 
-# def merge(request):
-
-#     if is_ajax(request):
-#         try:
-#             with transaction.atomic():
-#                 person_id1 = int(float(request.POST['personID1']))
-#                 person_id2 = int(float(request.POST['personID2']))
-#                 dataset_name = request.POST['datasetName']
-#                 worker_id = request.POST['workerID']
-                
-#                 # Create new Person instance for merged track
-#                 worker = Worker.objects.get(workerID=worker_id)
-#                 dataset = Dataset.objects.get(name=dataset_name)
-
-#                 person1 = Person.objects.get(person_id=person_id1, worker=worker, dataset=dataset)
-#                 person2 = Person.objects.get(person_id=person_id2, worker=worker, dataset=dataset)
-
-#                 # Add prefetch_related for annotations to reduce queries
-#                 annotations = Annotation.objects.filter(
-#                     person__in=[person1, person2],
-#                     frame__frame_id__range=(settings.FRAME_START, settings.FRAME_END)
-#                 ).select_related('frame', 'person').prefetch_related('twod_views')
-
-#                 # Get all frames in the correct range
-#                 frames = MultiViewFrame.objects.filter(
-#                     frame_id__range=(settings.FRAME_START, settings.FRAME_END),
-#                     dataset=dataset,
-#                     worker=worker
-#                 )
-
-#                 print(len(annotations))
-
-#                 # Create lookup dictionary for all frames
-
-#                 annotations_by_frame = defaultdict(list)
-#                 for ann in annotations:
-#                     annotations_by_frame[ann.frame.frame_id].append(ann)
-
-#                 # Create merged annotations for all frames where we have annotations
-#                 merged_annotations = []
-#                 mergeable = False
-#                 to_be_deleted = []
-
-#                 for frame_number in sorted(annotations_by_frame.keys()):
-#                     frame_anns = annotations_by_frame.get(frame_number, [])
-#                     print(frame_anns)
-#                     if not frame_anns:
-#                         continue
-                    
-#                     positions = np.array([[ann.Xw, ann.Yw, ann.Zw] for ann in frame_anns])
-
-#                     # After positions array calculation
-#                     if len(positions) > 1:
-#                         # Calculate distances between consecutive points
-#                         distances = np.linalg.norm(np.diff(positions, axis=0), axis=1)
-#                         if np.all(distances <= settings.MERGE_THRESHOLD):
-#                             mergeable = True
-#                             avg_pos = positions.mean(axis=0)
-#                             frame = frames.get(frame_id=frame_number)
-#                             merged_annotations.append(
-#                                 Annotation(
-#                                     person=person1,
-#                                     frame=frame,
-#                                     rectangle_id=uuid.uuid4().__str__().split("-")[-1],
-#                                     rotation_theta=0,
-#                                     Xw=avg_pos[0],
-#                                     Yw=avg_pos[1],
-#                                     Zw=avg_pos[2],
-#                                     object_size_x=1.7,
-#                                     object_size_y=0.6,
-#                                     object_size_z=0.6,
-#                                     creation_method="merged_scout_tracks"
-#                                 )
-#                             )
-#                             to_be_deleted.append(frame_anns)
-#                             print("Mergeable")
-
-#                         elif np.all(distances > settings.MERGE_THRESHOLD) and mergeable == True:
-#                             print("No longer mergeable")
-#                             break
-#                         else:
-#                             print("Not yet mergeable")
-#                             continue
-#                     else:
-#                         frame = frames.get(frame_id=frame_number)
-#                         merged_annotations.append(
-#                                 Annotation(
-#                                     person=person1,
-#                                     frame=frame,
-#                                     rectangle_id=uuid.uuid4().__str__().split("-")[-1],
-#                                     rotation_theta=0,
-#                                     Xw=positions[0][0],
-#                                     Yw=positions[0][1],
-#                                     Zw=positions[0][2],
-#                                     object_size_x=1.7,
-#                                     object_size_y=0.6,
-#                                     object_size_z=0.6,
-#                                     creation_method="merged_scout_tracks"
-#                                 )
-#                             )
-#                         to_be_deleted.append(frame_anns)
-            
-#                 # Delete to_be_deleted annotations
-#                 annotation_ids = [ann.id for anns in to_be_deleted for ann in anns]
-#                 Annotation.objects.filter(
-#                     Q(id__in=annotation_ids)
-#                 ).delete()
-
-#                 # Bulk create new data
-#                 chunk_size = 1000
-#                 for i in range(0, len(merged_annotations), chunk_size):
-#                     Annotation.objects.bulk_create(merged_annotations[i:i+chunk_size])
-
-#                 merged_annotations = Annotation.objects.filter(person=person1)
-#                 save_2d_views_bulk(merged_annotations)
-
-#                 return JsonResponse({"message": "ok"})
-            
-#         except Exception as e:
-#             print("Exception:", e)
-#             return JsonResponse({"message": "Error", "error": str(e)}, status=500)
-#     return JsonResponse({"message": "Error"}, status=400)
-
 def merge(request):
+    """
+    Merge two person tracks into one (AJAX endpoint).
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        JsonResponse: Result of merge operation or error.
+    """
     if is_ajax(request):
         try:
             with transaction.atomic():
@@ -1527,6 +1385,13 @@ def merge(request):
 
 
 def auto_align_current(request):
+    """
+    Auto-align the current annotation using 3D pose and mesh (AJAX endpoint).
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: JSON with refined 2D cuboid data or error.
+    """
     if is_ajax(request):
         try:
             obj = json.loads(request.POST["data"])

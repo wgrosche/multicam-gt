@@ -1,10 +1,18 @@
+"""
+Geometry utilities for multi-view 3D annotation and camera projection.
+
+This module provides classes and functions for:
+- 3D cuboid and bounding box computation
+- Camera projection and calibration
+- Ray-mesh intersection and ground plane projection
+- Visibility checks and geometric utilities for annotation
+"""
+
 import numpy as np
 import cv2 as cv
 from collections import namedtuple
 from enum import IntEnum
 from django.conf import settings
-from ipdb import set_trace
-# import point_cloud_utils as pcu
 import trimesh
 from .scout_calib import CameraParams
 from matplotlib.path import Path as mplpath
@@ -12,6 +20,16 @@ from matplotlib.path import Path as mplpath
 Calibration = namedtuple('Calibration', ['K', 'R', 'T', 'view_id'])
 
 class Cuboid:
+    """
+    Represents a 3D cuboid in world coordinates and provides methods to project
+    it into camera/image space.
+    Args:
+        calib (CameraParams): Camera calibration parameters.
+        world_point (np.ndarray): 3D world coordinates of the cuboid center.
+        width (float): Width of the cuboid (default: settings.RADIUS).
+        length (float): Length of the cuboid (default: settings.RADIUS).
+        height (float): Height of the cuboid (default: settings.HEIGHT).
+    """
     def __init__(self, calib:CameraParams, 
                  world_point:np.ndarray, 
                  width:float = None, 
@@ -52,9 +70,21 @@ class Cuboid:
         self.world_point = world_point
         
     def get_cuboid_points3d(self):
+        """
+        Returns the 3D coordinates of the cuboid's corners in local cuboid space.
+        Returns:
+            np.ndarray: Array of shape (10, 3) with cuboid corner points.
+        """
         return self.cuboid_points3d
     
     def get_cuboid_points_3d_rotated(self, theta:float = 0):
+        """
+        Returns the 3D cuboid points after rotation around the Z axis.
+        Args:
+            theta (float): Rotation angle in radians.
+        Returns:
+            np.ndarray: Rotated cuboid points.
+        """
         if theta == 0:
             return self.cuboid_points3d
         rotz = np.array([[np.cos(theta),-np.sin(theta),0],
@@ -65,11 +95,26 @@ class Cuboid:
         return cuboid_points3d_rot
     
     def get_cuboid_points_3d_world(self, theta:float = 0):
+        """
+        Returns the 3D cuboid points in world coordinates after rotation.
+        Args:
+            theta (float): Rotation angle in radians.
+        Returns:
+            np.ndarray: Rotated and translated cuboid points in world coordinates.
+        """
         cuboid_points3d_rot = self.get_cuboid_points_3d_rotated(theta)
         cuboid_points3d_world = cuboid_points3d_rot + self.world_point.T
         return cuboid_points3d_world
 
     def get_cuboid_points_2d(self, theta:float = 0, calib=None):
+        """
+        Projects the cuboid's 3D points into the image plane.
+        Args:
+            theta (float): Rotation angle in radians.
+            calib (CameraParams): Camera calibration (default: self.calib).
+        Returns:
+            list: List of 2D projected points.
+        """
         if calib is None:
             calib = self.calib
         cuboid_points3d_world = self.get_cuboid_points_3d_world(theta)
@@ -77,7 +122,15 @@ class Cuboid:
 
         return cuboid_points2d
 
-    def get_bbox(self, theta:float = 0, calib=None, ):
+    def get_bbox(self, theta:float = 0, calib=None):
+        """
+        Returns the 2D bounding box of the projected cuboid in image space.
+        Args:
+            theta (float): Rotation angle in radians.
+            calib (CameraParams): Camera calibration (default: self.calib).
+        Returns:
+            tuple: Top-left and bottom-right coordinates of the bounding box.
+        """
         if calib is None:
             calib = self.calib
         cuboid_points2d = self.get_cuboid_points_2d(theta, calib)
@@ -86,6 +139,14 @@ class Cuboid:
 
 
 def get_ray_directions(points_2d:np.ndarray, calib):
+    """
+    Computes ray origins and directions in world coordinates for given 2D image points.
+    Args:
+        points_2d (np.ndarray): 2D image points (N, 2).
+        calib (CameraParams): Camera calibration parameters.
+    Returns:
+        tuple: (ray_origins, ray_directions), each of shape (N, 3).
+    """
     points_2d = np.array(points_2d, dtype=float).reshape(-1, 1, 2)
 
     # Vectorized undistortion
@@ -111,6 +172,21 @@ def get_ray_directions(points_2d:np.ndarray, calib):
 
 
 def project_2d_points_to_mesh(points_2d, calib, mesh, VERBOSE=False, min_z=-4, max_z=1, min_cam_dist=1, z_plane=0.1):
+    """
+    Projects 2D image points to 3D mesh surface using ray-mesh intersection.
+    If no intersection, projects to ground plane at z=z_plane.
+    Args:
+        points_2d (np.ndarray): 2D image points (N, 2).
+        calib (CameraParams): Camera calibration parameters.
+        mesh (trimesh.Trimesh): 3D mesh object.
+        VERBOSE (bool): Print debug info.
+        min_z (float): Minimum z for valid intersection.
+        max_z (float): Maximum z for valid intersection.
+        min_cam_dist (float): Minimum camera distance for valid intersection.
+        z_plane (float): Fallback ground plane height.
+    Returns:
+        np.ndarray: 3D world coordinates (N, 3).
+    """
     # Get ray origins and directions
     ray_origins, ray_directions = get_ray_directions(points_2d, calib)
     
@@ -185,6 +261,14 @@ def project_2d_points_to_mesh(points_2d, calib, mesh, VERBOSE=False, min_z=-4, m
 
 
 def find_nearest_using_intersection(point_3d, mesh):
+    """
+    Finds the nearest intersection of a vertical ray from a 3D point with a mesh.
+    Args:
+        point_3d (np.ndarray): 3D point (x, y, z).
+        mesh (trimesh.Trimesh): 3D mesh object.
+    Returns:
+        np.ndarray: Intersection point(s) or original point if no intersection.
+    """
     #Generate ray assuming vertical ray comming straight down with x,y coordinates of 3d_point
     ray_origin = np.array([[point_3d[0], point_3d[1], 2]])
     ray_direction = np.array([[0, 0, -1]])
@@ -205,9 +289,12 @@ def find_nearest_using_intersection(point_3d, mesh):
 
 def move_with_mesh_intersection(ground_pix, use_intersection=True): #reproject to mesh
     """
-    Finds the closest point on the mesh to ground_pix
-    
-    Requires that settings.MESH is a Trimesh.base.Trimesh object
+    Projects a 3D point to the closest point on the mesh surface.
+    Args:
+        ground_pix (np.ndarray): 3D point(s) to project.
+        use_intersection (bool): Use ray intersection or nearest surface.
+    Returns:
+        np.ndarray: Closest point(s) on the mesh.
     """
     if settings.FLAT_GROUND:
         return ground_pix
@@ -226,17 +313,15 @@ def move_with_mesh_intersection(ground_pix, use_intersection=True): #reproject t
 
 def project_world_to_camera(world_point, K1, R1, T1, dist=None):
     """
-    Project 3D point world coordinate to image plane (pixel coordinate) using cv2
-    
+    Project a 3D world point to 2D image coordinates using camera parameters.
     Args:
-        world_point: 3D point in world coordinates
-        K1: Camera intrinsic matrix
-        R1: Rotation matrix
-        T1: Translation vector
-        dist: Distortion coefficients (optional)
-    
+        world_point (np.ndarray): 3D world point.
+        K1 (np.ndarray): Camera intrinsic matrix.
+        R1 (np.ndarray): Rotation matrix.
+        T1 (np.ndarray): Translation vector.
+        dist (np.ndarray): Distortion coefficients (optional).
     Returns:
-        2D projected point in pixel coordinates
+        np.ndarray: 2D projected point in pixel coordinates.
     """
     # Reshape point to 1x3 array
     world_point = np.array(world_point, dtype=np.float32).reshape(1, 3)
@@ -254,7 +339,12 @@ def get_projected_points(points3d,
                          calib:CameraParams, 
                          ):
     """
-    Projects points into the image plane and filters non-visible points.
+    Projects 3D points into the image plane and filters non-visible points.
+    Args:
+        points3d (np.ndarray): 3D points (N, 3).
+        calib (CameraParams): Camera calibration parameters.
+    Returns:
+        list: List of 2D projected points.
     """
     undistort = settings.UNDISTORTED_FRAMES
     points3d = np.array(points3d).reshape(-1, 3)
@@ -263,8 +353,6 @@ def get_projected_points(points3d,
         points2d = [project_world_to_camera(point3d, calib.newCameraMatrix, calib.R, calib.T) for point3d in points3d]
     else:
         points2d = [project_world_to_camera(point3d, calib.K, calib.R, calib.T, calib.dist) for point3d in points3d]
-    # if points2d == (None, None):
-    #     raise ValueError("Could not project points to image plane.")
     points2d = np.squeeze(points2d)
 
     if len(points2d.shape) == 1:
@@ -274,50 +362,22 @@ def get_projected_points(points3d,
     return points2d
 
 
-# def get_cuboid_from_ground_world(world_point:np.ndarray, 
-#                                  calib:CameraParams, 
-#                                  height:float, 
-#                                  width:float, 
-#                                  length:float, 
-#                                  theta:float):
-    
-#     # cuboid_points3d = np.zeros((CuboidVertexEnum.CUBOID_VERTEX_COUNT, 3))
-#     # cuboid_points3d[CuboidVertexEnum.FrontTopRight] = [width / 2, length / 2, height]
-#     # cuboid_points3d[CuboidVertexEnum.FrontTopLeft] = [-width / 2, length / 2, height]
-#     # cuboid_points3d[CuboidVertexEnum.RearTopRight] = [width / 2, -length / 2, height]
-#     # cuboid_points3d[CuboidVertexEnum.RearTopLeft] = [-width / 2, -length / 2, height]
-#     # cuboid_points3d[CuboidVertexEnum.FrontBottomRight] = [width / 2, length / 2, 0]
-#     # cuboid_points3d[CuboidVertexEnum.FrontBottomLeft] = [-width / 2, length / 2, 0]
-#     # cuboid_points3d[CuboidVertexEnum.RearBottomRight] = [width / 2, -length / 2, 0]
-#     # cuboid_points3d[CuboidVertexEnum.RearBottomLeft] = [-width / 2, -length / 2, 0]
-#     # cuboid_points3d[CuboidVertexEnum.Base] = [0, 0, 0]
-#     # cuboid_points3d[CuboidVertexEnum.Direction] = [0, length / 2, 0]
-
-
-#     # rotz = np.array([[np.cos(theta),-np.sin(theta),0],
-#     #                  [np.sin(theta), np.cos(theta),0],
-#     #                  [            0,             0,1]])
-    
-#     # cuboid_points3d = (rotz @ cuboid_points3d.T).T
-#     # cuboid_points3d = cuboid_points3d + world_point.T
-#     # #
-#     # cuboid_points2d = get_projected_points(cuboid_points3d, calib)
-
-#     cuboid = Cuboid(calib, world_point, width = width, length = length, height = height)
-#     cuboid_points2d = cuboid.get_cuboid_points_2d(theta)
-#     return cuboid_points2d
-
-
 def get_cuboid2d_from_annotation(annotation, cam_name, undistort=False):
+    """
+    Computes the 2D cuboid projection for an annotation and camera.
+    Args:
+        annotation: Annotation object with 3D info.
+        cam_name (str): Camera name.
+        undistort (bool): Use undistorted frames.
+    Returns:
+        list or None: 2D cuboid points or None if not visible.
+    """
     calib = settings.CALIBS[cam_name]
-    #set_trace()
     height= annotation.object_size_x
     width = annotation.object_size_y
     length = annotation.object_size_z
     theta = annotation.rotation_theta
     world_point = annotation.world_point
-    # print("Processing cuboid: ", world_point, height, width, length, theta)
-    # check that world point is visible
     if world_point is None or np.any(np.isnan(world_point)):
         return None
     
@@ -325,52 +385,37 @@ def get_cuboid2d_from_annotation(annotation, cam_name, undistort=False):
     if not is_visible(world_point, cam_name, check_mesh=True):
         return None
     
-    
-    
 
     cuboid = Cuboid(calib, world_point, width = width, length = length, height = height)
     cuboid_points2d = cuboid.get_cuboid_points_2d(theta)
-    # print("adding cuboid: ", cuboid_points2d, " at: ", world_point)
-
-    # cuboid_points2d = get_cuboid_from_ground_world(world_point, calib, height, width, length, theta)
 
     return cuboid_points2d
-
-
-# def get_projected_points(points3d, calib:CameraParams, undistort=False):
-#     """
-#     Projects points into the image plane.
-
-#     Filters out points that intersect with the mesh on the way to the camera
-    
-#     """
-#     undistort = settings.UNDISTORTED_FRAMES
-#     points3d = np.array(points3d).reshape(-1, 3)
-
-#     mesh = settings.MESH
-
-
-
-#     if undistort:
-#         points2d = project_world_to_camera(points3d, calib.newCameraMatrix, calib.R, calib.T)
-#     else:
-#         points2d = project_world_to_camera(points3d, calib.K, calib.R, calib.T)
-
-#     points2d = np.squeeze(points2d)
-#     points2d = [tuple(p) for p in points2d]
-#     return points2d
 
 
 from shapely.geometry import Point, Polygon
 
 
 def get_polygon_from_points_3d(points_3d):
+    """
+    Create a 2D polygon from a list of 3D points (using x, y only).
+    Args:
+        points_3d (list): List of 3D points.
+    Returns:
+        Polygon: Shapely 2D polygon.
+    """
     polygon_points = [(point[0], point[1]) for point in points_3d]
     return Polygon(polygon_points)
 
 
 def is_point_in_polygon(polygon, test_point):
-    # print(test_point)
+    """
+    Check if a 2D point is inside or on the boundary of a polygon.
+    Args:
+        polygon (Polygon): Shapely polygon.
+        test_point (np.ndarray): 2D or 3D point.
+    Returns:
+        bool: True if inside or on boundary, False otherwise.
+    """
     test_point = np.array(test_point).flatten()
     test_point_2d = Point(test_point[0], test_point[1])
     # Check if point is inside or on boundary
@@ -378,16 +423,19 @@ def is_point_in_polygon(polygon, test_point):
 
 def is_visible(point3d:np.ndarray, cam_name:str, check_mesh:bool = True) -> bool:
     """
-    Checks if a 3D point is visible in the camera frame.
+    Checks if a 3D point is visible in the camera frame, optionally considering mesh occlusion.
+    Args:
+        point3d (np.ndarray): 3D point.
+        cam_name (str): Camera name.
+        check_mesh (bool): Whether to check mesh occlusion.
+    Returns:
+        bool: True if visible, False otherwise.
     """
     calib = settings.CALIBS[cam_name]
     
     point3d = np.array(point3d).reshape(-1, 3)
-    # mesh = settings.MESH
     camera_position = (-calib.R.T @ calib.T).flatten()
     ray_to_point = point3d - camera_position
-    # ray_origins, ray_directions = get_ray_directions(point3d, calib)
-    # ray_direction = ray_to_point / np.linalg.norm(ray_to_point)
 
     # check behind camera
     if np.dot(ray_to_point, calib.R[2]) < 0:
@@ -397,31 +445,28 @@ def is_visible(point3d:np.ndarray, cam_name:str, check_mesh:bool = True) -> bool
     if settings.ROI:
         polygon = settings.ROI[cam_name]
         if not is_point_in_polygon(polygon, point3d):
-            # print("Point not in ROI")
             return False
         
-    # print("Point in ROI")
     
     # Check if there’s an intersection between the ray and the mesh
-    # if mesh is not None and check_mesh:
-    #     # Get intersection locations with the mesh
-    #     locations, _, _ = mesh.ray.intersects_location(
-    #         ray_origins=np.array(camera_position), 
-    #         ray_directions=np.array(ray_direction)
-    #     )
+    if settings.MESH is not None and check_mesh:
+        # Get intersection locations with the mesh
+        locations, _, _ = settings.MESH.ray.intersects_location(
+            ray_origins=np.array(camera_position), 
+            ray_directions=np.array(ray_to_point)
+        )
         
-    #     if len(locations) > 0:
-    #         # Use squared distances to save computation
-    #         distance_to_point_sq = np.dot(ray_to_point, ray_to_point)
-    #         distance_to_intersection_sq = min(
-    #             np.dot(location - camera_position, location - camera_position) 
-    #             for location in locations
-    #         )
+        if len(locations) > 0:
+            distance_to_point_sq = np.dot(ray_to_point, ray_to_point)
+            distance_to_intersection_sq = min(
+                np.dot(location - camera_position, location - camera_position) 
+                for location in locations
+            )
 
-    #         # If there’s an intersection closer than the point, return False
-    #         if distance_to_intersection_sq < distance_to_point_sq:
-    #             print(f"Point {point3d} is not visible due to mesh intersection.")
-    #             return False
+            # If there’s an intersection closer than the point, return False
+            if distance_to_intersection_sq < distance_to_point_sq:
+                print(f"Point {point3d} is not visible due to mesh intersection.")
+                return False
 
             
     # If no intersection occurs before the point, return True
@@ -431,6 +476,13 @@ def is_visible(point3d:np.ndarray, cam_name:str, check_mesh:bool = True) -> bool
 
 
 def get_bounding_box(points):
+    """
+    Compute the axis-aligned bounding box for a set of 2D points.
+    Args:
+        points (array-like): 2D points.
+    Returns:
+        tuple: Top-left and bottom-right coordinates of the bounding box.
+    """
     points = points.copy()
     try:
         points = np.array(points, dtype=np.int64).reshape(-1, 1, 2)
@@ -442,22 +494,17 @@ def get_bounding_box(points):
 
 def reproject_to_world_ground_batched(ground_pix, K0, R0, T0, dist=None, height=0):
     """
-    Compute world coordinates from pixel coordinates of points on a plane at specified height
-    
+    Compute world coordinates from pixel coordinates of points on a plane at specified height.
     Args:
-    ground_pix (array-like): The pixel coordinates of points in the image. Shape (N,2) or (N,3)
-    K0 (array-like): The camera intrinsic matrix 
-    R0 (array-like): The camera rotation matrix
-    T0 (array-like): The camera translation vector
-    height (float): The height of the plane in world coordinates (default: 0)
-    
+        ground_pix (array-like): Pixel coordinates (N,2) or (N,3).
+        K0 (array-like): Camera intrinsic matrix.
+        R0 (array-like): Camera rotation matrix.
+        T0 (array-like): Camera translation vector.
+        dist (array-like): Distortion coefficients (optional).
+        height (float): Height of the plane in world coordinates.
     Returns:
-    array-like: The 3D world coordinates of the points. Shape (N,3)
+        np.ndarray: 3D world coordinates (N,3).
     """
-    # print("ground_pix: ", np.array(ground_pix).shape)
-    # print("K0: ", np.array(K0).shape)
-    # print("R0: ", np.array(R0).shape)
-    # print("T0: ", np.array(T0).shape)
     # Convert ground_pix to homogeneous coordinates if needed
     if dist is not None:
         undistorted_points = cv.undistortPoints(np.array(ground_pix, dtype=np.float32), K0, dist, P=K0)
@@ -469,7 +516,6 @@ def reproject_to_world_ground_batched(ground_pix, K0, R0, T0, dist=None, height=
     else:
         ground_pix_hom = ground_pix
         
-    # print("ground_pix_hom: ", np.array(ground_pix_hom).shape)
     # Transpose to 3xN for matrix operations
     ground_pix_hom = ground_pix_hom.T
         
@@ -483,8 +529,7 @@ def reproject_to_world_ground_batched(ground_pix, K0, R0, T0, dist=None, height=
     scale = (height - C0[2]) / l[2,:]
     
     # Reshape scale to broadcast correctly
-    scale = scale.reshape(-1)#[np.newaxis,:]
-    # print("scale: ", np.array(scale).shape)
+    scale = scale.reshape(-1)
     
     # Broadcast C0 to match dimensions
     C0_expanded = np.repeat(C0[:,np.newaxis], ground_pix_hom.shape[1], axis=1).reshape(3, -1)

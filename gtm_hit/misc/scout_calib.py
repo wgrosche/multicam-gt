@@ -40,12 +40,6 @@ class CameraParams:
     extrinsics:Extrinsics = None
     intrinsics:Intrinsics = None
     
-
-    
-
-    # def __repr__(self):
-    #     return f"Calibration(view_id={str(self.view_id)})\nK:\n{str(self.K)}\nR:\n{str(self.R)}\nT:\n{str(self.T)}\ndist:\n{str(self.dist)}"
-
     def get_R_vec(self):
         return cv.Rodrigues(self.R)[0] if self.R is not None else None
 
@@ -89,13 +83,6 @@ def prepare_calibs(calib_source_path, calib_path):
             (calib_path / calib_file.name).symlink_to(calib_file)
 
 def load_scout_calib(params_dir:Path, cameras:List[str], calib_source_path:Optional[Path] = None):
-    # cam_id_mat = np.mgrid[1:3,1:5].reshape(2,-1).T
-    # cam_id_keys = [f"cam_{cam_id[0]}_{cam_id[1]}" for cam_id in cam_id_mat]
-
-    # cam_id_keys_to_idx = dict([cam_id_keys[i],i] 
-    #                           for i in range(len(cam_id_keys)))
-    # videos_captures = {}
-    # output_data = {}
     if calib_source_path is not None and calib_source_path.exists():
         prepare_calibs(calib_source_path, params_dir)
         if not params_dir.exists():
@@ -108,5 +95,4 @@ def load_scout_calib(params_dir:Path, cameras:List[str], calib_source_path:Optio
         camera_parameters.read_from_json(params_dir / f"{camera_name}_0.json")
         camera_parameters.set_view_id(camera_parameters)
         cam_params[camera_name] = camera_parameters
-        # print("Loaded camera parameters for camera", camera_name, "with", camera_parameters)
     return cam_params

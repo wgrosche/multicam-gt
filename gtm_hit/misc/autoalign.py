@@ -10,7 +10,7 @@ from rtmlib import RTMPose, draw_skeleton
 
 from .geometry import get_projected_points, project_2d_points_to_mesh, is_visible, find_nearest_using_intersection
 from .geometry import Cuboid
-
+from .utils import get_frame_path, get_frame, get_valid_cameras
 
 def get_initial_point(points2d, frame_id, pose_model, camera_id, calibs, mesh):
     image = get_frame(frame_id, camera_id)
@@ -331,16 +331,6 @@ def evaluate_bboxes(bboxes, dist_to_camera, keypoints, kpts_scores):
     penalty = 0
     centering_penalty = 0
 
-    # total_area_v = np.sum((bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1]))
-
-    # bboxes_centers = (bboxes[:, 0] + bboxes[:, 2]) / 2, (bboxes[:, 1] + bboxes[:, 3]) / 2
-
-    # keypoints_outside = np.sum(np.logical_or(keypoints[:, 0] < bboxes[:, 0], keypoints[:, 0] > bboxes[:, 2]))
-    # keypoints_outside += np.sum(np.logical_or(keypoints[:, 1] < bboxes[:, 1], keypoints[:, 1] > bboxes[:, 3]))
-
-    # centering_penalty_vec = np.sum((keypoints[:, 0] - bboxes_centers[0])**2 + (keypoints[:, 1] - bboxes_centers[1])**2)
-
-
     for bbox, kps, dist, kpts_scores in zip(bboxes, keypoints, dist_to_camera, kpts_scores):
         if bbox is None:
             continue
@@ -372,14 +362,6 @@ def evaluate_bboxes(bboxes, dist_to_camera, keypoints, kpts_scores):
         centering_penalty = centering_penalty / len(kps)
 
         penalty = penalty / len(kps)
-    
-    # print("--------")
-    # print(total_area_v, total_area)
-    # print(keypoints_outside, penalty)
-    # print(centering_penalty_vec, centering_penalty)
-    # print(total_area, 1000*penalty, 1000*centering_penalty)
-    # Return a score (lower is better)
-    # print(total_area, 10 * penalty, 50 * centering_penalty)
     return centering_penalty
 
 def search_best_cuboid(all_feet_3d, all_feet_dist_to_camera, all_feet_scores, all_feet_keypoints, all_calibs, mesh, initial_point=None, grid_interval=0.06, padding=0.35):
@@ -478,80 +460,6 @@ def search_best_cuboid(all_feet_3d, all_feet_dist_to_camera, all_feet_scores, al
     # return the grid point with the best score
     return best_cuboid
 
-
-
-def get_frame_path(frame_id, cam_id):
-    # frame_mapping = settings.FRAMENUMBER_TO_PATH.get(frame_id, {})
-    # frame_path= os.path.basename(frame_mapping[cam_id])
-    # frame_path = Path(settings.DSETPATH) / "frames" / cam_id / frame_path
-    # print(settings.FRAME_PATH_DICT.get(frame_id, {}).get(cam_id, {}))
-    frame_path = Path('/cvlabdata2/home/grosche/multicam-dev/multicam-gt/gtm_hit' + settings.FRAME_PATH_DICT.get(frame_id, {}).get(cam_id, ''))
-    # print(frame_path)
-    # static/gtm_hit/dset/SCOUT/frames/cvlabrpi1/cvlabrpi1_20240531_113100_12h00m00s000_65361_0.jpg
-    return frame_path
-
-def get_frame(frame_id, cam_id):
-    
-    frame_path = get_frame_path(frame_id, cam_id)  
-    # print(frame_path)  
-    frame = cv2.imread(str(frame_path))
-
-    return frame
-
-def get_valid_cameras(calibs, frame_id, ground_point, max_distance=100):
-    valid_cameras = []
-    for camera_id in calibs:
-        distance_to_camera = np.linalg.norm(ground_point + np.dot(calibs[camera_id].R.T, calibs[camera_id].T).flatten())
-        # print(camera_id, distance_to_camera, is_visible(ground_point, camera_id))
-        if is_visible(ground_point, camera_id) and distance_to_camera < max_distance:
-            valid_cameras.append(camera_id)
-
-    print("Valid cameras: ", valid_cameras)
-
-    # Extract timestamps from filenames and filter cameras based on time consensus
-    camera_timestamps = {}
-    for camera_id in valid_cameras:
-        frame_path = get_frame_path(frame_id, camera_id)
-        filename = frame_path.name
-        # Extract timestamp from filename format: cvlabrpi4_20240531_123100_12h40m29s994_22510_300.jpg
-        parts = filename.split('_')
-        if len(parts) >= 4:
-            # Parse the timestamp part (12h40m29s994)
-            time_part = parts[3]
-            if 'h' in time_part and 'm' in time_part and 's' in time_part:
-                hours = int(time_part.split('h')[0])
-                minutes = int(time_part.split('h')[1].split('m')[0])
-                seconds_parts = time_part.split('m')[1].split('s')
-                seconds = int(seconds_parts[0])
-                milliseconds = int(seconds_parts[1]) if len(seconds_parts) > 1 else 0
-                
-                # Convert to total seconds for comparison
-                total_seconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000
-                camera_timestamps[camera_id] = total_seconds
-
-    consensus_cameras = []
-    timestamps = list(camera_timestamps.values())
-    min_time = min(timestamps)
-    max_time = max(timestamps)
-    
-    # Check if all cameras are within 0.5 seconds of each other
-    if max_time - min_time <= 0.5:
-        consensus_cameras = list(camera_timestamps.keys())
-    else:
-        # Find the largest group of cameras within 0.5 seconds of each other
-        for camera_id, timestamp in camera_timestamps.items():
-            group = [cam for cam, time in camera_timestamps.items() 
-                        if abs(time - timestamp) <= 0.5]
-            if len(group) > len(consensus_cameras):
-                consensus_cameras = group
-
-    print("Consensus cameras: ", consensus_cameras)
-
-
-    # Check occlusion by other people in the frame
-
-    
-    return consensus_cameras
 
 
 def add_reproj_feet_keypoints(all_feet_3d, all_feet_keypoints, all_calibs):
