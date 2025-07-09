@@ -19,8 +19,10 @@ def static_path_to_absolute(static_path: str) -> str:
     return os.path.join(project_root, "gtm_hit", "static", relative)
 
 def get_frame_path(frame_id, cam_id) -> Path:
-
-    frame_path = Path(static_path_to_absolute(settings.FRAME_PATH_DICT.get(frame_id, {}).get(cam_id, '')))
+    static = settings.FRAMES / cam_id / f'image_{frame_id}.jpg'
+    frame_path = Path(static_path_to_absolute(static))
+    
+    # Path(static_path_to_absolute(settings.FRAME_PATH_DICT.get(frame_id, {}).get(cam_id, '')))
 
     return frame_path
 

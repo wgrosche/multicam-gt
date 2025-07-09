@@ -14,7 +14,6 @@ import os
 from pathlib import Path
 import numpy as np
 import shutil
-from gtm_hit.misc.wildtrack_calib import load_calibrations
 from gtm_hit.misc.utils import read_calibs, get_frame_size
 from gtm_hit.misc.scout_calib import load_scout_calib
 from gtm_hit.misc.autoalign import get_pose_model
@@ -22,7 +21,8 @@ import re
 import cv2 as cv2
 from tqdm import tqdm
 import json
-
+from shapely.geometry import Polygon
+from gtm_hit.misc.geometry import get_polygon_from_points_3d, reproject_to_world_ground_batched
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -155,17 +155,15 @@ SAVES = '/labels/'
 DELTA_SEARCH = 5
 
 DSETNAME = "SCOUT"
-SEQUENCE = 'sequence_01'
 
+# Enable mesh
+USE_MESH = True
 # Paths
-# TODO: Set this path yourself
-SYMLINK_BASE = Path('/cvlabscratch') / 'datasets' / 'SCOUT'
-
 DSETPATH = STATIC_ROOT / "gtm_hit" / "dset" / DSETNAME
-SYMLINK_DEST_FRAMES = DSETPATH / "frames"
-SYMLINK_SOURCE_FRAMES = SYMLINK_BASE / 'images' / SEQUENCE
+FRAMES = DSETPATH / "frames"
 CALIBPATH = DSETPATH / "calibrations"
-CALIB_SRC = SYMLINK_BASE / 'calibrations'/ SEQUENCE
+MESHPATH = DSETPATH / "meshes" / "mesh.ply"
+ROIPATH = DSETPATH / "roi" / "roi.json"
 
 FPS = 1 # framerate of input video (note, assumes 10fps base)
 NUM_FRAMES = 12000
@@ -188,58 +186,36 @@ STEPL = 0.02
 MOVE_STEP = 0.02 #same as stepl vidis ovoDA
 SIZE_CHANGE_STEP=0.03
 
-try:
-    CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIBPATH.iterdir()]
-except FileNotFoundError:
-    CAMS = [Path(cam).name.replace('_0.json', '') for cam in CALIB_SRC.iterdir()]
-    #["cam1","cam2","cam3","cam4","cam5","cam6","cam7","cam8"]
-
-# Reorder CAMS according to desired order
-order = [f'cvlabrpi{i}' for i in [10,21,13,12,7,19,24,5,23,3,2,4,1,22,11,8,26,17,14,25,6,9,18,15,16]]
-assert len(order) == len(CAMS) and len(set(order)) == len(order), "Order and CAMS must have the same length and unique elements"
-CAMS = [cam for cam in order if cam in CAMS]
-
-print(f"CAMS: {CAMS}")
-# drop cams not found in frames
-CAMS = [cam for cam in CAMS if (SYMLINK_SOURCE_FRAMES / cam).is_dir()]
-
-print(f"CAMS after filtering missing folders: {CAMS}")
+# CAMS = [Path(cam).name.replace('.json', '') for cam in CALIBPATH.iterdir()]
+CAMS = sorted(
+    [Path(cam).name.replace('.json', '') for cam in CALIBPATH.iterdir()],
+    key=lambda x: int(x.split('_')[1])
+)
 
 FRAME_SIZES = get_frame_size(DSETNAME, CAMS, STARTFRAME)
-#CALIBS = read_calibs(Path("./gtm_hit/static/gtm_hit/dset/"+DSETNAME+"/calibrations/full_calibration.json"), CAMS)
 NB_CAMS = len(CAMS)
-CALIBS= load_scout_calib(CALIBPATH, cameras=CAMS, calib_source_path = CALIB_SRC)
+CALIBS= load_scout_calib(CALIBPATH, cameras=CAMS)
 ROTATION_THETA = np.pi/24
 UNDISTORTED_FRAMES=False
 MERGE_THRESHOLD = 1.0
 MAX_OUTLIER_GAP = 4
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# MESHPATH = Path("/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply")
-EXPORT = False
-if not EXPORT:
-    MESHPATH = '/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/mesh_ground/mesh_ground_no_text.ply'
-    # MESHPATH = '/cvlabscratch/home/engilber/datasets/SCOUT/collect_30_05_2024/scene_dense_textured_cleanup.ply'#Path("/cvlabdata2/home/grosche/dev/calibration") \
-        # / "scene_dense_texturet_decimate_1_manual_cleanup.ply"
-    import trimesh
-    try:
-        import trimesh.ray.ray_pyembree
-    except:
-        print("It's going to be slow")
-    MESH = trimesh.load(MESHPATH)
 
-import json
-from shapely.geometry import Polygon
-from gtm_hit.misc.geometry import get_polygon_from_points_3d
+# import trimesh
+# try:
+#     import trimesh.ray.ray_pyembree
+# except:
+#     print("It's going to be slow")
+
+# MESH = trimesh.load(MESHPATH, process=False, maintain_order=True, ignore_missing_files=True)
+# if hasattr(MESH, 'visual'):
+#     MESH.visual = trimesh.visual.ColorVisuals(MESH)
 
 
-
-ROIjson = json.load(open('/cvlabdata2/home/grosche/dev/calibration/ROI_annotated_polygon_3.json'))
+ROIjson = json.load(open(ROIPATH))
 
 ROI = {}
-# for cam_name, polygon in ROIjson['points_3d'].items():
-#     ROI[cam_name] = get_polygon_from_points_3d(polygon)
-from gtm_hit.misc.geometry import reproject_to_world_ground_batched
 for cam_name, polygon in ROIjson['points_2d'].items():
     if not cam_name in CALIBS.keys():
         continue
@@ -250,10 +226,6 @@ for cam_name, polygon in ROIjson['points_2d'].items():
     ROI[cam_name] = get_polygon_from_points_3d(polygon_3d)
 
 
-OFFSETS = {'cvlabrpi11': 23, 'cvlabrpi22': 10}
-from gtm_hit.misc.generate_frame_dict import get_frame_path_dict
-# FRAME_PATH_DICT = get_frame_path_dict(dset = DSETNAME, frame_path = SYMLINK_DEST_FRAMES, cams = CAMS, interval = 1, timestamped = False, force_reload=True, cache_path="frame_path_cache.json")
-FRAME_PATH_DICT = get_frame_path_dict(frame_path = SYMLINK_DEST_FRAMES, interval = 1, timestamped = False, force_reload=True, cache_path="utility/frame_path_cache.json")
 
 
 POSE_MODEL = get_pose_model(model_type="light") #performance

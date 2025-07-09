@@ -26,6 +26,7 @@ from django.http import HttpResponse, HttpResponseNotFound, JsonResponse
 from django.shortcuts import redirect, render
 from django.template import RequestContext
 from django.utils import timezone
+from django.templatetags.static import static
 
 # Local app imports
 from .models import (
@@ -203,7 +204,12 @@ def frame(request, dataset_name, workerID):
             dataset,_ = Dataset.objects.get_or_create(name=dataset_name)
         except Dataset.DoesNotExist:
             return HttpResponseNotFound("Dataset not found")
-        frame_strs = settings.FRAME_PATH_DICT[frame_number]
+
+        # frame_strs = {cam:str(settings.FRAMES / cam / f'image_{frame_number}.jpg') for cam in settings.CAMS}
+        frame_strs = {
+                cam: static(f'gtm_hit/dset/{settings.DSETNAME}/frames/{cam}/image_{frame_number}.jpg')
+                for cam in settings.CAMS
+            }
 
         return render(request, 'gtm_hit/frame.html', {
             'dset_name': dataset.name, 
@@ -237,8 +243,6 @@ def processFrame(request, workerID,dataset_name):
     except Worker.DoesNotExist:
         return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
-
-
 def finish(request, workerID,dataset_name):
     
     context = RequestContext(request).flatten()
@@ -256,7 +260,6 @@ def finish(request, workerID,dataset_name):
         return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
     return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
-
 def is_ajax(request):
     """
     Check if the request is an AJAX request.
@@ -267,7 +270,6 @@ def is_ajax(request):
     """
     """Check if request is an AJAX request."""
     return request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
-
 
 def get_cuboids_2d(world_point, obj, new=False):
     """
@@ -348,10 +350,6 @@ def click(request):
             rect_json = json.dumps(rectangles)
             return HttpResponse(rect_json, content_type="application/json")
 
-
-
-
-
 def action(request):
     """
     Handle annotation modification actions. Updates 3D annotation and regenerates 2D projections.
@@ -387,7 +385,6 @@ def action(request):
             return HttpResponse("Error")
     return HttpResponse("Error")
 
-
 def save(request):
     """
     Save annotation data to the database.
@@ -397,7 +394,6 @@ def save(request):
         HttpResponse: Result of save operation.
     """
     return save_db(request)
-
 
 def load(request):
     """
@@ -442,7 +438,6 @@ def load_previous(request):
         except (FileNotFoundError, KeyError):
             return HttpResponse("Error")
     return HttpResponse("Error")
-
 
 def read_save(frameID, workerID):
     """
@@ -492,7 +487,11 @@ def changeframe(request):
             new_frame_number = min(max(int(frame_number) + inc, 0), settings.NUM_FRAMES - 1)
             if order == 'first':
                 new_frame_number = 0
-            frame_strs = settings.FRAME_PATH_DICT[new_frame_number]
+            # frame_strs = {cam:str(settings.FRAMES / f'{cam}' / f'image_{new_frame_number}.jpg') for cam in settings.CAMS}
+            frame_strs = {
+                            cam: static(f'gtm_hit/dset/{settings.DSETNAME}/frames/{cam}/image_{new_frame_number}.jpg')
+                            for cam in settings.CAMS
+                        }
             response = {
                 'frame': str(new_frame_number),
                 'nblabeled': worker.frame_labeled,
@@ -551,7 +550,6 @@ def registerWorker(workerID):
     w.save()
     return w
 
-
 def updateWorker(workerID, state):
     """
     Update the state of a worker.
@@ -562,7 +560,6 @@ def updateWorker(workerID, state):
         None
     """
     w = Worker.objects.get(pk=workerID)
-
 
 def generate_code(worker):
     """
@@ -587,7 +584,6 @@ def generate_code(worker):
         code.save()
     return code.validationCode
 
-
 def tuto(request, workerID,dataset_name):
     """
     Render the tutorial page for a worker.
@@ -608,7 +604,6 @@ def tuto(request, workerID,dataset_name):
 
     except Worker.DoesNotExist:
         return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
-
 
 def processTuto(request, workerID,dataset_name):
     """
@@ -632,7 +627,6 @@ def processTuto(request, workerID,dataset_name):
         return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
     return redirect(f"/gtm_hit/{dataset_name}/{workerID}")
 
-
 def processFinish(request):
     """
     Handle finish processing for a worker (AJAX endpoint).
@@ -654,7 +648,6 @@ def processFinish(request):
             return HttpResponse("Error")
     else:
         return HttpResponse("Error")
-
 
 def delete_and_load(startframe):
     """
@@ -680,10 +673,6 @@ def delete_and_load(startframe):
                                 settings.CAMS[j] + "/begin/" + cp_frame + ".png gtm_hit/static/gtm_hit/frames/" + settings.CAMS[j] + "/")
 
     settings.LASTLOADED = settings.LASTLOADED + 10
-
-
-
-
 
 @transaction.atomic
 def save_db(request):
@@ -838,7 +827,6 @@ def create_annotation_obj_2d(annotation_data, annotation, views):
         annotation2dview.set_cuboid_points_2d(annotation_data['cuboid'])
     return annotation2dview
 
-
 def load_db(request):
     """
     Load annotation data from the database (AJAX endpoint).
@@ -857,10 +845,6 @@ def load_db(request):
             
             worker_id = request.POST['workerID']
             dataset_name = request.POST['datasetName']
-
-            print('this is frame:', frame_id)
-            print('this is worker:', worker_id)
-            print('this is dataset:', dataset_name)
             frame = MultiViewFrame.objects.get(frame_id=frame_id, worker_id=worker_id,undistorted=settings.UNDISTORTED_FRAMES, dataset__name=dataset_name)
             # 
             retjson = []
@@ -872,8 +856,6 @@ def load_db(request):
                     return -1
                 return obj
             
-
-            # Or for nested dictionaries:
             def replace_nan(obj):
                 if isinstance(obj, dict):
                     return {k: replace_nan(v) for k, v in obj.items()}
@@ -885,9 +867,6 @@ def load_db(request):
 
             retjson = replace_nan(retjson)
 
-            print(retjson[:10])
-            print(retjson[1170:1180])
-            print("Database query return length: ", len(retjson))
 
             return HttpResponse(json.dumps(retjson, default=nan_to_none), content_type="application/json")
 
@@ -905,14 +884,8 @@ def change_id(request):
     Returns:
         HttpResponse: Result of ID change operation.
     """
-    #set_trace()
     if is_ajax(request):
         try:
-            
-
-
-            
-
             person_id = int(float(request.POST['personID']))
             new_person_id = int(float(request.POST['newPersonID']))
             frame_id = int(float(request.POST['frameID']))
@@ -1020,7 +993,6 @@ def tracklet(request):
         except Exception as e:
             print('Error', e)
             return HttpResponse("Error")
-
 
 def interpolate(request):
     """
@@ -1139,8 +1111,6 @@ def timeview(request):
         except KeyError:
             return HttpResponse("Error")
    
-
-
 def reset_ac_flag(request):
     """
     Reset the annotation_complete flag for all persons of a worker and dataset (AJAX endpoint).
@@ -1172,8 +1142,6 @@ def create_video(request):
     print("This Functionality is removed for testing purposes")
     return HttpResponse("This Functionality is removed for testing purposes")
 
-
-
 def serve_frame(request):
     """
     Serve a frame image path for a given frame number and camera (AJAX endpoint).
@@ -1186,37 +1154,20 @@ def serve_frame(request):
         # try:
         frame_number = int(float(request.POST['frame_number']))
         camera_name = int(request.POST['camera_name'])
-        # print(camera_name)
-        camera_name = settings.CAMS[camera_name]
-        # frames_path = os.path.join('gtm_hit/static/gtm_hit/dset/'+settings.DSETNAME+'/frames', camera_name)
-        
-        # os.path.join(settings.DSETPATH,'frames', camera_name)
-        # pattern = f"{frames_path}/*_{frame_number}.jpg"
-        # print(pattern)
-        # matching_files = glob.glob(pattern)
-        # print(matching_files)
-        # if matching_files:
-        #     response = {
-        #     'frame_string': '/'+ os.path.join(*matching_files[0].split('/')[-7:])
-        #     }
-            # print("Timeview: ", response)
 
-            # return HttpResponse(json.dumps(response))
-        if settings.FRAME_PATH_DICT[frame_number][camera_name]:
+        camera_name = settings.CAMS[camera_name]
+        filepath = static(f'gtm_hit/dset/{settings.DSETNAME}/frames/{camera_name}/image_{new_frame_number}.jpg')
+        # settings.FRAMES / f'{camera_name}' / f'image_{frame_number}.jpg'
+        if filepath.is_file():
             response = {
-                'frame_string': settings.FRAME_PATH_DICT[frame_number][camera_name]
+                'frame_string':filepath 
                 }
             return HttpResponse(json.dumps(response))
+            
         else:
             print(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
             return HttpResponse(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
-        # except:
-        #     print(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
-        #     raise Http404(f"No frame found matching pattern for camera {camera_name} and frame {frame_number}")
-    # print("Error")
     return HttpResponse("Error")
-
-
 
 def merge(request):
     """

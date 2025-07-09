@@ -1,33 +1,114 @@
-"""
-Run once before launching the server.
-Sets up the repository as required, establishing symlinks and...
+# """
+# Run once before launching the server.
+# Sets up the repository as required, establishing symlinks and...
 
-For cvlab users:
+# For cvlab users:
 
-python initial.py --dset_src '/cvlabscratch/datasets/SCOUT' --dsetname SCOUT
-"""
+# python initial.py --dset_src '/cvlabscratch/datasets/SCOUT' --dsetname SCOUT
+# """
+
+# from argparse import ArgumentParser
+# from pathlib import Path
+
+# def main():
+#     parser = ArgumentParser()
+
+#     parser.add_argument('--dset_src', type=str, required=True)
+#     parser.add_argument('--dsetname', type=str, default="SCOUT")
+#     parser.add_argument('--sequence', type=int, default=1, help="Sequence to annotate")
+
+#     args = parser.parse_args()
+
+#     SYMLINK_BASE = Path(args.dset_src)
+
+#     STATIC_ROOT = Path('gtm_hit/static')
+#     DSETPATH = STATIC_ROOT / "gtm_hit" / "dset" / args.dsetname
+
+#     SYMLINK_SOURCE_IMAGES = SYMLINK_BASE / 'images' / f'sequence_{args.sequence}'
+#     SYMLINK_DEST_IMAGES = (DSETPATH / "frames").symlink_to(SYMLINK_SOURCE_IMAGES)
+    
+#     SYMLINK_SRC_CALIBPATH = SYMLINK_BASE / 'calibrations'
+#     SYMLINK_DEST_CALIBPATH = (DSETPATH / "calibrations").symlink_to(SYMLINK_SRC_CALIBPATH)
+
+#     SYMLINK_SOURCE_MESH = SYMLINK_BASE / 'meshes' / 'mesh.ply'
+#     SYMLINK_DEST_MESH = (DSETPATH / 'meshes' / 'mesh.ply').symlink_to(SYMLINK_SOURCE_MESH)
+
+#     # SYMLINK_SOURCE_ROI = SYMLINK_BASE / 'roi'
+#     # SYMLINK_DEST_ROI = (DSETPATH / 'roi').symlink_to(SYMLINK_SOURCE_MESH)
 
 
 
 
-
-
-
-
+# if __name__=="__main__":
+#     main()
 from argparse import ArgumentParser
+from pathlib import Path
 
+def safe_symlink(source: Path, dest: Path):
+    """
+    Create a symlink from `dest` to `source`.
+    If `dest` exists:
+      - Do nothing if it's already a symlink to the correct source
+      - Remove it if it's a wrong or broken symlink, or a file/directory
+    """
+    try:
+        if dest.is_symlink():
+            if dest.resolve() == source.resolve():
+                print(f"[OK] Symlink already exists: {dest} -> {source}")
+                return
+            else:
+                print(f"[FIX] Removing incorrect symlink: {dest}")
+                dest.unlink()
+        elif dest.exists():
+            print(f"[WARN] Destination exists and is not a symlink: {dest}. Removing.")
+            if dest.is_dir():
+                # Use rmdir only if it's empty; otherwise you may want to raise an error
+                dest.rmdir()
+            else:
+                dest.unlink()
+        else:
+            # Parent directory might not exist
+            dest.parent.mkdir(parents=True, exist_ok=True)
+
+        dest.symlink_to(source)
+        print(f"[CREATED] Symlink: {dest} -> {source}")
+    except Exception as e:
+        print(f"[ERROR] Could not create symlink: {dest} -> {source}")
+        print(f"        {e}")
 
 def main():
     parser = ArgumentParser()
     parser.add_argument('--dset_src', type=str, required=True)
     parser.add_argument('--dsetname', type=str, default="SCOUT")
-
+    parser.add_argument('--sequence', type=int, default=1, help="Sequence to annotate")
     args = parser.parse_args()
 
-    SYMLINK_BASE = Path(args.dset_src)
+    SYMLINK_BASE = Path(args.dset_src).resolve()
 
+    STATIC_ROOT = Path('gtm_hit/static')
     DSETPATH = STATIC_ROOT / "gtm_hit" / "dset" / args.dsetname
-    SYMLINK_DEST_FRAMES = DSETPATH / "frames"
-    SYMLINK_SOURCE_FRAMES = SYMLINK_BASE / 'images' / SEQUENCE
-    CALIBPATH = DSETPATH / "calibrations"
-    CALIB_SRC = SYMLINK_BASE / 'calibrations'/ SEQUENCE
+    DSETPATH.mkdir(parents=True, exist_ok=True)
+
+    # 1. Symlink for frames (image sequence)
+    src_images = SYMLINK_BASE / 'images' / f'sequence_{args.sequence}'
+    dest_images = DSETPATH / "frames"
+    safe_symlink(src_images, dest_images)
+
+    # 2. Symlink for calibrations
+    src_calibs = SYMLINK_BASE / 'calibrations'
+    dest_calibs = DSETPATH / "calibrations"
+    safe_symlink(src_calibs, dest_calibs)
+
+    # 3. Symlink for mesh
+    src_mesh = SYMLINK_BASE / 'meshes' / 'mesh.ply'
+    dest_mesh = DSETPATH / 'meshes' / 'mesh.ply'
+    dest_mesh.parent.mkdir(parents=True, exist_ok=True)
+    safe_symlink(src_mesh, dest_mesh)
+
+    src_roi = SYMLINK_BASE / 'roi'
+    dest_roi = (DSETPATH / 'roi')
+    dest_roi.parent.mkdir(parents=True, exist_ok=True)
+    safe_symlink(src_roi, dest_roi)
+
+if __name__ == '__main__':
+    main()

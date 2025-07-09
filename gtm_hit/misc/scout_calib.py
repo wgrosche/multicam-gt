@@ -82,17 +82,13 @@ def prepare_calibs(calib_source_path, calib_path):
         if not (calib_path / calib_file.name).exists():
             (calib_path / calib_file.name).symlink_to(calib_file)
 
-def load_scout_calib(params_dir:Path, cameras:List[str], calib_source_path:Optional[Path] = None):
-    if calib_source_path is not None and calib_source_path.exists():
-        prepare_calibs(calib_source_path, params_dir)
-        if not params_dir.exists():
-            params_dir.mkdir(parents=True, exist_ok=True)
+def load_scout_calib(params_dir:Path, cameras:List[str]):
 
     cam_params = {}
 
     for camera_name in cameras:
         camera_parameters = CameraParams(camera_name)
-        camera_parameters.read_from_json(params_dir / f"{camera_name}_0.json")
+        camera_parameters.read_from_json(params_dir / f"{camera_name}.json")
         camera_parameters.set_view_id(camera_parameters)
         cam_params[camera_name] = camera_parameters
     return cam_params

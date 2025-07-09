@@ -87,6 +87,7 @@ class View(models.Model):
     view_id = models.IntegerField(primary_key=True,verbose_name="View ID")
     def __str__(self):
         return f"CAM{self.view_id+1}"
+        # return f"CAM{self.view_id}"
     
 class Annotation(models.Model):
     frame = models.ForeignKey(MultiViewFrame, on_delete=models.CASCADE)
