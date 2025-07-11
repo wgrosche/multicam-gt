@@ -15,6 +15,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'gtmarker.settings')
 django.setup()
 
 from django.conf import settings
+from django.db.models import Count
 from gtm_hit.misc.scout_preprocess import preprocess_scout_data, preprocess_scout_data_from_dict
 from gtm_hit.models import MultiViewFrame, Worker, Annotation, Person, Dataset, Annotation2DView, View
 
@@ -138,11 +139,10 @@ def export(dataset:Dataset, worker:Worker, output:str, sequence:str = 'sequence_
     max_frame = frame_range['max_frame_id']#max([frame['frame_id'] for frame in frames])
     min_frame = frame_range['min_frame_id']#min([frame['frame_id'] for frame in frames])
 
-    # Use Python range for frame IDs
     frame_ids = range(min_frame, max_frame + 1)
 
     # filter out if only ~3 annotations
-    people = Person.objects.filter(worker= worker, dataset = dataset, annotation__frame__frame_id__in=frame_ids).order_by('person_id').distinct().values('person_id')
+    # people = Person.objects.filter(worker= worker, dataset = dataset, annotation__frame__frame_id__in=frame_ids).order_by('person_id').distinct().values('person_id')
 
     people = (
     Person.objects.filter(
